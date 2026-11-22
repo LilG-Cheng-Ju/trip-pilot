@@ -869,7 +869,7 @@ export class ItineraryPageComponent implements OnInit {
       if (item.latitude !== null && item.longitude !== null) {
         pins.push({
           id: item.id,
-          order: order++,
+          order: item.type === 'FLIGHT' ? 0 : order++,
           title: item.title,
           lat: item.latitude,
           lng: item.longitude,
@@ -884,7 +884,9 @@ export class ItineraryPageComponent implements OnInit {
   protected readonly pinOrderById = computed<Map<string, number>>(() => {
     const map = new Map<string, number>();
     for (const pin of this.mapPins()) {
-      map.set(pin.id, pin.order);
+      if (pin.order > 0) {
+        map.set(pin.id, pin.order);
+      }
     }
     return map;
   });

@@ -184,11 +184,11 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
       const isSelected = pin.id === selectedId;
       const el = document.createElement('button');
       el.type = 'button';
-      el.textContent = String(pin.order);
       el.title = pin.title;
-      el.style.width = isSelected ? '34px' : '28px';
-      el.style.height = isSelected ? '34px' : '28px';
-      el.style.borderRadius = '9999px';
+      el.style.display = 'inline-flex';
+      el.style.alignItems = 'center';
+      el.style.justifyContent = 'center';
+      el.style.gap = '2px';
       el.style.border = '2px solid #FFFFFF';
       el.style.background = isSelected ? '#C89B5B' : '#1B2A4A';
       el.style.color = '#FFFFFF';
@@ -196,6 +196,26 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
       el.style.fontSize = '12px';
       el.style.cursor = 'pointer';
       el.style.boxShadow = '0 3px 10px rgba(27, 42, 74, 0.35)';
+
+      if (pin.type === 'FLIGHT') {
+        el.innerHTML =
+          '<span class="ms-icon" style="font-size:17px;color:#FFFFFF;">flight</span>';
+        el.style.width = isSelected ? '36px' : '32px';
+        el.style.height = isSelected ? '36px' : '32px';
+        el.style.borderRadius = '9999px';
+        el.style.border = '2px solid #C89B5B';
+      } else if (pin.type === 'RESERVED_TRANSIT') {
+        el.innerHTML = `<span class="ms-icon" style="font-size:15px;color:#FFFFFF;">train</span><span>${pin.order}</span>`;
+        el.style.height = isSelected ? '34px' : '30px';
+        el.style.padding = '0 8px';
+        el.style.borderRadius = '10px';
+      } else {
+        el.textContent = String(pin.order);
+        el.style.width = isSelected ? '34px' : '28px';
+        el.style.height = isSelected ? '34px' : '28px';
+        el.style.borderRadius = '9999px';
+      }
+
       el.addEventListener('click', () => this.pinSelected.emit(pin.id));
 
       const marker = new maplibregl.Marker({ element: el })
@@ -205,8 +225,9 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
     }
 
     if (this.styleLoaded) {
-      // Primary stop-to-stop route (Deep Navy).
-      const stopCoords = pins.map((p) => [p.lng, p.lat]);
+      // Primary stop-to-stop route (Deep Navy), excluding FLIGHT airport pins.
+      const groundPins = pins.filter((p) => p.type !== 'FLIGHT');
+      const stopCoords = groundPins.map((p) => [p.lng, p.lat]);
       const stopGeojson = {
         type: 'Feature' as const,
         properties: {},
@@ -220,15 +241,15 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
 
       // Stay departure / return dashed connectors (Warm Champagne Gold).
       const stayLegs: number[][][] = [];
-      if (stay && pins.length > 0) {
+      if (stay && groundPins.length > 0) {
         if (fromStay) {
           stayLegs.push([
             [stay.lng, stay.lat],
-            [pins[0].lng, pins[0].lat],
+            [groundPins[0].lng, groundPins[0].lat],
           ]);
         }
         if (toStay) {
-          const last = pins[pins.length - 1];
+          const last = groundPins[groundPins.length - 1];
           stayLegs.push([
             [last.lng, last.lat],
             [stay.lng, stay.lat],
