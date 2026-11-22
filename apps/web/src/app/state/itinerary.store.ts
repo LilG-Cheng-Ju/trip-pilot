@@ -181,6 +181,18 @@ export const ItineraryStore = signalStore(
       await this.loadTrip(trip.id);
     },
 
+    async updateItem(
+      itemId: string,
+      payload: Partial<CreateItemPayload>,
+    ): Promise<void> {
+      const trip = store.trip();
+      if (!trip) {
+        return;
+      }
+      await api.updateItem(itemId, payload);
+      await this.loadTrip(trip.id);
+    },
+
     async deleteItem(itemId: string): Promise<void> {
       const trip = store.trip();
       if (!trip) {

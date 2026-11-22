@@ -1,5 +1,7 @@
 import { Component, computed, inject, OnInit } from '@angular/core';
 
+import { findCountry } from '../../core/constants/travel-options';
+import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ExpenseCategory } from '../../core/models/tripilot.models';
 import { StatsStore } from '../../state/stats.store';
@@ -60,7 +62,7 @@ import { StatsStore } from '../../state/stats.store';
             } @else {
               <div class="country-list">
                 @for (code of s.countries_visited; track code) {
-                  <span class="country-pill">{{ code }}</span>
+                  <span class="country-pill">{{ countryLabel(code) }}</span>
                 }
               </div>
             }
@@ -230,6 +232,7 @@ import { StatsStore } from '../../state/stats.store';
 })
 export class StatsPageComponent implements OnInit {
   protected readonly store = inject(StatsStore);
+  private readonly i18n = inject(I18nService);
   private readonly currentYear = new Date().getFullYear();
 
   protected readonly yearOptions: (number | null)[] = [
@@ -253,6 +256,14 @@ export class StatsPageComponent implements OnInit {
 
   ngOnInit(): void {
     void this.store.loadStats(this.currentYear);
+  }
+
+  protected countryLabel(code: string): string {
+    const match = findCountry(code);
+    if (!match) return code;
+    return this.i18n.locale() === 'zh-TW'
+      ? `${match.nameZh} (${match.code})`
+      : `${match.nameEn} (${match.code})`;
   }
 
   protected categoryKey(

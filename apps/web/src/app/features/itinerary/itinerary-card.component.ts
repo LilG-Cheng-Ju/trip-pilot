@@ -3,7 +3,7 @@ import { Component, input, output } from '@angular/core';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ItineraryItem } from '../../core/models/tripilot.models';
 
-/** Renders split-transit and venue itinerary cards with one-tap Google Maps deep links. */
+/** Renders split-transit and venue itinerary cards with synced map pin badges. */
 @Component({
   selector: 'app-itinerary-card',
   imports: [TranslatePipe],
@@ -12,15 +12,23 @@ import { ItineraryItem } from '../../core/models/tripilot.models';
       <div class="connector-wrap">
         <div class="connector-line" aria-hidden="true"></div>
         <div class="connector-pill">
-          <span>🚇 {{ item().title }}</span>
+          <span class="ms-icon sm" aria-hidden="true">subway</span>
+          <span>{{ item().title }}</span>
           @if (detail('duration_minutes')) {
             <span class="tabular-nums">· {{ detail('duration_minutes') }} min</span>
           }
           @if (mapsUrl()) {
-            <a [href]="mapsUrl()" target="_blank" rel="noopener noreferrer" class="connector-link">↗</a>
+            <a [href]="mapsUrl()" target="_blank" rel="noopener noreferrer" class="connector-link">
+              <span class="ms-icon sm">open_in_new</span>
+            </a>
           }
           @if (!readOnly()) {
-            <button type="button" class="mini-btn" (click)="deleted.emit(item().id)" aria-label="Delete">×</button>
+            <button type="button" class="mini-btn" (click)="edited.emit(item())" aria-label="Edit">
+              <span class="ms-icon sm">edit</span>
+            </button>
+            <button type="button" class="mini-btn" (click)="deleted.emit(item().id)" aria-label="Delete">
+              <span class="ms-icon sm">close</span>
+            </button>
           }
         </div>
         <div class="connector-line" aria-hidden="true"></div>
@@ -32,7 +40,10 @@ import { ItineraryItem } from '../../core/models/tripilot.models';
         (click)="cardClicked.emit(item().id)"
       >
         <div class="flight-top">
-          <span class="flight-tag">✈ {{ detail('flight_number') || item().title }}</span>
+          <span class="flight-tag">
+            <span class="ms-icon sm" aria-hidden="true">flight</span>
+            <span>{{ detail('flight_number') || item().title }}</span>
+          </span>
           @if (detail('booking_ref')) {
             <span class="ref-chip">{{ detail('booking_ref') }}</span>
           }
@@ -56,12 +67,21 @@ import { ItineraryItem } from '../../core/models/tripilot.models';
         @if (!readOnly()) {
           <div class="card-footer dark">
             <div class="order-controls">
-              <button type="button" class="icon-btn dark" (click)="$event.stopPropagation(); moveUp.emit(item())">↑</button>
-              <button type="button" class="icon-btn dark" (click)="$event.stopPropagation(); moveDown.emit(item())">↓</button>
+              <button type="button" class="icon-btn dark" (click)="$event.stopPropagation(); moveUp.emit(item())" aria-label="Move up">
+                <span class="ms-icon">keyboard_arrow_up</span>
+              </button>
+              <button type="button" class="icon-btn dark" (click)="$event.stopPropagation(); moveDown.emit(item())" aria-label="Move down">
+                <span class="ms-icon">keyboard_arrow_down</span>
+              </button>
             </div>
-            <button type="button" class="icon-btn dark danger" (click)="$event.stopPropagation(); deleted.emit(item().id)">
-              {{ 'common.delete' | t }}
-            </button>
+            <div class="right-controls">
+              <button type="button" class="icon-btn dark" (click)="$event.stopPropagation(); edited.emit(item())" aria-label="Edit">
+                <span class="ms-icon sm">edit</span>
+              </button>
+              <button type="button" class="icon-btn dark danger" (click)="$event.stopPropagation(); deleted.emit(item().id)" aria-label="Delete">
+                <span class="ms-icon sm">delete</span>
+              </button>
+            </div>
           </div>
         }
       </article>
@@ -74,7 +94,15 @@ import { ItineraryItem } from '../../core/models/tripilot.models';
       >
         <div class="card-head">
           <div class="card-meta">
-            <span class="type-pill">{{ typeLabel() | t }}</span>
+            @if (pinOrder() !== null) {
+              <span class="pin-badge tabular-nums" [class.selected]="selected()">
+                {{ pinOrder() }}
+              </span>
+            }
+            <span class="type-pill">
+              <span class="ms-icon sm" aria-hidden="true">{{ typeIcon() }}</span>
+              <span>{{ typeLabel() | t }}</span>
+            </span>
             @if (item().start_time) {
               <span class="time-pill tabular-nums">
                 {{ item().start_time }}@if (item().end_time) { – {{ item().end_time }} }
@@ -89,7 +117,8 @@ import { ItineraryItem } from '../../core/models/tripilot.models';
               rel="noopener noreferrer"
               (click)="$event.stopPropagation()"
             >
-              📍 {{ 'common.navigate' | t }}
+              <span class="ms-icon sm" aria-hidden="true">near_me</span>
+              <span>{{ 'common.navigate' | t }}</span>
             </a>
           }
         </div>
@@ -102,7 +131,9 @@ import { ItineraryItem } from '../../core/models/tripilot.models';
 
         <div class="detail-chips">
           @if (detail('line_or_train_no')) {
-            <span class="info-chip">🚅 {{ detail('line_or_train_no') }}</span>
+            <span class="info-chip">
+              <span class="ms-icon sm">train</span> {{ detail('line_or_train_no') }}
+            </span>
           }
           @if (detail('seat')) {
             <span class="info-chip">{{ detail('seat') }}</span>
@@ -114,7 +145,9 @@ import { ItineraryItem } from '../../core/models/tripilot.models';
             <span class="info-chip">Conf: {{ detail('confirmation_code') }}</span>
           }
           @if (detail('free_cancellation_deadline')) {
-            <span class="alert-chip">⚠ {{ detail('free_cancellation_deadline') }}</span>
+            <span class="alert-chip">
+              <span class="ms-icon sm">warning</span> {{ detail('free_cancellation_deadline') }}
+            </span>
           }
         </div>
 
@@ -125,15 +158,25 @@ import { ItineraryItem } from '../../core/models/tripilot.models';
         @if (!readOnly()) {
           <div class="card-footer">
             <div class="order-controls">
-              <button type="button" class="icon-btn" (click)="$event.stopPropagation(); moveUp.emit(item())">↑</button>
-              <button type="button" class="icon-btn" (click)="$event.stopPropagation(); moveDown.emit(item())">↓</button>
+              <button type="button" class="icon-btn" (click)="$event.stopPropagation(); moveUp.emit(item())" aria-label="Move up">
+                <span class="ms-icon">keyboard_arrow_up</span>
+              </button>
+              <button type="button" class="icon-btn" (click)="$event.stopPropagation(); moveDown.emit(item())" aria-label="Move down">
+                <span class="ms-icon">keyboard_arrow_down</span>
+              </button>
               <button type="button" class="icon-btn alt-btn" (click)="$event.stopPropagation(); addAlternative.emit(item())">
-                {{ 'itinerary.choice.addAlt' | t }}
+                <span class="ms-icon sm" aria-hidden="true">alt_route</span>
+                <span>{{ 'itinerary.choice.addAlt' | t }}</span>
               </button>
             </div>
-            <button type="button" class="icon-btn danger" (click)="$event.stopPropagation(); deleted.emit(item().id)">
-              {{ 'common.delete' | t }}
-            </button>
+            <div class="right-controls">
+              <button type="button" class="icon-btn" (click)="$event.stopPropagation(); edited.emit(item())" aria-label="Edit">
+                <span class="ms-icon sm">edit</span>
+              </button>
+              <button type="button" class="icon-btn danger" (click)="$event.stopPropagation(); deleted.emit(item().id)" aria-label="Delete">
+                <span class="ms-icon sm">delete</span>
+              </button>
+            </div>
           </div>
         }
       </article>
@@ -164,17 +207,17 @@ import { ItineraryItem } from '../../core/models/tripilot.models';
       font-weight: 600;
     }
     .connector-link {
+      display: inline-flex;
       color: var(--color-primary);
       text-decoration: none;
-      font-weight: 700;
     }
     .mini-btn {
+      display: inline-flex;
       border: none;
       background: transparent;
       color: var(--color-text-muted);
       cursor: pointer;
-      font-size: 0.875rem;
-      padding: 0 2px;
+      padding: 2px;
     }
     .card {
       border-radius: var(--radius-md);
@@ -199,6 +242,11 @@ import { ItineraryItem } from '../../core/models/tripilot.models';
       margin-bottom: var(--space-3);
       font-size: 0.8125rem;
       font-weight: 600;
+    }
+    .flight-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
     .ref-chip {
       padding: 2px 8px;
@@ -264,28 +312,50 @@ import { ItineraryItem } from '../../core/models/tripilot.models';
       align-items: center;
       justify-content: space-between;
       gap: var(--space-2);
-      margin-bottom: 6px;
+      margin-bottom: 8px;
     }
     .card-meta {
       display: flex;
       align-items: center;
       gap: 6px;
+      flex-wrap: wrap;
+    }
+    .pin-badge {
+      display: inline-grid;
+      place-items: center;
+      width: 24px;
+      height: 24px;
+      border-radius: var(--radius-pill);
+      background: var(--color-primary);
+      color: #ffffff;
+      font-size: 0.75rem;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+    .pin-badge.selected {
+      background: var(--color-accent);
     }
     .type-pill {
-      padding: 2px 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 9px;
       border-radius: var(--radius-pill);
       background: var(--color-surface-muted);
       color: var(--color-primary);
-      font-size: 0.7rem;
+      font-size: 0.72rem;
       font-weight: 700;
     }
     .time-pill {
-      font-size: 0.75rem;
+      font-size: 0.78rem;
       font-weight: 600;
       color: var(--color-text-secondary);
     }
     .nav-link {
-      font-size: 0.75rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 0.78rem;
       font-weight: 600;
       color: var(--color-primary);
       text-decoration: none;
@@ -307,21 +377,23 @@ import { ItineraryItem } from '../../core/models/tripilot.models';
       gap: 6px;
       margin-top: 6px;
     }
-    .info-chip {
+    .info-chip,
+    .alert-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
       padding: 3px 8px;
       border-radius: var(--radius-sm);
-      background: var(--color-primary-tint);
-      color: var(--color-primary);
       font-size: 0.75rem;
       font-weight: 600;
     }
+    .info-chip {
+      background: var(--color-primary-tint);
+      color: var(--color-primary);
+    }
     .alert-chip {
-      padding: 3px 8px;
-      border-radius: var(--radius-sm);
       background: var(--color-alert-soft);
       color: var(--color-alert);
-      font-size: 0.75rem;
-      font-weight: 600;
     }
     .card-notes {
       margin: 8px 0 0;
@@ -340,12 +412,20 @@ import { ItineraryItem } from '../../core/models/tripilot.models';
     .card-footer.dark {
       border-top-color: rgba(255, 255, 255, 0.14);
     }
-    .order-controls {
+    .order-controls,
+    .right-controls {
       display: flex;
+      align-items: center;
       gap: 6px;
     }
     .icon-btn {
-      padding: 4px 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      min-width: 34px;
+      height: 34px;
+      padding: 0 10px;
       border: 1px solid var(--color-border);
       border-radius: var(--radius-pill);
       background: var(--color-bg);
@@ -354,6 +434,10 @@ import { ItineraryItem } from '../../core/models/tripilot.models';
       font-size: 0.75rem;
       font-weight: 600;
       cursor: pointer;
+    }
+    .icon-btn:hover {
+      border-color: var(--color-primary);
+      color: var(--color-primary);
     }
     .icon-btn.dark {
       border-color: rgba(255, 255, 255, 0.25);
@@ -373,6 +457,7 @@ import { ItineraryItem } from '../../core/models/tripilot.models';
 })
 export class ItineraryCardComponent {
   readonly item = input.required<ItineraryItem>();
+  readonly pinOrder = input<number | null>(null);
   readonly selected = input(false);
   readonly readOnly = input(false);
 
@@ -380,11 +465,29 @@ export class ItineraryCardComponent {
   readonly moveUp = output<ItineraryItem>();
   readonly moveDown = output<ItineraryItem>();
   readonly addAlternative = output<ItineraryItem>();
+  readonly edited = output<ItineraryItem>();
   readonly deleted = output<string>();
 
   protected detail(key: string): string | null {
     const val = this.item().details?.[key];
     return val === undefined || val === null || val === '' ? null : String(val);
+  }
+
+  protected typeIcon(): string {
+    switch (this.item().type) {
+      case 'FLIGHT':
+        return 'flight';
+      case 'RESERVED_TRANSIT':
+        return 'train';
+      case 'LOCAL_TRANSIT':
+        return 'subway';
+      case 'STAY':
+        return 'hotel';
+      case 'FOOD':
+        return 'restaurant';
+      default:
+        return 'place';
+    }
   }
 
   protected typeLabel():
