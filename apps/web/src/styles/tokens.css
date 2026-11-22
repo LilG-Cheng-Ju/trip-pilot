@@ -1,0 +1,58 @@
+/*
+ * Tripilot Design Tokens
+ * Single source of truth for palette, surfaces, typography, spacing, and elevation.
+ */
+:root {
+  /* Primary: Refined Japanese Deep Navy */
+  --color-primary: #1b2a4a;
+  --color-primary-soft: #2b4162;
+  --color-primary-tint: #eef2f8;
+
+  /* Accent: Warm Champagne Gold & Subtle Terracotta */
+  --color-accent: #c89b5b;
+  --color-accent-soft: #f5efe6;
+  --color-alert: #d96b52;
+  --color-alert-soft: #fdf1ee;
+
+  /* Surfaces & Hairline Borders */
+  --color-bg: #f7f6f2;
+  --color-surface: #ffffff;
+  --color-surface-muted: #efece5;
+  --color-border: #e6e4dd;
+
+  /* Typography Hierarchy */
+  --color-text-primary: #172033;
+  --color-text-secondary: #5a6475;
+  --color-text-muted: #8c94a3;
+  --color-text-on-primary: #ffffff;
+
+  /* Semantic Item Accents */
+  --item-flight: #1b2a4a;
+  --item-reserved: #2b4162;
+  --item-stay: #c89b5b;
+  --item-food: #d96b52;
+  --item-spot: #3d6b5e;
+
+  /* Radii */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-pill: 9999px;
+
+  /* Elevation */
+  --shadow-card: 0 1px 3px rgba(27, 42, 74, 0.05), 0 4px 12px rgba(27, 42, 74, 0.04);
+  --shadow-float: 0 8px 24px rgba(27, 42, 74, 0.14);
+
+  /* Spacing & Layout */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --nav-bottom-height: 64px;
+
+  /* Typography */
+  --font-sans: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}

@@ -1,0 +1,81 @@
+.shell {
+  min-height: 100dvh;
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+  background: var(--color-primary);
+  color: var(--color-text-on-primary);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.brand-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+}
+
+.locale-pill {
+  padding: 6px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--color-text-on-primary);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.content {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4);
+}
+
+.welcome-card {
+  padding: var(--space-5);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+.tagline {
+  margin: 0 0 var(--space-4);
+  color: var(--color-text-secondary);
+  font-size: 0.9375rem;
+}
+
+.pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.pill {
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-soft);
+  color: var(--color-primary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
