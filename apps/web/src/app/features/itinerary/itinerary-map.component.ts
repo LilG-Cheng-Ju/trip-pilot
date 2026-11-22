@@ -76,6 +76,7 @@ const POSITRON_STYLE_URL =
 })
 export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
   readonly pins = input<MapPin[]>([]);
+  readonly routePath = input<[number, number][]>([]);
   readonly stayPin = input<StayMapPin | null>(null);
   readonly connectFromStay = input(true);
   readonly connectToStay = input(true);
@@ -91,12 +92,13 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
   constructor() {
     effect(() => {
       const currentPins = this.pins();
+      const path = this.routePath();
       const stay = this.stayPin();
       const fromStay = this.connectFromStay();
       const toStay = this.connectToStay();
       const selectedId = this.selectedPinId();
       if (this.map) {
-        this.renderPinsAndRoute(currentPins, stay, fromStay, toStay, selectedId);
+        this.renderPinsAndRoute(currentPins, path, stay, fromStay, toStay, selectedId);
       }
     });
   }
@@ -119,6 +121,7 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
         this.styleLoaded = true;
         this.renderPinsAndRoute(
           this.pins(),
+          this.routePath(),
           this.stayPin(),
           this.connectFromStay(),
           this.connectToStay(),
@@ -146,6 +149,7 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
 
   private renderPinsAndRoute(
     pins: MapPin[],
+    routePath: [number, number][],
     stay: StayMapPin | null,
     fromStay: boolean,
     toStay: boolean,
@@ -225,13 +229,13 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
     }
 
     if (this.styleLoaded) {
-      // Primary stop-to-stop route (Deep Navy), excluding FLIGHT airport pins.
-      const groundPins = pins.filter((p) => p.type !== 'FLIGHT');
-      const stopCoords = groundPins.map((p) => [p.lng, p.lat]);
+      // Ordered timeline path connecting airports, transit stations, stays, and stops.
+      const orderedCoords =
+        routePath.length > 0 ? routePath : pins.map((p): [number, number] => [p.lng, p.lat]);
       const stopGeojson = {
         type: 'Feature' as const,
         properties: {},
-        geometry: { type: 'LineString' as const, coordinates: stopCoords },
+        geometry: { type: 'LineString' as const, coordinates: orderedCoords },
       };
       this.upsertLineLayer('tripilot-route', 'tripilot-route-line', stopGeojson, {
         'line-color': '#1B2A4A',
@@ -239,21 +243,18 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
         'line-opacity': 0.78,
       });
 
-      // Stay departure / return dashed connectors (Warm Champagne Gold).
+      // Inherited Stay departure / return dashed connectors (Warm Champagne Gold).
       const stayLegs: number[][][] = [];
-      if (stay && groundPins.length > 0) {
-        if (fromStay) {
-          stayLegs.push([
-            [stay.lng, stay.lat],
-            [groundPins[0].lng, groundPins[0].lat],
-          ]);
+      if (stay && orderedCoords.length > 0) {
+        const first = orderedCoords[0];
+        const last = orderedCoords[orderedCoords.length - 1];
+        const sameAsStay = (pt: [number, number]) =>
+          Math.abs(pt[0] - stay.lng) < 1e-5 && Math.abs(pt[1] - stay.lat) < 1e-5;
+        if (fromStay && !sameAsStay(first)) {
+          stayLegs.push([[stay.lng, stay.lat], first]);
         }
-        if (toStay) {
-          const last = groundPins[groundPins.length - 1];
-          stayLegs.push([
-            [last.lng, last.lat],
-            [stay.lng, stay.lat],
-          ]);
+        if (toStay && !sameAsStay(last)) {
+          stayLegs.push([last, [stay.lng, stay.lat]]);
         }
       }
       const stayGeojson = {

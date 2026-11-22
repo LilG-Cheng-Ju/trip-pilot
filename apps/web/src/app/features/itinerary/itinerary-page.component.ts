@@ -181,6 +181,7 @@ interface TimelineSlot {
                 <div class="mobile-map-box">
                   <app-itinerary-map
                     [pins]="mapPins()"
+                    [routePath]="mapRoutePath()"
                     [stayPin]="stayMapPin()"
                     [connectFromStay]="connectFromStay()"
                     [connectToStay]="connectToStay()"
@@ -247,6 +248,7 @@ interface TimelineSlot {
           <aside class="desktop-map-pane">
             <app-itinerary-map
               [pins]="mapPins()"
+              [routePath]="mapRoutePath()"
               [stayPin]="stayMapPin()"
               [connectFromStay]="connectFromStay()"
               [connectToStay]="connectToStay()"
@@ -855,6 +857,14 @@ export class ItineraryPageComponent implements OnInit {
     // Skip return leg to hotel on departure days that end with a flight.
     return slots[slots.length - 1].activeItem.type !== 'FLIGHT';
   });
+
+  /** Chronological coordinates across flights, stays, transit stations, and stops. */
+  protected readonly mapRoutePath = computed<[number, number][]>(() =>
+    this.timelineSlots()
+      .map((slot) => slot.activeItem)
+      .filter((item) => item.latitude !== null && item.longitude !== null)
+      .map((item): [number, number] => [item.longitude!, item.latitude!]),
+  );
 
   protected readonly mapPins = computed<MapPin[]>(() => {
     const basecampId = this.stayMapPin()?.id;
