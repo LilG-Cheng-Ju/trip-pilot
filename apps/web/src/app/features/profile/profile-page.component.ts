@@ -1,11 +1,15 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
+import {
+  SUPPORTED_COUNTRIES,
+  SUPPORTED_CURRENCIES,
+} from '../../core/constants/travel-options';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { AuthStore } from '../../state/auth.store';
 
-/** User travel preferences, bilingual switcher, and Personal API Token manager. */
+/** User travel preferences (dropdowns), bilingual switcher, and PAT manager. */
 @Component({
   selector: 'app-profile-page',
   imports: [FormsModule, TranslatePipe],
@@ -21,19 +25,30 @@ import { AuthStore } from '../../state/auth.store';
           </button>
         </div>
 
-        <form class="pref-grid" (ngSubmit)="savePreferences()">
-          <label class="field">
-            <span>{{ 'profile.displayName' | t }}</span>
-            <input type="text" [(ngModel)]="displayName" name="displayName" />
-          </label>
+        <form class="pref-form" (ngSubmit)="savePreferences()">
           <label class="field">
             <span>{{ 'profile.homeCountry' | t }}</span>
-            <input type="text" maxlength="2" [(ngModel)]="homeCountry" name="homeCountry" />
+            <select [(ngModel)]="homeCountry" name="homeCountry">
+              @for (c of countries; track c.code) {
+                <option [value]="c.code">
+                  {{ i18n.locale() === 'zh-TW' ? c.nameZh : c.nameEn }} ({{ c.code }})
+                </option>
+              }
+            </select>
+            <small class="field-hint">{{ 'profile.homeCountryHint' | t }}</small>
           </label>
+
           <label class="field">
             <span>{{ 'profile.homeCurrency' | t }}</span>
-            <input type="text" maxlength="3" [(ngModel)]="homeCurrency" name="homeCurrency" />
+            <select [(ngModel)]="homeCurrency" name="homeCurrency">
+              @for (cur of currencies; track cur.code) {
+                <option [value]="cur.code">
+                  {{ i18n.locale() === 'zh-TW' ? cur.labelZh : cur.labelEn }}
+                </option>
+              }
+            </select>
           </label>
+
           <div class="pref-actions">
             <button type="submit" class="btn-primary">{{ 'common.save' | t }}</button>
             @if (savedNotice()) {
@@ -94,7 +109,7 @@ import { AuthStore } from '../../state/auth.store';
   `,
   styles: `
     .page {
-      max-width: 780px;
+      max-width: 720px;
       margin: 0 auto;
       padding: var(--space-5) var(--space-4) calc(var(--nav-bottom-height) + var(--space-6));
       display: flex;
@@ -131,10 +146,10 @@ import { AuthStore } from '../../state/auth.store';
       font-size: 0.875rem;
       color: var(--color-text-secondary);
     }
-    .pref-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: var(--space-3);
+    .pref-form {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
     }
     .field {
       display: flex;
@@ -144,7 +159,7 @@ import { AuthStore } from '../../state/auth.store';
       font-weight: 600;
       color: var(--color-text-secondary);
     }
-    .field input,
+    .field select,
     .token-form input {
       padding: 10px 12px;
       border: 1px solid var(--color-border);
@@ -153,12 +168,15 @@ import { AuthStore } from '../../state/auth.store';
       color: var(--color-text-primary);
       font: inherit;
     }
+    .field-hint {
+      font-size: 0.75rem;
+      font-weight: 400;
+      color: var(--color-text-muted);
+    }
     .pref-actions {
-      grid-column: 1 / -1;
       display: flex;
       align-items: center;
       gap: var(--space-3);
-      margin-top: 4px;
     }
     .saved-badge {
       font-size: 0.8125rem;
@@ -255,8 +273,9 @@ import { AuthStore } from '../../state/auth.store';
 export class ProfilePageComponent implements OnInit {
   protected readonly authStore = inject(AuthStore);
   protected readonly i18n = inject(I18nService);
+  protected readonly countries = SUPPORTED_COUNTRIES;
+  protected readonly currencies = SUPPORTED_CURRENCIES;
 
-  protected displayName = '';
   protected homeCountry = 'TW';
   protected homeCurrency = 'TWD';
   protected newTokenName = '';
@@ -267,7 +286,6 @@ export class ProfilePageComponent implements OnInit {
     await Promise.all([this.authStore.loadProfile(), this.authStore.loadTokens()]);
     const profile = this.authStore.profile();
     if (profile) {
-      this.displayName = profile.display_name ?? '';
       this.homeCountry = profile.home_country_code;
       this.homeCurrency = profile.home_currency;
     }
@@ -275,9 +293,8 @@ export class ProfilePageComponent implements OnInit {
 
   protected async savePreferences(): Promise<void> {
     await this.authStore.updateProfile({
-      display_name: this.displayName.trim() || null,
-      home_country_code: this.homeCountry.trim().toUpperCase(),
-      home_currency: this.homeCurrency.trim().toUpperCase(),
+      home_country_code: this.homeCountry,
+      home_currency: this.homeCurrency,
     });
     this.savedNotice.set(true);
     setTimeout(() => this.savedNotice.set(false), 2000);

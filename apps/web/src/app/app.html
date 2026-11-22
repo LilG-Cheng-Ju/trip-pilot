@@ -1,37 +1,37 @@
 <div class="app-shell" [class.public-mode]="isPublicShareRoute()">
   @if (!isPublicShareRoute()) {
-    <aside class="desktop-rail" aria-label="Primary navigation">
-      <a class="rail-brand" routerLink="/trips" title="Tripilot">
-        <span class="brand-mark">T</span>
+    <header class="topbar">
+      <a class="brand" routerLink="/trips">
+        <!-- Minimalist compass / paper-plane line emblem -->
+        <svg class="brand-logo" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="M3.5 11.2L20.5 3.5L13.2 20.5L10.6 13.4L3.5 11.2Z"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M10.6 13.4L20.5 3.5"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+          />
+        </svg>
+        <h1 class="brand-name">{{ 'app.name' | t }}</h1>
       </a>
-      <nav class="rail-nav">
-        <a routerLink="/trips" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="rail-item">
-          <span class="nav-icon" aria-hidden="true">✈</span>
-          <span class="nav-label">{{ 'nav.trips' | t }}</span>
+
+      <nav class="desktop-nav" aria-label="Primary navigation">
+        <a routerLink="/trips" routerLinkActive="active" class="nav-tab">
+          {{ 'nav.trips' | t }}
         </a>
-        <a [routerLink]="itineraryRoute()" routerLinkActive="active" class="rail-item">
-          <span class="nav-icon" aria-hidden="true">🗓</span>
-          <span class="nav-label">{{ 'nav.itinerary' | t }}</span>
+        <a routerLink="/stats" routerLinkActive="active" class="nav-tab">
+          {{ 'nav.stats' | t }}
         </a>
-        <a routerLink="/stats" routerLinkActive="active" class="rail-item">
-          <span class="nav-icon" aria-hidden="true">📊</span>
-          <span class="nav-label">{{ 'nav.stats' | t }}</span>
-        </a>
-        <a routerLink="/profile" routerLinkActive="active" class="rail-item">
-          <span class="nav-icon" aria-hidden="true">👤</span>
-          <span class="nav-label">{{ 'nav.profile' | t }}</span>
+        <a routerLink="/profile" routerLinkActive="active" class="nav-tab">
+          {{ 'nav.profile' | t }}
         </a>
       </nav>
-      <button type="button" class="rail-locale" (click)="i18n.toggleLocale()">
-        {{ i18n.locale() === 'en' ? '中' : 'EN' }}
-      </button>
-    </aside>
 
-    <header class="mobile-topbar">
-      <a class="mobile-brand" routerLink="/trips">
-        <span class="brand-dot" aria-hidden="true"></span>
-        <h1>{{ 'app.name' | t }}</h1>
-      </a>
       <button type="button" class="locale-pill" (click)="i18n.toggleLocale()">
         {{ i18n.locale() === 'en' ? '繁體中文' : 'EN' }}
       </button>
@@ -44,20 +44,16 @@
 
   @if (!isPublicShareRoute()) {
     <nav class="mobile-bottom-nav" aria-label="Mobile navigation">
-      <a routerLink="/trips" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="bottom-item">
+      <a routerLink="/trips" routerLinkActive="active" class="bottom-item">
         <span class="nav-icon" aria-hidden="true">✈</span>
         <span>{{ 'nav.trips' | t }}</span>
-      </a>
-      <a [routerLink]="itineraryRoute()" routerLinkActive="active" class="bottom-item">
-        <span class="nav-icon" aria-hidden="true">🗓</span>
-        <span>{{ 'nav.itinerary' | t }}</span>
       </a>
       <a routerLink="/stats" routerLinkActive="active" class="bottom-item">
         <span class="nav-icon" aria-hidden="true">📊</span>
         <span>{{ 'nav.stats' | t }}</span>
       </a>
       <a routerLink="/profile" routerLinkActive="active" class="bottom-item">
-        <span class="nav-icon" aria-hidden="true">👤</span>
+        <span class="nav-icon" aria-hidden="true">⚙</span>
         <span>{{ 'nav.profile' | t }}</span>
       </a>
     </nav>
