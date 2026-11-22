@@ -80,11 +80,43 @@ export const ItineraryStore = signalStore(
       return Boolean(day && option && day.active_option_id === option.id);
     });
 
+    // Inherit the most recent geolocated STAY from Day 1 through the selected day.
+    const basecampStay = computed<ItineraryItem | null>(() => {
+      const trip = store.trip();
+      const currentDay = selectedDay();
+      if (!trip || !currentDay) {
+        return null;
+      }
+      let latestStay: ItineraryItem | null = null;
+      for (const day of trip.days) {
+        if (day.day_index > currentDay.day_index) {
+          break;
+        }
+        const opt =
+          day.id === currentDay.id
+            ? selectedOption()
+            : (day.options.find((o) => o.id === day.active_option_id) ?? day.options[0]);
+        if (!opt) continue;
+        for (const item of opt.items) {
+          if (
+            item.is_selected &&
+            item.type === 'STAY' &&
+            item.latitude !== null &&
+            item.longitude !== null
+          ) {
+            latestStay = item;
+          }
+        }
+      }
+      return latestStay;
+    });
+
     return {
       selectedDay,
       selectedOption,
       stopCount,
       isPreviewingActiveOption,
+      basecampStay,
     };
   }),
   withMethods((store, api = inject(TripilotApiService)) => ({
@@ -151,6 +183,15 @@ export const ItineraryStore = signalStore(
       const newDay = await api.appendDay(trip.id);
       await this.loadTrip(trip.id);
       this.selectDay(newDay.day_index);
+    },
+
+    async updateDayTitle(dayId: string, title: string | null): Promise<void> {
+      const trip = store.trip();
+      if (!trip) {
+        return;
+      }
+      await api.updateDay(dayId, { title: title?.trim() || null });
+      await this.loadTrip(trip.id);
     },
 
     async selectChoiceItem(itemId: string): Promise<void> {

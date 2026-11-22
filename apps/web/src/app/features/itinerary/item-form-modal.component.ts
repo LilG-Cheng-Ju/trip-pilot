@@ -178,6 +178,16 @@ export interface ItemFormSubmitEvent {
               </label>
             </div>
           }
+
+          <label class="field">
+            <span>{{ 'itinerary.form.localName' | t }}</span>
+            <input
+              type="text"
+              [(ngModel)]="localName"
+              name="localName"
+              [placeholder]="'itinerary.form.localNamePlaceholder' | t"
+            />
+          </label>
         }
 
         <label class="field">
@@ -374,6 +384,7 @@ export class ItemFormModalComponent {
   protected seat = '';
   protected transitMin: number | null = 15;
   protected freeCancel = '';
+  protected localName = '';
 
   constructor() {
     effect(() => {
@@ -401,6 +412,7 @@ export class ItemFormModalComponent {
         this.seat = String(d['seat'] ?? '');
         this.transitMin = d['duration_minutes'] ? Number(d['duration_minutes']) : 15;
         this.freeCancel = String(d['free_cancellation_deadline'] ?? '');
+        this.localName = String(d['local_name'] ?? '');
 
         if (edit.latitude !== null && edit.longitude !== null) {
           this.pinnedPlace.set({
@@ -428,6 +440,7 @@ export class ItemFormModalComponent {
         this.seat = '';
         this.transitMin = 15;
         this.freeCancel = '';
+        this.localName = '';
         this.pinnedPlace.set(null);
       }
     });
@@ -502,6 +515,9 @@ export class ItemFormModalComponent {
     } else if (this.itemType === 'STAY') {
       if (this.bookingRef) details['confirmation_code'] = this.bookingRef.trim();
       if (this.freeCancel) details['free_cancellation_deadline'] = this.freeCancel.trim();
+    }
+    if (this.localName.trim()) {
+      details['local_name'] = this.localName.trim();
     }
 
     const pinned = this.pinnedPlace();

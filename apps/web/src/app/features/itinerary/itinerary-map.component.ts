@@ -21,17 +21,24 @@ export interface MapPin {
   type: string;
 }
 
+export interface StayMapPin {
+  id: string;
+  title: string;
+  lat: number;
+  lng: number;
+}
+
 const POSITRON_STYLE_URL =
   'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
 
-/** Isolated MapLibre GL JS adapter; keeps map SDK types out of stores and features. */
+/** Isolated MapLibre GL JS adapter supporting numbered stops and basecamp Stay loop. */
 @Component({
   selector: 'app-itinerary-map',
   imports: [TranslatePipe],
   template: `
     <div class="map-shell">
       <div #mapContainer class="map-canvas"></div>
-      @if (pins().length === 0) {
+      @if (pins().length === 0 && !stayPin()) {
         <div class="map-empty-overlay">
           <p>{{ 'itinerary.map.empty' | t }}</p>
         </div>
@@ -69,10 +76,14 @@ const POSITRON_STYLE_URL =
 })
 export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
   readonly pins = input<MapPin[]>([]);
+  readonly stayPin = input<StayMapPin | null>(null);
+  readonly connectFromStay = input(true);
+  readonly connectToStay = input(true);
   readonly selectedPinId = input<string | null>(null);
   readonly pinSelected = output<string>();
 
-  private readonly mapContainer = viewChild.required<ElementRef<HTMLDivElement>>('mapContainer');
+  private readonly mapContainer =
+    viewChild.required<ElementRef<HTMLDivElement>>('mapContainer');
   private map: maplibregl.Map | null = null;
   private markers: maplibregl.Marker[] = [];
   private styleLoaded = false;
@@ -80,9 +91,12 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
   constructor() {
     effect(() => {
       const currentPins = this.pins();
+      const stay = this.stayPin();
+      const fromStay = this.connectFromStay();
+      const toStay = this.connectToStay();
       const selectedId = this.selectedPinId();
       if (this.map) {
-        this.renderPinsAndRoute(currentPins, selectedId);
+        this.renderPinsAndRoute(currentPins, stay, fromStay, toStay, selectedId);
       }
     });
   }
@@ -97,10 +111,19 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
         attributionControl: false,
       });
 
-      this.map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+      this.map.addControl(
+        new maplibregl.NavigationControl({ showCompass: false }),
+        'top-right',
+      );
       this.map.on('load', () => {
         this.styleLoaded = true;
-        this.renderPinsAndRoute(this.pins(), this.selectedPinId());
+        this.renderPinsAndRoute(
+          this.pins(),
+          this.stayPin(),
+          this.connectFromStay(),
+          this.connectToStay(),
+          this.selectedPinId(),
+        );
       });
     } catch {
       // Gracefully degrade in headless/WebGL-less test environments.
@@ -121,11 +144,41 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
     this.markers = [];
   }
 
-  private renderPinsAndRoute(pins: MapPin[], selectedId: string | null): void {
+  private renderPinsAndRoute(
+    pins: MapPin[],
+    stay: StayMapPin | null,
+    fromStay: boolean,
+    toStay: boolean,
+    selectedId: string | null,
+  ): void {
     if (!this.map) {
       return;
     }
     this.clearMarkers();
+
+    // Render dedicated Warm Champagne Gold hotel marker for the active basecamp Stay.
+    if (stay) {
+      const stayEl = document.createElement('button');
+      stayEl.type = 'button';
+      stayEl.title = stay.title;
+      stayEl.innerHTML =
+        '<span class="ms-icon" style="font-size:18px;color:#FFFFFF;">hotel</span>';
+      stayEl.style.display = 'grid';
+      stayEl.style.placeItems = 'center';
+      stayEl.style.width = '34px';
+      stayEl.style.height = '34px';
+      stayEl.style.borderRadius = '9999px';
+      stayEl.style.border = '2.5px solid #1B2A4A';
+      stayEl.style.background = '#C89B5B';
+      stayEl.style.cursor = 'pointer';
+      stayEl.style.boxShadow = '0 4px 12px rgba(27, 42, 74, 0.35)';
+      stayEl.addEventListener('click', () => this.pinSelected.emit(stay.id));
+
+      const stayMarker = new maplibregl.Marker({ element: stayEl })
+        .setLngLat([stay.lng, stay.lat])
+        .addTo(this.map);
+      this.markers.push(stayMarker);
+    }
 
     for (const pin of pins) {
       const isSelected = pin.id === selectedId;
@@ -152,41 +205,83 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
     }
 
     if (this.styleLoaded) {
-      const coords = pins.map((p) => [p.lng, p.lat]);
-      const geojson = {
+      // Primary stop-to-stop route (Deep Navy).
+      const stopCoords = pins.map((p) => [p.lng, p.lat]);
+      const stopGeojson = {
         type: 'Feature' as const,
         properties: {},
-        geometry: { type: 'LineString' as const, coordinates: coords },
+        geometry: { type: 'LineString' as const, coordinates: stopCoords },
       };
+      this.upsertLineLayer('tripilot-route', 'tripilot-route-line', stopGeojson, {
+        'line-color': '#1B2A4A',
+        'line-width': 3,
+        'line-opacity': 0.78,
+      });
 
-      const existing = this.map.getSource('tripilot-route') as maplibregl.GeoJSONSource | undefined;
-      if (existing) {
-        existing.setData(geojson);
-      } else {
-        this.map.addSource('tripilot-route', { type: 'geojson', data: geojson });
-        this.map.addLayer({
-          id: 'tripilot-route-line',
-          type: 'line',
-          source: 'tripilot-route',
-          layout: { 'line-join': 'round', 'line-cap': 'round' },
-          paint: {
-            'line-color': '#1B2A4A',
-            'line-width': 3,
-            'line-opacity': 0.72,
-            'line-dasharray': [2, 1.5],
-          },
-        });
+      // Stay departure / return dashed connectors (Warm Champagne Gold).
+      const stayLegs: number[][][] = [];
+      if (stay && pins.length > 0) {
+        if (fromStay) {
+          stayLegs.push([
+            [stay.lng, stay.lat],
+            [pins[0].lng, pins[0].lat],
+          ]);
+        }
+        if (toStay) {
+          const last = pins[pins.length - 1];
+          stayLegs.push([
+            [last.lng, last.lat],
+            [stay.lng, stay.lat],
+          ]);
+        }
       }
+      const stayGeojson = {
+        type: 'Feature' as const,
+        properties: {},
+        geometry: { type: 'MultiLineString' as const, coordinates: stayLegs },
+      };
+      this.upsertLineLayer('tripilot-stay-legs', 'tripilot-stay-legs-line', stayGeojson, {
+        'line-color': '#C89B5B',
+        'line-width': 2.5,
+        'line-opacity': 0.85,
+        'line-dasharray': [2.5, 2],
+      });
     }
 
-    if (pins.length === 1) {
-      this.map.flyTo({ center: [pins[0].lng, pins[0].lat], zoom: 13, duration: 500 });
-    } else if (pins.length > 1) {
+    const allPoints: [number, number][] = [
+      ...pins.map((p): [number, number] => [p.lng, p.lat]),
+      ...(stay ? ([[stay.lng, stay.lat]] as [number, number][]) : []),
+    ];
+    if (allPoints.length === 1) {
+      this.map.flyTo({ center: allPoints[0], zoom: 13, duration: 500 });
+    } else if (allPoints.length > 1) {
       const bounds = new maplibregl.LngLatBounds();
-      for (const pin of pins) {
-        bounds.extend([pin.lng, pin.lat]);
+      for (const pt of allPoints) {
+        bounds.extend(pt);
       }
       this.map.fitBounds(bounds, { padding: 56, maxZoom: 14, duration: 500 });
     }
+  }
+
+  private upsertLineLayer(
+    sourceId: string,
+    layerId: string,
+    data: object,
+    paint: maplibregl.LineLayerSpecification['paint'],
+  ): void {
+    if (!this.map) return;
+    const existing = this.map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined;
+    if (existing) {
+      existing.setData(data as never);
+      return;
+    }
+    this.map.addSource(sourceId, { type: 'geojson', data: data as never });
+    this.map.addLayer({
+      id: layerId,
+      type: 'line',
+      source: sourceId,
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint,
+    });
   }
 }

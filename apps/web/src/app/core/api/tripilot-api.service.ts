@@ -134,6 +134,12 @@ export class TripilotApiService {
     );
   }
 
+  updateDay(dayId: string, payload: { title?: string | null; notes?: string | null }): Promise<TripDay> {
+    return firstValueFrom(
+      this.http.patch<TripDay>(`${this.baseUrl}/days/${dayId}`, payload),
+    );
+  }
+
   selectChoiceItem(itemId: string): Promise<DayOption> {
     return firstValueFrom(
       this.http.patch<DayOption>(`${this.baseUrl}/items/${itemId}/select`, {}),

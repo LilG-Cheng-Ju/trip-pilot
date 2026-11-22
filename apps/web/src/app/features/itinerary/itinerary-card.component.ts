@@ -1,4 +1,4 @@
-import { Component, input, output } from '@angular/core';
+import { Component, input, output, signal } from '@angular/core';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ItineraryItem } from '../../core/models/tripilot.models';
@@ -127,6 +127,20 @@ import { ItineraryItem } from '../../core/models/tripilot.models';
 
         @if (item().address) {
           <p class="card-sub">{{ item().address }}</p>
+        }
+
+        @if (detail('local_name'); as localName) {
+          <button
+            type="button"
+            class="local-copy-chip"
+            (click)="$event.stopPropagation(); copyLocalName(localName)"
+            [title]="localName"
+          >
+            <span class="ms-icon sm" aria-hidden="true">
+              {{ copiedLocal() ? 'check' : 'content_copy' }}
+            </span>
+            <span>{{ copiedLocal() ? ('common.copied' | t) : localName }}</span>
+          </button>
         }
 
         <div class="detail-chips">
@@ -371,6 +385,25 @@ import { ItineraryItem } from '../../core/models/tripilot.models';
       font-size: 0.8125rem;
       color: var(--color-text-secondary);
     }
+    .local-copy-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin: 0 0 6px;
+      padding: 3px 8px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      background: var(--color-bg);
+      color: var(--color-text-secondary);
+      font: inherit;
+      font-size: 0.72rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .local-copy-chip:hover {
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+    }
     .detail-chips {
       display: flex;
       flex-wrap: wrap;
@@ -479,6 +512,18 @@ export class ItineraryCardComponent {
   readonly addAlternative = output<ItineraryItem>();
   readonly edited = output<ItineraryItem>();
   readonly deleted = output<string>();
+
+  protected readonly copiedLocal = signal(false);
+
+  protected async copyLocalName(text: string): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(text);
+      this.copiedLocal.set(true);
+      setTimeout(() => this.copiedLocal.set(false), 1600);
+    } catch {
+      // Ignore clipboard failures in restricted contexts.
+    }
+  }
 
   protected detail(key: string): string | null {
     const val = this.item().details?.[key];

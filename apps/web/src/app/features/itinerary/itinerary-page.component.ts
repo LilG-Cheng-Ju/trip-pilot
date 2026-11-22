@@ -12,7 +12,11 @@ import {
   ItemFormSubmitEvent,
 } from './item-form-modal.component';
 import { ItineraryCardComponent } from './itinerary-card.component';
-import { ItineraryMapComponent, MapPin } from './itinerary-map.component';
+import {
+  ItineraryMapComponent,
+  MapPin,
+  StayMapPin,
+} from './itinerary-map.component';
 
 interface TimelineSlot {
   key: string;
@@ -89,6 +93,19 @@ interface TimelineSlot {
           </div>
 
           @if (store.selectedDay(); as day) {
+            <!-- Inline Editable Day Theme / Focus -->
+            <div class="day-theme-bar">
+              <span class="ms-icon sm theme-ico" aria-hidden="true">flag</span>
+              <input
+                type="text"
+                class="day-theme-input"
+                [ngModel]="day.title || ''"
+                (blur)="saveDayTheme(day.id, $any($event.target).value, day.title)"
+                (keydown.enter)="$any($event.target).blur()"
+                [placeholder]="'itinerary.dayThemePlaceholder' | t"
+              />
+            </div>
+
             <!-- Whole-Day Plan A / Plan B Segmented Switcher -->
             <div class="plan-bar">
               <div class="plan-pills">
@@ -164,6 +181,9 @@ interface TimelineSlot {
                 <div class="mobile-map-box">
                   <app-itinerary-map
                     [pins]="mapPins()"
+                    [stayPin]="stayMapPin()"
+                    [connectFromStay]="connectFromStay()"
+                    [connectToStay]="connectToStay()"
                     [selectedPinId]="store.selectedItemId()"
                     (pinSelected)="store.selectItem($event)"
                   />
@@ -227,6 +247,9 @@ interface TimelineSlot {
           <aside class="desktop-map-pane">
             <app-itinerary-map
               [pins]="mapPins()"
+              [stayPin]="stayMapPin()"
+              [connectFromStay]="connectFromStay()"
+              [connectToStay]="connectToStay()"
               [selectedPinId]="store.selectedItemId()"
               (pinSelected)="store.selectItem($event)"
             />
@@ -435,6 +458,37 @@ interface TimelineSlot {
       font-size: 0.8125rem;
       font-weight: 600;
       cursor: pointer;
+    }
+    .day-theme-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      margin-bottom: var(--space-3);
+      border-radius: var(--radius-sm);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+    }
+    .day-theme-bar:focus-within {
+      border-color: var(--color-accent);
+    }
+    .theme-ico {
+      color: var(--color-accent);
+      flex-shrink: 0;
+    }
+    .day-theme-input {
+      width: 100%;
+      border: none;
+      background: transparent;
+      color: var(--color-primary);
+      font: inherit;
+      font-size: 0.875rem;
+      font-weight: 600;
+      outline: none;
+    }
+    .day-theme-input::placeholder {
+      color: var(--color-text-muted);
+      font-weight: 400;
     }
     .plan-bar {
       display: flex;
@@ -775,11 +829,43 @@ export class ItineraryPageComponent implements OnInit {
     return slots;
   });
 
+  protected readonly stayMapPin = computed<StayMapPin | null>(() => {
+    const stay = this.store.basecampStay();
+    if (!stay || stay.latitude === null || stay.longitude === null) {
+      return null;
+    }
+    return {
+      id: stay.id,
+      title: stay.title,
+      lat: stay.latitude,
+      lng: stay.longitude,
+    };
+  });
+
+  protected readonly connectFromStay = computed(() => {
+    const slots = this.timelineSlots();
+    if (slots.length === 0) return false;
+    // Skip departure leg from hotel on arrival days that begin with a flight.
+    return slots[0].activeItem.type !== 'FLIGHT';
+  });
+
+  protected readonly connectToStay = computed(() => {
+    const slots = this.timelineSlots();
+    if (slots.length === 0) return false;
+    // Skip return leg to hotel on departure days that end with a flight.
+    return slots[slots.length - 1].activeItem.type !== 'FLIGHT';
+  });
+
   protected readonly mapPins = computed<MapPin[]>(() => {
+    const basecampId = this.stayMapPin()?.id;
     const pins: MapPin[] = [];
     let order = 1;
     for (const slot of this.timelineSlots()) {
       const item = slot.activeItem;
+      // Keep the active basecamp STAY on its dedicated hotel marker rather than numbering it.
+      if (item.id === basecampId || item.type === 'STAY') {
+        continue;
+      }
       if (item.latitude !== null && item.longitude !== null) {
         pins.push({
           id: item.id,
@@ -836,6 +922,18 @@ export class ItineraryPageComponent implements OnInit {
       await this.store.addItem(event.payload);
     }
     this.showItemModal.set(false);
+  }
+
+  protected async saveDayTheme(
+    dayId: string,
+    nextValue: string,
+    previousValue: string | null,
+  ): Promise<void> {
+    const trimmed = nextValue.trim();
+    if (trimmed === (previousValue ?? '').trim()) {
+      return;
+    }
+    await this.store.updateDayTitle(dayId, trimmed || null);
   }
 
   protected openCloneModal(): void {
