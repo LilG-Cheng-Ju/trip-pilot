@@ -183,6 +183,20 @@ async def reorder_items(
     return DayOptionResponse.model_validate(option)
 
 
+@router.post(
+    "/options/{option_id}/recalculate-route", response_model=DayOptionResponse
+)
+async def recalculate_route(
+    option_id: str,
+    auth_ctx: WriteTripsAuth,
+    db: DbSession,
+) -> DayOptionResponse:
+    option = await TripService(db).recalculate_option_route(
+        option_id, auth_ctx.user.id
+    )
+    return DayOptionResponse.model_validate(option)
+
+
 @router.get("/trips/{trip_id}/shares", response_model=list[TripShareResponse])
 async def list_shares(
     trip_id: str,

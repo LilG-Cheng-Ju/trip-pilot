@@ -1,0 +1,177 @@
+"""Tests for IATA flight distance, routing cache, expenses, and annual stats."""
+
+from unittest.mock import AsyncMock, patch
+
+import pytest
+from httpx import AsyncClient
+
+from app.services.routing import RouteLegResult
+
+
+@pytest.mark.asyncio
+async def test_airport_search_and_flight_great_circle(
+    api_client: AsyncClient, dev_headers: dict[str, str]
+) -> None:
+    search_resp = await api_client.get("/api/v1/airports/search?q=HND")
+    assert search_resp.status_code == 200
+    results = search_resp.json()
+    assert results[0]["iata"] == "HND"
+    assert results[0]["country_code"] == "JP"
+
+    trip = (
+        await api_client.post(
+            "/api/v1/trips",
+            headers=dev_headers,
+            json={
+                "title": "Tokyo Weekend",
+                "country_codes": ["JP"],
+                "start_date": "2026-11-24",
+                "end_date": "2026-11-26",
+            },
+        )
+    ).json()
+    plan_a_id = trip["days"][0]["active_option_id"]
+
+    flight_resp = await api_client.post(
+        f"/api/v1/options/{plan_a_id}/items",
+        headers=dev_headers,
+        json={
+            "type": "FLIGHT",
+            "title": "NH852 TSA -> HND",
+            "details": {"origin_iata": "tsa", "dest_iata": "hnd"},
+        },
+    )
+    assert flight_resp.status_code == 201
+    details = flight_resp.json()["details"]
+    assert details["origin_iata"] == "TSA"
+    assert details["dest_iata"] == "HND"
+    # Great-circle distance TSA <-> HND is approximately 2,095 km.
+    assert 2080.0 <= details["distance_km"] <= 2120.0
+
+
+@pytest.mark.asyncio
+async def test_ground_routing_cache_expenses_and_annual_stats(
+    api_client: AsyncClient, dev_headers: dict[str, str]
+) -> None:
+    # Create an international trip (JP) and a domestic trip (TW).
+    jp_trip = (
+        await api_client.post(
+            "/api/v1/trips",
+            headers=dev_headers,
+            json={
+                "title": "Izu Peninsula",
+                "country_codes": ["JP"],
+                "start_date": "2026-11-24",
+                "end_date": "2026-11-25",
+                "default_currency": "JPY",
+            },
+        )
+    ).json()
+    await api_client.post(
+        "/api/v1/trips",
+        headers=dev_headers,
+        json={
+            "title": "Tainan Food Run",
+            "country_codes": ["TW"],
+            "start_date": "2026-08-01",
+            "end_date": "2026-08-02",
+            "default_currency": "TWD",
+        },
+    )
+
+    day1 = jp_trip["days"][0]
+    plan_a_id = day1["active_option_id"]
+
+    # Mock OSRM routing so the test is deterministic and offline.
+    mock_leg = RouteLegResult(
+        distance_km=12.4,
+        duration_min=22,
+        geometry_polyline="mock_polyline",
+        is_approx=False,
+    )
+    with patch(
+        "app.services.routing.OsrmRoutingProvider.compute_leg",
+        new=AsyncMock(return_value=mock_leg),
+    ):
+        await api_client.post(
+            f"/api/v1/options/{plan_a_id}/items",
+            headers=dev_headers,
+            json={
+                "type": "SPOT",
+                "title": "Tokyo Station",
+                "latitude": 35.6812,
+                "longitude": 139.7671,
+            },
+        )
+        await api_client.post(
+            f"/api/v1/options/{plan_a_id}/items",
+            headers=dev_headers,
+            json={
+                "type": "FOOD",
+                "title": "Ginza Ramen",
+                "latitude": 35.6717,
+                "longitude": 139.7650,
+            },
+        )
+
+    # Add an active flight to Plan A and a backup flight to Plan B (not active).
+    await api_client.post(
+        f"/api/v1/options/{plan_a_id}/items",
+        headers=dev_headers,
+        json={
+            "type": "FLIGHT",
+            "title": "Active Flight",
+            "details": {"origin_iata": "TSA", "dest_iata": "HND"},
+        },
+    )
+    plan_b = (
+        await api_client.post(
+            f"/api/v1/days/{day1['id']}/options",
+            headers=dev_headers,
+            json={"label": "Plan B · Backup"},
+        )
+    ).json()
+    await api_client.post(
+        f"/api/v1/options/{plan_b['id']}/items",
+        headers=dev_headers,
+        json={
+            "type": "FLIGHT",
+            "title": "Backup Flight Should Not Count",
+            "details": {"origin_iata": "TPE", "dest_iata": "NRT"},
+        },
+    )
+
+    # Record an expense in JPY converted to TWD (home currency).
+    exp_resp = await api_client.post(
+        f"/api/v1/trips/{jp_trip['id']}/expenses",
+        headers=dev_headers,
+        json={
+            "title": "Shinkansen Tickets",
+            "category": "TRANSIT",
+            "amount_original": "10000.00",
+            "currency_original": "JPY",
+            "exchange_rate": "0.215",
+        },
+    )
+    assert exp_resp.status_code == 201
+    assert exp_resp.json()["amount_home"] == "2150.00"
+
+    exp_summary = (
+        await api_client.get(
+            f"/api/v1/trips/{jp_trip['id']}/expenses", headers=dev_headers
+        )
+    ).json()
+    assert exp_summary["total_home_amount"] == "2150.00"
+    assert exp_summary["by_category"]["TRANSIT"] == "2150.00"
+
+    # Verify annual stats exclude Plan B backup flight and classify international trips.
+    stats = (
+        await api_client.get("/api/v1/stats?year=2026", headers=dev_headers)
+    ).json()
+    assert stats["total_trips"] == 2
+    assert stats["international_trips"] == 1
+    assert stats["countries_visited"] == ["JP", "TW"]
+    assert stats["total_travel_days"] == 4
+    assert stats["total_ground_distance_km"] == 12.4
+    assert 2080.0 <= stats["total_flight_distance_km"] <= 2120.0
+    assert stats["total_spend_home"] == "2150.00"

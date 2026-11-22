@@ -7,8 +7,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 import app.models  # noqa: F401
+from app.api.v1 import airports as airports_router
+from app.api.v1 import expenses as expenses_router
 from app.api.v1 import me as me_router
 from app.api.v1 import public as public_router
+from app.api.v1 import stats as stats_router
 from app.api.v1 import trips as trips_router
 from app.core.config import get_settings
 from app.core.database import Base, engine
@@ -47,6 +50,9 @@ def create_app() -> FastAPI:
     application.include_router(me_router.router, prefix="/api/v1")
     application.include_router(trips_router.router, prefix="/api/v1")
     application.include_router(public_router.router, prefix="/api/v1")
+    application.include_router(airports_router.router, prefix="/api/v1")
+    application.include_router(expenses_router.router, prefix="/api/v1")
+    application.include_router(stats_router.router, prefix="/api/v1")
 
     @application.get("/healthz", tags=["system"])
     async def healthz() -> dict[str, str]:

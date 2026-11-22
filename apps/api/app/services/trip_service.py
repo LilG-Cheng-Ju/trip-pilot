@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import DayOption, ItineraryItem, Trip, TripDay, TripShare
+from app.models import DayOption, ItemType, ItineraryItem, Trip, TripDay, TripShare
 from app.repositories.trip_repository import TripRepository
 from app.schemas.trip import (
     DayOptionCloneRequest,
@@ -23,14 +23,38 @@ from app.schemas.trip import (
     TripUpdate,
     sanitize_item_for_share,
 )
+from app.services.airport_service import compute_flight_distance_km
+from app.services.routing import RoutingProvider, recalculate_option_routes
+
+
+def _enrich_flight_details(item_type: str, details: dict) -> dict:
+    """Auto-populate Great-Circle flight distance when origin/dest IATA are given."""
+    enriched = dict(details)
+    if item_type != ItemType.FLIGHT.value:
+        return enriched
+    origin = enriched.get("origin_iata")
+    dest = enriched.get("dest_iata")
+    if isinstance(origin, str) and isinstance(dest, str):
+        enriched["origin_iata"] = origin.strip().upper()
+        enriched["dest_iata"] = dest.strip().upper()
+        if "distance_km" not in enriched or enriched["distance_km"] is None:
+            dist = compute_flight_distance_km(
+                enriched["origin_iata"], enriched["dest_iata"]
+            )
+            if dist is not None:
+                enriched["distance_km"] = dist
+    return enriched
 
 
 class TripService:
     """Orchestrates trip mutations and enforces domain invariants."""
 
-    def __init__(self, db: AsyncSession) -> None:
+    def __init__(
+        self, db: AsyncSession, routing_provider: RoutingProvider | None = None
+    ) -> None:
         self.db = db
         self.repo = TripRepository(db)
+        self.routing_provider = routing_provider
 
     async def list_trips(
         self, user_id: str, status_filter: str | None = None
@@ -212,12 +236,34 @@ class TripService:
             longitude=payload.longitude,
             google_maps_url=payload.google_maps_url,
             notes=payload.notes,
-            details=dict(payload.details),
+            details=_enrich_flight_details(payload.type.value, payload.details),
         )
         self.db.add(item)
+        await self.db.flush()
+        if item.latitude is not None and item.longitude is not None:
+            await recalculate_option_routes(
+                self.db, option, [*option.items, item], self.routing_provider
+            )
         await self.db.commit()
         await self.db.refresh(item)
         return item
+
+    async def recalculate_option_route(
+        self, option_id: str, user_id: str
+    ) -> DayOption:
+        option = await self.repo.get_option_for_user(option_id, user_id)
+        if option is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Day option not found"
+            )
+        await recalculate_option_routes(
+            self.db, option, option.items, self.routing_provider
+        )
+        await self.db.commit()
+        self.db.expire(option, ["route_segments"])
+        loaded = await self.repo.get_option_for_user(option_id, user_id)
+        assert loaded is not None
+        return loaded
 
     async def update_item(
         self, item_id: str, user_id: str, payload: ItineraryItemUpdate
