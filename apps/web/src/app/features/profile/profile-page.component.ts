@@ -2,17 +2,17 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import {
-  SUPPORTED_COUNTRIES,
   SUPPORTED_CURRENCIES,
 } from '../../core/constants/travel-options';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { AppCountryPickerComponent } from '../../shared/country-picker.component';
 import { AuthStore } from '../../state/auth.store';
 
-/** User travel preferences (dropdowns), bilingual switcher, and PAT manager. */
+/** User travel preferences (searchable country & currency dropdowns) and PAT manager. */
 @Component({
   selector: 'app-profile-page',
-  imports: [FormsModule, TranslatePipe],
+  imports: [FormsModule, TranslatePipe, AppCountryPickerComponent],
   template: `
     <div class="page">
       <h2 class="page-title">{{ 'profile.title' | t }}</h2>
@@ -26,17 +26,15 @@ import { AuthStore } from '../../state/auth.store';
         </div>
 
         <form class="pref-form" (ngSubmit)="savePreferences()">
-          <label class="field">
+          <div class="field">
             <span>{{ 'profile.homeCountry' | t }}</span>
-            <select [(ngModel)]="homeCountry" name="homeCountry">
-              @for (c of countries; track c.code) {
-                <option [value]="c.code">
-                  {{ i18n.locale() === 'zh-TW' ? c.nameZh : c.nameEn }} ({{ c.code }})
-                </option>
-              }
-            </select>
+            <app-country-picker
+              [selectedCodes]="[homeCountry]"
+              [multiple]="false"
+              (selectionChange)="homeCountry = $event[0] || homeCountry"
+            />
             <small class="field-hint">{{ 'profile.homeCountryHint' | t }}</small>
-          </label>
+          </div>
 
           <label class="field">
             <span>{{ 'profile.homeCurrency' | t }}</span>
@@ -273,7 +271,6 @@ import { AuthStore } from '../../state/auth.store';
 export class ProfilePageComponent implements OnInit {
   protected readonly authStore = inject(AuthStore);
   protected readonly i18n = inject(I18nService);
-  protected readonly countries = SUPPORTED_COUNTRIES;
   protected readonly currencies = SUPPORTED_CURRENCIES;
 
   protected homeCountry = 'TW';
