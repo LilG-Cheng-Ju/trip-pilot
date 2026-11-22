@@ -1,0 +1,53 @@
+services:
+  api:
+    build:
+      context: ./apps/api
+      target: dev
+    container_name: tripilot-api
+    ports:
+      - "8000:8000"
+    environment:
+      APP_ENV: ${APP_ENV:-DEV}
+      DEV_USER_ID: ${DEV_USER_ID:-dev-local-user}
+      DATABASE_URL: ${DATABASE_URL:-sqlite+aiosqlite:///./tripilot.db}
+      DB_SCHEMA: ${DB_SCHEMA:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:4200}
+      OSRM_BASE_URL: ${OSRM_BASE_URL:-https://router.project-osrm.org}
+    volumes:
+      - ./apps/api:/app
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  web:
+    build:
+      context: ./apps/web
+      target: dev
+    container_name: tripilot-web
+    ports:
+      - "4200:4200"
+    volumes:
+      - ./apps/web:/app
+      - web_node_modules:/app/node_modules
+    depends_on:
+      api:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: tripilot-postgres
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_DB: tripilot
+      POSTGRES_USER: tripilot
+      POSTGRES_PASSWORD: tripilot_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  web_node_modules:
+  postgres_data:
