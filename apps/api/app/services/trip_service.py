@@ -355,8 +355,22 @@ class TripService:
         updates = payload.model_dump(exclude_unset=True)
         if "type" in updates and updates["type"] is not None:
             updates["type"] = updates["type"].value
+        next_type = updates.get("type", item.type)
+        if "details" in updates and updates["details"] is not None:
+            updates["details"] = _enrich_flight_details(next_type, updates["details"])
+
+        coords_changed = "latitude" in updates or "longitude" in updates
         for field, value in updates.items():
             setattr(item, field, value)
+
+        await self.db.flush()
+        if coords_changed:
+            option = await self.repo.get_option_for_user(item.day_option_id, user_id)
+            if option is not None:
+                await recalculate_option_routes(
+                    self.db, option, option.items, self.routing_provider
+                )
+
         await self.db.commit()
         await self.db.refresh(item)
         return item
@@ -367,7 +381,17 @@ class TripService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Itinerary item not found"
             )
+        option_id = item.day_option_id
+        had_coords = item.latitude is not None and item.longitude is not None
         await self.db.delete(item)
+        await self.db.flush()
+        if had_coords:
+            option = await self.repo.get_option_for_user(option_id, user_id)
+            if option is not None:
+                remaining = [i for i in option.items if i.id != item_id]
+                await recalculate_option_routes(
+                    self.db, option, remaining, self.routing_provider
+                )
         await self.db.commit()
 
     async def reorder_items(
