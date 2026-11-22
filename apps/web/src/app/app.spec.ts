@@ -1,4 +1,7 @@
+import { provideHttpClient } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
+
 import { App } from './app';
 import { I18nService } from './core/i18n/i18n.service';
 
@@ -6,6 +9,7 @@ describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
+      providers: [provideRouter([]), provideHttpClient()],
     }).compileComponents();
   });
 
@@ -14,7 +18,7 @@ describe('App', () => {
     expect(fixture.componentInstance).toBeTruthy();
   });
 
-  it('should render the Tripilot brand heading and switch locales', async () => {
+  it('should render the Tripilot shell and switch navigation labels by locale', async () => {
     const i18n = TestBed.inject(I18nService);
     i18n.setLocale('en');
 
@@ -23,16 +27,12 @@ describe('App', () => {
     const compiled = fixture.nativeElement as HTMLElement;
 
     expect(compiled.querySelector('h1')?.textContent?.trim()).toBe('Tripilot');
-    expect(compiled.querySelector('.tagline')?.textContent?.trim()).toBe(
-      'Your pocket travel copilot.',
-    );
+    expect(compiled.textContent).toContain('Trips');
 
     i18n.setLocale('zh-TW');
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(compiled.querySelector('.tagline')?.textContent?.trim()).toBe(
-      '你的隨身行程副駕駛。',
-    );
+    expect(compiled.textContent).toContain('旅程');
   });
 });

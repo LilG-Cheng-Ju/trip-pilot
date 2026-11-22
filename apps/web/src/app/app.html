@@ -1,31 +1,65 @@
-<div class="shell">
-  <header class="topbar">
-    <div class="brand">
-      <span class="brand-dot" aria-hidden="true"></span>
-      <h1>{{ 'app.name' | t }}</h1>
-    </div>
+<div class="app-shell" [class.public-mode]="isPublicShareRoute()">
+  @if (!isPublicShareRoute()) {
+    <aside class="desktop-rail" aria-label="Primary navigation">
+      <a class="rail-brand" routerLink="/trips" title="Tripilot">
+        <span class="brand-mark">T</span>
+      </a>
+      <nav class="rail-nav">
+        <a routerLink="/trips" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="rail-item">
+          <span class="nav-icon" aria-hidden="true">✈</span>
+          <span class="nav-label">{{ 'nav.trips' | t }}</span>
+        </a>
+        <a [routerLink]="itineraryRoute()" routerLinkActive="active" class="rail-item">
+          <span class="nav-icon" aria-hidden="true">🗓</span>
+          <span class="nav-label">{{ 'nav.itinerary' | t }}</span>
+        </a>
+        <a routerLink="/stats" routerLinkActive="active" class="rail-item">
+          <span class="nav-icon" aria-hidden="true">📊</span>
+          <span class="nav-label">{{ 'nav.stats' | t }}</span>
+        </a>
+        <a routerLink="/profile" routerLinkActive="active" class="rail-item">
+          <span class="nav-icon" aria-hidden="true">👤</span>
+          <span class="nav-label">{{ 'nav.profile' | t }}</span>
+        </a>
+      </nav>
+      <button type="button" class="rail-locale" (click)="i18n.toggleLocale()">
+        {{ i18n.locale() === 'en' ? '中' : 'EN' }}
+      </button>
+    </aside>
 
-    <button
-      type="button"
-      class="locale-pill"
-      (click)="i18n.toggleLocale()"
-      [attr.aria-label]="'common.language' | t"
-    >
-      {{ i18n.locale() === 'en' ? '繁體中文' : 'EN' }}
-    </button>
-  </header>
+    <header class="mobile-topbar">
+      <a class="mobile-brand" routerLink="/trips">
+        <span class="brand-dot" aria-hidden="true"></span>
+        <h1>{{ 'app.name' | t }}</h1>
+      </a>
+      <button type="button" class="locale-pill" (click)="i18n.toggleLocale()">
+        {{ i18n.locale() === 'en' ? '繁體中文' : 'EN' }}
+      </button>
+    </header>
+  }
 
-  <main class="content">
-    <section class="welcome-card">
-      <p class="tagline">{{ 'app.tagline' | t }}</p>
-      <div class="pill-row">
-        <span class="pill">{{ 'nav.trips' | t }}</span>
-        <span class="pill">{{ 'nav.itinerary' | t }}</span>
-        <span class="pill">{{ 'nav.stats' | t }}</span>
-        <span class="pill">{{ 'nav.profile' | t }}</span>
-      </div>
-    </section>
-
+  <main class="main-canvas">
     <router-outlet />
   </main>
+
+  @if (!isPublicShareRoute()) {
+    <nav class="mobile-bottom-nav" aria-label="Mobile navigation">
+      <a routerLink="/trips" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="bottom-item">
+        <span class="nav-icon" aria-hidden="true">✈</span>
+        <span>{{ 'nav.trips' | t }}</span>
+      </a>
+      <a [routerLink]="itineraryRoute()" routerLinkActive="active" class="bottom-item">
+        <span class="nav-icon" aria-hidden="true">🗓</span>
+        <span>{{ 'nav.itinerary' | t }}</span>
+      </a>
+      <a routerLink="/stats" routerLinkActive="active" class="bottom-item">
+        <span class="nav-icon" aria-hidden="true">📊</span>
+        <span>{{ 'nav.stats' | t }}</span>
+      </a>
+      <a routerLink="/profile" routerLinkActive="active" class="bottom-item">
+        <span class="nav-icon" aria-hidden="true">👤</span>
+        <span>{{ 'nav.profile' | t }}</span>
+      </a>
+    </nav>
+  }
 </div>
