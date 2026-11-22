@@ -13,6 +13,7 @@ services:
       DB_SCHEMA: ${DB_SCHEMA:-}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:4200}
       OSRM_BASE_URL: ${OSRM_BASE_URL:-https://router.project-osrm.org}
+      GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY:-}
       # Windows-hosted /mnt/d mounts do not propagate Linux inotify events.
       WATCHFILES_FORCE_POLLING: "true"
     volumes:

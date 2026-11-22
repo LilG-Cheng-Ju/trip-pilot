@@ -29,9 +29,15 @@ class Settings(BaseSettings):
 
     cors_origins: str = "http://localhost:4200"
     osrm_base_url: str = "https://router.project-osrm.org"
+    google_places_api_key: str | None = None
     firebase_credentials_path: str | None = None
 
-    @field_validator("db_schema", "dev_user_id", "firebase_credentials_path")
+    @field_validator(
+        "db_schema",
+        "dev_user_id",
+        "google_places_api_key",
+        "firebase_credentials_path",
+    )
     @classmethod
     def _empty_string_to_none(cls, value: str | None) -> str | None:
         if value is None:

@@ -47,6 +47,10 @@ class ItineraryItemCreate(BaseModel):
     google_maps_url: str | None = Field(default=None, max_length=600)
     notes: str | None = None
     details: dict[str, Any] = Field(default_factory=dict)
+    choice_group_id: str | None = Field(default=None, max_length=36)
+    # Optional ID of an existing item to group with as a slot-level alternative.
+    alternative_for_item_id: str | None = None
+    is_selected: bool = True
 
 
 class ItineraryItemUpdate(BaseModel):
@@ -62,6 +66,8 @@ class ItineraryItemUpdate(BaseModel):
     google_maps_url: str | None = Field(default=None, max_length=600)
     notes: str | None = None
     details: dict[str, Any] | None = None
+    choice_group_id: str | None = None
+    is_selected: bool | None = None
 
 
 class ItineraryItemReorderRequest(BaseModel):
@@ -85,6 +91,8 @@ class ItineraryItemResponse(BaseModel):
     google_maps_url: str | None
     notes: str | None
     details: dict[str, Any]
+    choice_group_id: str | None = None
+    is_selected: bool = True
 
 
 class DayOptionCreate(BaseModel):

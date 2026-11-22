@@ -5,11 +5,13 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 import app.models  # noqa: F401
 from app.api.v1 import airports as airports_router
 from app.api.v1 import expenses as expenses_router
 from app.api.v1 import me as me_router
+from app.api.v1 import places as places_router
 from app.api.v1 import public as public_router
 from app.api.v1 import stats as stats_router
 from app.api.v1 import trips as trips_router
@@ -23,6 +25,27 @@ async def _lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
     if settings.is_dev and settings.database_url.startswith("sqlite"):
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            # Upgrade existing local dev SQLite DBs cleanly when new columns land.
+            cols = {
+                row[1]
+                for row in (
+                    await conn.execute(text("PRAGMA table_info(itinerary_items)"))
+                ).fetchall()
+            }
+            if "choice_group_id" not in cols:
+                await conn.execute(
+                    text(
+                        "ALTER TABLE itinerary_items "
+                        "ADD COLUMN choice_group_id VARCHAR(36)"
+                    )
+                )
+            if "is_selected" not in cols:
+                await conn.execute(
+                    text(
+                        "ALTER TABLE itinerary_items "
+                        "ADD COLUMN is_selected BOOLEAN NOT NULL DEFAULT 1"
+                    )
+                )
     yield
 
 
@@ -51,6 +74,7 @@ def create_app() -> FastAPI:
     application.include_router(trips_router.router, prefix="/api/v1")
     application.include_router(public_router.router, prefix="/api/v1")
     application.include_router(airports_router.router, prefix="/api/v1")
+    application.include_router(places_router.router, prefix="/api/v1")
     application.include_router(expenses_router.router, prefix="/api/v1")
     application.include_router(stats_router.router, prefix="/api/v1")
 

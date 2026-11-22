@@ -137,7 +137,8 @@ async def recalculate_option_routes(
     geolocated = [
         item
         for item in sorted(items, key=lambda i: i.sort_order)
-        if item.type in GROUND_ANCHOR_TYPES
+        if item.is_selected
+        and item.type in GROUND_ANCHOR_TYPES
         and item.latitude is not None
         and item.longitude is not None
     ]

@@ -215,6 +215,11 @@ class ItineraryItem(Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Typed per-item payload validated by Pydantic discriminated schemas.
     details: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    # Optional slot-level choice group (e.g., 3 lunch candidates sharing one slot).
+    choice_group_id: Mapped[str | None] = mapped_column(
+        String(36), index=True, nullable=True
+    )
+    is_selected: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_utcnow
     )

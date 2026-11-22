@@ -91,6 +91,20 @@ async def delete_trip(
 
 
 @router.post(
+    "/trips/{trip_id}/days",
+    response_model=TripDayResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def append_day(
+    trip_id: str,
+    auth_ctx: WriteTripsAuth,
+    db: DbSession,
+) -> TripDayResponse:
+    day = await TripService(db).append_day(trip_id, auth_ctx.user.id)
+    return TripDayResponse.model_validate(day)
+
+
+@router.post(
     "/days/{day_id}/options",
     response_model=DayOptionResponse,
     status_code=status.HTTP_201_CREATED,
@@ -159,6 +173,16 @@ async def update_item(
 ) -> ItineraryItemResponse:
     item = await TripService(db).update_item(item_id, auth_ctx.user.id, payload)
     return ItineraryItemResponse.model_validate(item)
+
+
+@router.patch("/items/{item_id}/select", response_model=DayOptionResponse)
+async def select_choice_item(
+    item_id: str,
+    auth_ctx: WriteTripsAuth,
+    db: DbSession,
+) -> DayOptionResponse:
+    option = await TripService(db).select_choice_item(item_id, auth_ctx.user.id)
+    return DayOptionResponse.model_validate(option)
 
 
 @router.delete("/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)

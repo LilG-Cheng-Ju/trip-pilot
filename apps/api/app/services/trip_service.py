@@ -1,6 +1,7 @@
 """Business logic for Trips, multi-option Days (Plan A/B), Items, and Sharing."""
 
 import secrets
+import uuid
 from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException, status
@@ -127,6 +128,33 @@ class TripService:
         await self.db.delete(trip)
         await self.db.commit()
 
+    async def append_day(self, trip_id: str, user_id: str) -> TripDay:
+        trip = await self.get_trip_detail(trip_id, user_id)
+        next_index = len(trip.days) + 1
+        next_date = (
+            trip.days[-1].date + timedelta(days=1) if trip.days else trip.start_date
+        )
+        new_day = TripDay(
+            trip_id=trip.id,
+            day_index=next_index,
+            date=next_date,
+        )
+        self.db.add(new_day)
+        await self.db.flush()
+
+        plan_a = DayOption(trip_day_id=new_day.id, label="Plan A", sort_order=0)
+        self.db.add(plan_a)
+        await self.db.flush()
+        new_day.active_option_id = plan_a.id
+
+        if next_date > trip.end_date:
+            trip.end_date = next_date
+
+        await self.db.commit()
+        loaded = await self.repo.get_day_for_user(new_day.id, user_id)
+        assert loaded is not None
+        return loaded
+
     async def add_day_option(
         self, day_id: str, user_id: str, payload: DayOptionCreate
     ) -> DayOption:
@@ -220,9 +248,29 @@ class TripService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Day option not found"
             )
+        choice_group_id = payload.choice_group_id
+        is_selected = payload.is_selected
         sort_order = (
             payload.sort_order if payload.sort_order is not None else len(option.items)
         )
+
+        # Attach to an existing item's slot-level choice group (creating one if needed).
+        if payload.alternative_for_item_id:
+            anchor = next(
+                (i for i in option.items if i.id == payload.alternative_for_item_id),
+                None,
+            )
+            if anchor is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Target item for alternative not found in this day option",
+                )
+            if not anchor.choice_group_id:
+                anchor.choice_group_id = str(uuid.uuid4())
+            choice_group_id = anchor.choice_group_id
+            sort_order = anchor.sort_order
+            is_selected = False
+
         item = ItineraryItem(
             day_option_id=option.id,
             type=payload.type.value,
@@ -237,16 +285,47 @@ class TripService:
             google_maps_url=payload.google_maps_url,
             notes=payload.notes,
             details=_enrich_flight_details(payload.type.value, payload.details),
+            choice_group_id=choice_group_id,
+            is_selected=is_selected,
         )
         self.db.add(item)
         await self.db.flush()
-        if item.latitude is not None and item.longitude is not None:
+        if (
+            item.is_selected
+            and item.latitude is not None
+            and item.longitude is not None
+        ):
             await recalculate_option_routes(
                 self.db, option, [*option.items, item], self.routing_provider
             )
         await self.db.commit()
         await self.db.refresh(item)
         return item
+
+    async def select_choice_item(self, item_id: str, user_id: str) -> DayOption:
+        item = await self.repo.get_item_for_user(item_id, user_id)
+        if item is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Itinerary item not found"
+            )
+        option = await self.repo.get_option_for_user(item.day_option_id, user_id)
+        assert option is not None
+
+        if item.choice_group_id:
+            for sibling in option.items:
+                if sibling.choice_group_id == item.choice_group_id:
+                    sibling.is_selected = sibling.id == item.id
+        else:
+            item.is_selected = True
+
+        await recalculate_option_routes(
+            self.db, option, option.items, self.routing_provider
+        )
+        await self.db.commit()
+        self.db.expire(option, ["items", "route_segments"])
+        loaded = await self.repo.get_option_for_user(option.id, user_id)
+        assert loaded is not None
+        return loaded
 
     async def recalculate_option_route(
         self, option_id: str, user_id: str
