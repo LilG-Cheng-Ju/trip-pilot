@@ -4,7 +4,7 @@ import { patchState, signalStore, withComputed, withMethods, withState } from '@
 import { CreateTripPayload, TripilotApiService } from '../core/api/tripilot-api.service';
 import { TripStatus, TripSummary } from '../core/models/tripilot.models';
 
-export type TripListTab = 'upcoming' | 'completed' | 'archived';
+export type TripListTab = 'upcoming' | 'completed';
 
 interface TripState {
   trips: TripSummary[];
@@ -35,13 +35,8 @@ export const TripStore = signalStore(
           .filter((t) => t.status === 'PLANNING' || t.status === 'ACTIVE')
           .sort((a, b) => a.start_date.localeCompare(b.start_date));
       }
-      if (tab === 'completed') {
-        return all
-          .filter((t) => t.status === 'COMPLETED')
-          .sort((a, b) => b.start_date.localeCompare(a.start_date));
-      }
       return all
-        .filter((t) => t.status === 'ARCHIVED')
+        .filter((t) => t.status === 'COMPLETED' || t.status === 'ARCHIVED')
         .sort((a, b) => b.start_date.localeCompare(a.start_date));
     }),
   })),

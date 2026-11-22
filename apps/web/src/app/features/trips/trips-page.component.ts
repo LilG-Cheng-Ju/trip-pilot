@@ -4,28 +4,35 @@ import { Router, RouterLink } from '@angular/router';
 
 import {
   findCountry,
-  SUPPORTED_COUNTRIES,
   SUPPORTED_CURRENCIES,
 } from '../../core/constants/travel-options';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { TripSummary } from '../../core/models/tripilot.models';
+import { AppCountryPickerComponent } from '../../shared/country-picker.component';
 import { AppModalComponent } from '../../shared/modal.component';
 import { AuthStore } from '../../state/auth.store';
 import { TripListTab, TripStore } from '../../state/trip.store';
 
 type DateEndMode = 'end' | 'duration' | 'open';
 
-/** Multi-trip overview with Upcoming, Completed, soft-Archived tabs, and Modal creation. */
+/** Multi-trip overview with Upcoming & Completed (reversible) tabs and Modal creation. */
 @Component({
   selector: 'app-trips-page',
-  imports: [FormsModule, RouterLink, TranslatePipe, AppModalComponent],
+  imports: [
+    FormsModule,
+    RouterLink,
+    TranslatePipe,
+    AppModalComponent,
+    AppCountryPickerComponent,
+  ],
   template: `
     <div class="page">
       <header class="page-header">
         <h2 class="page-title">{{ 'trips.title' | t }}</h2>
         <button type="button" class="btn-primary" (click)="openCreateModal()">
-          + {{ 'trips.new' | t }}
+          <span class="ms-icon sm" aria-hidden="true">add</span>
+          <span>{{ 'trips.new' | t }}</span>
         </button>
       </header>
 
@@ -87,10 +94,12 @@ type DateEndMode = 'end' | 'duration' | 'open';
 
               <div class="card-actions">
                 <a class="action-pill primary" [routerLink]="['/trips', trip.id]">
-                  {{ 'nav.itinerary' | t }}
+                  <span class="ms-icon sm" aria-hidden="true">map</span>
+                  <span>{{ 'nav.itinerary' | t }}</span>
                 </a>
                 <a class="action-pill" [routerLink]="['/trips', trip.id, 'expenses']">
-                  {{ 'common.expenses' | t }}
+                  <span class="ms-icon sm" aria-hidden="true">payments</span>
+                  <span>{{ 'common.expenses' | t }}</span>
                 </a>
                 @if (trip.status === 'PLANNING' || trip.status === 'ACTIVE') {
                   <button
@@ -98,22 +107,8 @@ type DateEndMode = 'end' | 'duration' | 'open';
                     class="action-pill"
                     (click)="tripStore.updateTripStatus(trip.id, 'COMPLETED')"
                   >
-                    {{ 'trips.action.complete' | t }}
-                  </button>
-                  <button
-                    type="button"
-                    class="action-pill muted"
-                    (click)="tripStore.updateTripStatus(trip.id, 'ARCHIVED')"
-                  >
-                    {{ 'trips.action.archive' | t }}
-                  </button>
-                } @else if (trip.status === 'COMPLETED') {
-                  <button
-                    type="button"
-                    class="action-pill muted"
-                    (click)="tripStore.updateTripStatus(trip.id, 'ARCHIVED')"
-                  >
-                    {{ 'trips.action.archive' | t }}
+                    <span class="ms-icon sm" aria-hidden="true">check_circle</span>
+                    <span>{{ 'trips.action.complete' | t }}</span>
                   </button>
                 } @else {
                   <button
@@ -121,7 +116,8 @@ type DateEndMode = 'end' | 'duration' | 'open';
                     class="action-pill"
                     (click)="tripStore.updateTripStatus(trip.id, 'PLANNING')"
                   >
-                    {{ 'trips.action.restore' | t }}
+                    <span class="ms-icon sm" aria-hidden="true">undo</span>
+                    <span>{{ 'trips.action.undoComplete' | t }}</span>
                   </button>
                 }
               </div>
@@ -136,7 +132,6 @@ type DateEndMode = 'end' | 'duration' | 'open';
         (closed)="showCreateModal.set(false)"
       >
         <form class="modal-form" (ngSubmit)="submitTrip()" novalidate>
-          <!-- Domestic vs. International segmented switch -->
           <div class="seg-row">
             <button
               type="button"
@@ -163,7 +158,7 @@ type DateEndMode = 'end' | 'duration' | 'open';
               [(ngModel)]="title"
               name="title"
               (ngModelChange)="titleError.set(null)"
-              [placeholder]="scope() === 'domestic' ? '台南週末小旅行' : 'Tokyo & Izu'"
+              [placeholder]="scope() === 'domestic' ? '台南週末小旅行' : '捷克・奧地利 10 日'"
             />
             @if (titleError()) {
               <small class="err-msg">{{ titleError()! | t }}</small>
@@ -176,38 +171,35 @@ type DateEndMode = 'end' | 'duration' | 'open';
               type="text"
               [(ngModel)]="destination"
               name="destination"
-              [placeholder]="scope() === 'domestic' ? '台南安平、中西區' : 'Tokyo, Atami'"
+              [placeholder]="scope() === 'domestic' ? '台南安平、中西區' : '布拉格、CK 小鎮、維也納'"
             />
           </label>
 
           @if (scope() === 'international') {
-            <div class="two-col">
-              <label class="field">
-                <span>{{ 'trips.form.country' | t }} <em class="req">*</em></span>
-                <select
-                  [(ngModel)]="selectedCountry"
-                  name="country"
-                  (ngModelChange)="onCountryChange($event)"
-                >
-                  @for (c of countries; track c.code) {
-                    <option [value]="c.code">
-                      {{ i18n.locale() === 'zh-TW' ? c.nameZh : c.nameEn }} ({{ c.code }})
-                    </option>
-                  }
-                </select>
-              </label>
-
-              <label class="field">
-                <span>{{ 'trips.form.currency' | t }}</span>
-                <select [(ngModel)]="defaultCurrency" name="currency">
-                  @for (cur of currencies; track cur.code) {
-                    <option [value]="cur.code">
-                      {{ i18n.locale() === 'zh-TW' ? cur.labelZh : cur.labelEn }}
-                    </option>
-                  }
-                </select>
-              </label>
+            <div class="field" [class.has-error]="countryError()">
+              <span>{{ 'trips.form.country' | t }} <em class="req">*</em></span>
+              <app-country-picker
+                [selectedCodes]="selectedCountries()"
+                [multiple]="true"
+                [placeholder]="i18n.locale() === 'zh-TW' ? '搜尋並選擇國家（可複選）' : 'Search and select countries'"
+                (selectionChange)="onCountriesChange($event)"
+              />
+              <small class="field-hint">{{ 'trips.form.countryHint' | t }}</small>
+              @if (countryError()) {
+                <small class="err-msg">{{ 'trips.err.countryRequired' | t }}</small>
+              }
             </div>
+
+            <label class="field">
+              <span>{{ 'trips.form.currency' | t }}</span>
+              <select [(ngModel)]="defaultCurrency" name="currency">
+                @for (cur of currencies; track cur.code) {
+                  <option [value]="cur.code">
+                    {{ i18n.locale() === 'zh-TW' ? cur.labelZh : cur.labelEn }}
+                  </option>
+                }
+              </select>
+            </label>
           }
 
           <label class="field" [class.has-error]="dateError()">
@@ -220,7 +212,6 @@ type DateEndMode = 'end' | 'duration' | 'open';
             />
           </label>
 
-          <!-- End Date / Duration / Open-Ended switch -->
           <div class="seg-row compact">
             <button
               type="button"
@@ -267,7 +258,7 @@ type DateEndMode = 'end' | 'duration' | 'open';
                   class="step-btn"
                   (click)="durationDays = Math.max(1, durationDays - 1)"
                 >
-                  −
+                  <span class="ms-icon sm">remove</span>
                 </button>
                 <input
                   type="number"
@@ -282,7 +273,7 @@ type DateEndMode = 'end' | 'duration' | 'open';
                   class="step-btn"
                   (click)="durationDays = Math.min(60, durationDays + 1)"
                 >
-                  +
+                  <span class="ms-icon sm">add</span>
                 </button>
                 <span class="computed-end tabular-nums">→ {{ computedEndDate() }}</span>
               </div>
@@ -327,6 +318,9 @@ type DateEndMode = 'end' | 'duration' | 'open';
       color: var(--color-primary);
     }
     .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
       padding: 10px 16px;
       border: none;
       border-radius: var(--radius-pill);
@@ -357,7 +351,7 @@ type DateEndMode = 'end' | 'duration' | 'open';
       border-radius: var(--radius-pill);
     }
     .tab-pill {
-      padding: 8px 16px;
+      padding: 8px 18px;
       border: none;
       border-radius: var(--radius-pill);
       background: transparent;
@@ -450,7 +444,10 @@ type DateEndMode = 'end' | 'duration' | 'open';
       border-top: 1px solid var(--color-border);
     }
     .action-pill {
-      padding: 6px 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 7px 12px;
       border: 1px solid var(--color-border);
       border-radius: var(--radius-pill);
       background: var(--color-bg);
@@ -465,9 +462,6 @@ type DateEndMode = 'end' | 'duration' | 'open';
       border-color: var(--color-primary);
       background: var(--color-primary);
       color: var(--color-text-on-primary);
-    }
-    .action-pill.muted {
-      color: var(--color-text-muted);
     }
     .empty-card {
       padding: var(--space-6);
@@ -509,11 +503,6 @@ type DateEndMode = 'end' | 'duration' | 'open';
       color: var(--color-primary);
       box-shadow: var(--shadow-card);
     }
-    .two-col {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: var(--space-3);
-    }
     .field {
       display: flex;
       flex-direction: column;
@@ -535,6 +524,11 @@ type DateEndMode = 'end' | 'duration' | 'open';
       border-color: var(--color-alert);
       background: var(--color-alert-soft);
     }
+    .field-hint {
+      font-size: 0.75rem;
+      font-weight: 400;
+      color: var(--color-text-muted);
+    }
     .req {
       color: var(--color-alert);
       font-style: normal;
@@ -551,14 +545,14 @@ type DateEndMode = 'end' | 'duration' | 'open';
       gap: 8px;
     }
     .step-btn {
+      display: grid;
+      place-items: center;
       width: 36px;
       height: 36px;
       border: 1px solid var(--color-border);
       border-radius: var(--radius-sm);
       background: var(--color-surface);
       color: var(--color-primary);
-      font-size: 1.1rem;
-      font-weight: 700;
       cursor: pointer;
     }
     .step-input {
@@ -592,31 +586,30 @@ export class TripsPageComponent implements OnInit {
   private readonly router = inject(Router);
 
   protected readonly Math = Math;
-  protected readonly countries = SUPPORTED_COUNTRIES;
   protected readonly currencies = SUPPORTED_CURRENCIES;
 
   protected readonly showCreateModal = signal(false);
   protected readonly submitting = signal(false);
   protected readonly scope = signal<'domestic' | 'international'>('international');
   protected readonly dateEndMode = signal<DateEndMode>('duration');
+  protected readonly selectedCountries = signal<string[]>(['JP']);
 
   protected readonly titleError = signal<'trips.err.titleRequired' | null>(null);
+  protected readonly countryError = signal(false);
   protected readonly dateError = signal<
     'trips.err.startRequired' | 'trips.err.endBeforeStart' | null
   >(null);
 
   protected readonly tabs: {
     id: TripListTab;
-    labelKey: 'trips.tab.upcoming' | 'trips.tab.completed' | 'trips.tab.archived';
+    labelKey: 'trips.tab.upcoming' | 'trips.tab.completed';
   }[] = [
     { id: 'upcoming', labelKey: 'trips.tab.upcoming' },
     { id: 'completed', labelKey: 'trips.tab.completed' },
-    { id: 'archived', labelKey: 'trips.tab.archived' },
   ];
 
   protected title = '';
   protected destination = '';
-  protected selectedCountry = 'JP';
   protected defaultCurrency = 'JPY';
   protected startDate = new Date().toISOString().slice(0, 10);
   protected endDate = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
@@ -638,26 +631,29 @@ export class TripsPageComponent implements OnInit {
 
   protected openCreateModal(): void {
     this.titleError.set(null);
+    this.countryError.set(false);
     this.dateError.set(null);
     this.showCreateModal.set(true);
   }
 
   protected setScope(next: 'domestic' | 'international'): void {
     this.scope.set(next);
+    this.countryError.set(false);
     if (next === 'domestic') {
       const home = this.authStore.profile();
-      this.selectedCountry = home?.home_country_code || 'TW';
       this.defaultCurrency = home?.home_currency || 'TWD';
-    } else if (this.selectedCountry === (this.authStore.profile()?.home_country_code || 'TW')) {
-      this.selectedCountry = 'JP';
+    } else if (this.selectedCountries().length === 0) {
+      this.selectedCountries.set(['JP']);
       this.defaultCurrency = 'JPY';
     }
   }
 
-  protected onCountryChange(code: string): void {
-    const match = findCountry(code);
-    if (match) {
-      this.defaultCurrency = match.defaultCurrency;
+  protected onCountriesChange(codes: string[]): void {
+    this.selectedCountries.set(codes);
+    this.countryError.set(false);
+    const first = codes[0] ? findCountry(codes[0]) : undefined;
+    if (first) {
+      this.defaultCurrency = first.defaultCurrency;
     }
   }
 
@@ -682,11 +678,16 @@ export class TripsPageComponent implements OnInit {
 
   protected async submitTrip(): Promise<void> {
     this.titleError.set(null);
+    this.countryError.set(false);
     this.dateError.set(null);
 
     let hasError = false;
     if (!this.title.trim()) {
       this.titleError.set('trips.err.titleRequired');
+      hasError = true;
+    }
+    if (this.scope() === 'international' && this.selectedCountries().length === 0) {
+      this.countryError.set(true);
       hasError = true;
     }
     if (!this.startDate) {
@@ -713,8 +714,8 @@ export class TripsPageComponent implements OnInit {
 
     const homeCountry = this.authStore.profile()?.home_country_code || 'TW';
     const homeCurrency = this.authStore.profile()?.home_currency || 'TWD';
-    const countryCode =
-      this.scope() === 'domestic' ? homeCountry : this.selectedCountry;
+    const countryCodes =
+      this.scope() === 'domestic' ? [homeCountry] : this.selectedCountries();
     const currencyCode =
       this.scope() === 'domestic' ? homeCurrency : this.defaultCurrency;
 
@@ -723,7 +724,7 @@ export class TripsPageComponent implements OnInit {
       const id = await this.tripStore.createTrip({
         title: this.title.trim(),
         destination_summary: this.destination.trim() || null,
-        country_codes: [countryCode],
+        country_codes: countryCodes,
         start_date: this.startDate,
         end_date: resolvedEndDate,
         default_currency: currencyCode,
