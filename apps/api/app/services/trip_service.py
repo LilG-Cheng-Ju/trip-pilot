@@ -25,8 +25,26 @@ from app.schemas.trip import (
     TripUpdate,
     sanitize_item_for_share,
 )
-from app.services.airport_service import compute_flight_distance_km
+from app.services.airport_service import compute_flight_distance_km, get_airport
 from app.services.routing import RoutingProvider, recalculate_option_routes
+
+
+def _resolve_flight_airport_coords(
+    details: dict, home_country: str = "TW"
+) -> tuple[float | None, float | None]:
+    """Pick destination/foreign airport coords so flights appear on trip maps."""
+    origin_code = details.get("origin_iata")
+    dest_code = details.get("dest_iata")
+    origin = get_airport(origin_code) if isinstance(origin_code, str) else None
+    dest = get_airport(dest_code) if isinstance(dest_code, str) else None
+
+    # Prefer the airport outside home_country (e.g. PUS for TPE->PUS and PUS->TPE).
+    if dest and dest.country_code != home_country:
+        return dest.latitude, dest.longitude
+    if origin and origin.country_code != home_country:
+        return origin.latitude, origin.longitude
+    chosen = dest or origin
+    return (chosen.latitude, chosen.longitude) if chosen else (None, None)
 
 
 def _enrich_flight_details(item_type: str, details: dict) -> dict:
@@ -287,6 +305,12 @@ class TripService:
             sort_order = anchor.sort_order
             is_selected = False
 
+        enriched_details = _enrich_flight_details(payload.type.value, payload.details)
+        lat = payload.latitude
+        lng = payload.longitude
+        if payload.type.value == ItemType.FLIGHT.value and (lat is None or lng is None):
+            lat, lng = _resolve_flight_airport_coords(enriched_details)
+
         item = ItineraryItem(
             day_option_id=option.id,
             type=payload.type.value,
@@ -296,11 +320,11 @@ class TripService:
             end_time=payload.end_time,
             timezone=payload.timezone,
             address=payload.address,
-            latitude=payload.latitude,
-            longitude=payload.longitude,
+            latitude=lat,
+            longitude=lng,
             google_maps_url=payload.google_maps_url,
             notes=payload.notes,
-            details=_enrich_flight_details(payload.type.value, payload.details),
+            details=enriched_details,
             choice_group_id=choice_group_id,
             is_selected=is_selected,
         )
@@ -308,6 +332,7 @@ class TripService:
         await self.db.flush()
         if (
             item.is_selected
+            and item.type != ItemType.FLIGHT.value
             and item.latitude is not None
             and item.longitude is not None
         ):
