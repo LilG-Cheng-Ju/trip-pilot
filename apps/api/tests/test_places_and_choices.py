@@ -77,13 +77,22 @@ async def test_append_day_and_slot_level_choice_groups(
     ).json()
     assert len(trip["days"]) == 1
 
-    # Append Day 2 dynamically (for open-ended trips).
+    # Append Day 2 dynamically (for open-ended trips) and update its theme title.
     day2_resp = await api_client.post(
         f"/api/v1/trips/{trip['id']}/days", headers=dev_headers
     )
     assert day2_resp.status_code == 201
-    assert day2_resp.json()["day_index"] == 2
-    assert day2_resp.json()["date"] == "2026-12-06"
+    day2 = day2_resp.json()
+    assert day2["day_index"] == 2
+    assert day2["date"] == "2026-12-06"
+
+    day_patch = await api_client.patch(
+        f"/api/v1/days/{day2['id']}",
+        headers=dev_headers,
+        json={"title": "Anping Old Street"},
+    )
+    assert day_patch.status_code == 200
+    assert day_patch.json()["title"] == "Anping Old Street"
 
     plan_a_id = trip["days"][0]["active_option_id"]
 

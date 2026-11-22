@@ -20,6 +20,7 @@ from app.schemas.trip import (
     ShareVisibilityPolicy,
     TripCreate,
     TripDayResponse,
+    TripDayUpdate,
     TripShareCreate,
     TripUpdate,
     sanitize_item_for_share,
@@ -235,6 +236,21 @@ class TripService:
                 detail="Day option does not belong to this day",
             )
         day.active_option_id = option_id
+        await self.db.commit()
+        loaded = await self.repo.get_day_for_user(day_id, user_id)
+        assert loaded is not None
+        return loaded
+
+    async def update_day(
+        self, day_id: str, user_id: str, payload: TripDayUpdate
+    ) -> TripDay:
+        day = await self.repo.get_day_for_user(day_id, user_id)
+        if day is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Trip day not found"
+            )
+        for field, value in payload.model_dump(exclude_unset=True).items():
+            setattr(day, field, value)
         await self.db.commit()
         loaded = await self.repo.get_day_for_user(day_id, user_id)
         assert loaded is not None

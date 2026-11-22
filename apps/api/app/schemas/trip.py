@@ -108,6 +108,11 @@ class ActiveOptionUpdate(BaseModel):
     day_option_id: str
 
 
+class TripDayUpdate(BaseModel):
+    title: str | None = Field(default=None, max_length=160)
+    notes: str | None = None
+
+
 class DayOptionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

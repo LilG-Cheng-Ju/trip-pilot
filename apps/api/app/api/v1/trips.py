@@ -19,6 +19,7 @@ from app.schemas.trip import (
     ItineraryItemUpdate,
     TripCreate,
     TripDayResponse,
+    TripDayUpdate,
     TripDetailResponse,
     TripShareCreate,
     TripShareResponse,
@@ -134,6 +135,17 @@ async def clone_day_option(
         option_id, auth_ctx.user.id, payload
     )
     return DayOptionResponse.model_validate(option)
+
+
+@router.patch("/days/{day_id}", response_model=TripDayResponse)
+async def update_day(
+    day_id: str,
+    payload: TripDayUpdate,
+    auth_ctx: WriteTripsAuth,
+    db: DbSession,
+) -> TripDayResponse:
+    day = await TripService(db).update_day(day_id, auth_ctx.user.id, payload)
+    return TripDayResponse.model_validate(day)
 
 
 @router.patch("/days/{day_id}/active-option", response_model=TripDayResponse)
