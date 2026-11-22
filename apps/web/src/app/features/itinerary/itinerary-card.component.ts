@@ -127,6 +127,9 @@ import { ItineraryItem } from '../../core/models/tripilot.models';
             <div class="order-controls">
               <button type="button" class="icon-btn" (click)="$event.stopPropagation(); moveUp.emit(item())">↑</button>
               <button type="button" class="icon-btn" (click)="$event.stopPropagation(); moveDown.emit(item())">↓</button>
+              <button type="button" class="icon-btn alt-btn" (click)="$event.stopPropagation(); addAlternative.emit(item())">
+                {{ 'itinerary.choice.addAlt' | t }}
+              </button>
             </div>
             <button type="button" class="icon-btn danger" (click)="$event.stopPropagation(); deleted.emit(item().id)">
               {{ 'common.delete' | t }}
@@ -360,6 +363,12 @@ import { ItineraryItem } from '../../core/models/tripilot.models';
     .icon-btn.danger {
       color: var(--color-alert);
     }
+    .icon-btn.alt-btn {
+      border-style: dashed;
+      border-color: var(--color-accent);
+      background: var(--color-accent-soft);
+      color: #8b652d;
+    }
   `,
 })
 export class ItineraryCardComponent {
@@ -370,6 +379,7 @@ export class ItineraryCardComponent {
   readonly cardClicked = output<string>();
   readonly moveUp = output<ItineraryItem>();
   readonly moveDown = output<ItineraryItem>();
+  readonly addAlternative = output<ItineraryItem>();
   readonly deleted = output<string>();
 
   protected detail(key: string): string | null {

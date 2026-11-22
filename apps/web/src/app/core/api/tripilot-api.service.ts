@@ -11,6 +11,7 @@ import {
   ExpenseItem,
   ItemType,
   ItineraryItem,
+  PlaceCandidate,
   PublicTrip,
   ShareVisibilityPolicy,
   TravelStats,
@@ -45,6 +46,7 @@ export interface CreateItemPayload {
   google_maps_url?: string | null;
   notes?: string | null;
   details?: Record<string, unknown>;
+  alternative_for_item_id?: string | null;
 }
 
 export interface CreateExpensePayload {
@@ -123,6 +125,31 @@ export class TripilotApiService {
         label,
         summary_notes,
       }),
+    );
+  }
+
+  appendDay(tripId: string): Promise<TripDay> {
+    return firstValueFrom(
+      this.http.post<TripDay>(`${this.baseUrl}/trips/${tripId}/days`, {}),
+    );
+  }
+
+  selectChoiceItem(itemId: string): Promise<DayOption> {
+    return firstValueFrom(
+      this.http.patch<DayOption>(`${this.baseUrl}/items/${itemId}/select`, {}),
+    );
+  }
+
+  searchPlaces(query: string, lang = 'zh-TW'): Promise<PlaceCandidate[]> {
+    const params = new HttpParams().set('q', query).set('lang', lang);
+    return firstValueFrom(
+      this.http.get<PlaceCandidate[]>(`${this.baseUrl}/places/search`, { params }),
+    );
+  }
+
+  resolvePlaceUrl(url: string): Promise<PlaceCandidate> {
+    return firstValueFrom(
+      this.http.post<PlaceCandidate>(`${this.baseUrl}/places/resolve-url`, { url }),
     );
   }
 

@@ -69,7 +69,9 @@ export const ItineraryStore = signalStore(
       if (!option) {
         return 0;
       }
-      return option.items.filter((item) => item.type !== 'LOCAL_TRANSIT').length;
+      return option.items.filter(
+        (item) => item.is_selected && item.type !== 'LOCAL_TRANSIT',
+      ).length;
     });
 
     const isPreviewingActiveOption = computed(() => {
@@ -139,6 +141,25 @@ export const ItineraryStore = signalStore(
       const cloned = await api.cloneDayOption(option.id, label);
       await this.loadTrip(trip.id);
       this.previewOption(day.id, cloned.id);
+    },
+
+    async appendDay(): Promise<void> {
+      const trip = store.trip();
+      if (!trip) {
+        return;
+      }
+      const newDay = await api.appendDay(trip.id);
+      await this.loadTrip(trip.id);
+      this.selectDay(newDay.day_index);
+    },
+
+    async selectChoiceItem(itemId: string): Promise<void> {
+      const trip = store.trip();
+      if (!trip) {
+        return;
+      }
+      await api.selectChoiceItem(itemId);
+      await this.loadTrip(trip.id);
     },
 
     async setActiveOption(dayId: string, optionId: string): Promise<void> {

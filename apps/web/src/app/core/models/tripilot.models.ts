@@ -67,6 +67,17 @@ export interface ItineraryItem {
   google_maps_url: string | null;
   notes: string | null;
   details: Record<string, unknown>;
+  choice_group_id: string | null;
+  is_selected: boolean;
+}
+
+export interface PlaceCandidate {
+  name: string;
+  address: string | null;
+  latitude: number;
+  longitude: number;
+  google_maps_url: string | null;
+  provider: string;
 }
 
 export interface DayOption {

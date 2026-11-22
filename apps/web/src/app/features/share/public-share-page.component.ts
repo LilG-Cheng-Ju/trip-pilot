@@ -28,7 +28,7 @@ import { ItineraryMapComponent, MapPin } from '../itinerary/itinerary-map.compon
               [class.active]="selectedDayIndex() === day.day_index"
               (click)="selectedDayIndex.set(day.day_index)"
             >
-              D{{ day.day_index }} · {{ day.date.slice(5) }}
+              Day {{ day.day_index }} · {{ day.date.slice(5) }}
             </button>
           }
         </div>
@@ -148,7 +148,7 @@ export class PublicSharePageComponent implements OnInit {
     if (!t) return [];
     const day = t.days.find((d) => d.day_index === this.selectedDayIndex()) ?? t.days[0];
     const opt = day?.options.find((o) => o.id === day.active_option_id) ?? day?.options[0];
-    return opt?.items ?? [];
+    return (opt?.items ?? []).filter((i) => i.is_selected !== false);
   });
 
   protected readonly mapPins = computed<MapPin[]>(() => {
