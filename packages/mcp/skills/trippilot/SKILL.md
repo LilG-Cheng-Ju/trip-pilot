@@ -11,10 +11,10 @@ Use the `tripilot` MCP tools to read and update the user's Tripilot workspace wi
 
 - **Trip -> TripDay -> DayOption -> ItineraryItem**: Every trip auto-generates one `TripDay` per calendar date, each with a default `Plan A` `DayOption` set as `active_option_id`.
 - **Item types (`item_type`)**:
-  - `FLIGHT`: Commercial flights (include `dep_iata`, `arr_iata`, `flight_number`, `booking_ref`, `terminal`, `seat` in `details`).
-  - `RESERVED_TRANSIT`: Booked long-distance rail, Shinkansen, express bus, or ferry (`operator`, `train_number`, `car`, `seat`, `booking_ref` in `details`).
-  - `LOCAL_TRANSIT`: Metro, bus, taxi, or walking transfers.
-  - `STAY`: Hotels or vacation rentals (`check_in`, `check_out`, `booking_ref` in `details`).
+  - `FLIGHT`: Commercial flights (include `origin_iata`, `dest_iata`, `flight_number`, `booking_ref`, `origin_terminal`, `dest_terminal`, `seat` in `details`; the backend auto-computes Great-Circle `distance_km` from `origin_iata`/`dest_iata`).
+  - `RESERVED_TRANSIT`: Booked long-distance rail, Shinkansen, express bus, or ferry (`operator`, `line_or_train_no`, `car_number`, `seat`, `booking_ref` in `details`).
+  - `LOCAL_TRANSIT`: Metro, bus, taxi, or walking transfers (`mode`, `duration_minutes` in `details`).
+  - `STAY`: Hotels or vacation rentals (`check_in_time`, `check_out_time`, `confirmation_code`, `free_cancellation_deadline` in `details`).
   - `SPOT`: Sightseeing, museums, parks, activities.
   - `FOOD`: Restaurants, cafes, bars.
 - **Expense categories (`category`)**: `FLIGHT`, `LODGING`, `TRANSIT`, `FOOD`, `ACTIVITY`, `SHOPPING`, `OTHER`.
@@ -32,9 +32,9 @@ When the user asks to import a flight, hotel, or train confirmation email:
    - For flights, call `search_airports(query=<IATA or city>)` for both departure and arrival airports to verify exact IATA codes, coordinates, and timezones.
 3. **Insert the itinerary item by date**:
    - Call `add_item_by_date(...)` with `target_date="YYYY-MM-DD"`:
-     - Flights -> `item_type="FLIGHT"`, `details={"flight_number": "...", "dep_iata": "...", "arr_iata": "...", "booking_ref": "...", "terminal": "..."}`.
-     - Hotels -> `item_type="STAY"` on check-in date (and optional checkout reminder), `details={"check_in": "15:00", "check_out": "11:00", "booking_ref": "..."}`.
-     - Shinkansen / express trains -> `item_type="RESERVED_TRANSIT"`, `details={"operator": "...", "train_number": "...", "car": "...", "seat": "...", "booking_ref": "..."}`.
+     - Flights -> `item_type="FLIGHT"`, `details={"flight_number": "...", "origin_iata": "...", "dest_iata": "...", "booking_ref": "..."}`.
+     - Hotels -> `item_type="STAY"` on check-in date, `details={"check_in_time": "15:00", "check_out_time": "11:00", "confirmation_code": "...", "free_cancellation_deadline": "..."}`.
+     - Shinkansen / express trains -> `item_type="RESERVED_TRANSIT"`, `details={"operator": "...", "line_or_train_no": "...", "seat": "...", "booking_ref": "..."}`.
 4. **Log the paid cost (if present in the email)**:
    - Call `log_expense(trip_id=..., title=..., category=..., amount_original=..., currency_original=..., exchange_rate=..., payment_method=...)` using `FLIGHT`, `LODGING`, or `TRANSIT` as appropriate.
    - Never fabricate exchange rates if unknown; ask or default `exchange_rate=1.0` when `currency_original` matches the user's home currency.
