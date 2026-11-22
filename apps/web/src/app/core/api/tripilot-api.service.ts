@@ -2,6 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
+import { getApiBaseUrl } from '../config/runtime-config';
 import {
   AirportEntry,
   ApiTokenCreated,
@@ -65,7 +66,7 @@ export interface CreateExpensePayload {
 @Injectable({ providedIn: 'root' })
 export class TripilotApiService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = '/api/v1';
+  private readonly baseUrl = `${getApiBaseUrl()}/api/v1`;
 
   getMe(): Promise<UserProfile> {
     return firstValueFrom(this.http.get<UserProfile>(`${this.baseUrl}/me`));

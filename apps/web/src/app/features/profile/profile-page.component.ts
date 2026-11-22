@@ -1,9 +1,9 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 
-import {
-  SUPPORTED_CURRENCIES,
-} from '../../core/constants/travel-options';
+import { AuthSessionService } from '../../core/auth/auth-session.service';
+import { SUPPORTED_CURRENCIES } from '../../core/constants/travel-options';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { AppCountryPickerComponent } from '../../shared/country-picker.component';
@@ -15,7 +15,14 @@ import { AuthStore } from '../../state/auth.store';
   imports: [FormsModule, TranslatePipe, AppCountryPickerComponent],
   template: `
     <div class="page">
-      <h2 class="page-title">{{ 'profile.title' | t }}</h2>
+      <div class="page-head">
+        <h2 class="page-title">{{ 'profile.title' | t }}</h2>
+        @if (session.isFirebaseEnabled()) {
+          <button type="button" class="pill-btn danger" (click)="signOut()">
+            {{ i18n.locale() === 'zh-TW' ? '登出' : 'Sign Out' }}
+          </button>
+        }
+      </div>
 
       <section class="panel">
         <div class="panel-head">
@@ -122,6 +129,12 @@ import { AuthStore } from '../../state/auth.store';
       display: flex;
       flex-direction: column;
       gap: var(--space-5);
+    }
+    .page-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-3);
     }
     .page-title {
       margin: 0;
@@ -296,7 +309,9 @@ import { AuthStore } from '../../state/auth.store';
 })
 export class ProfilePageComponent implements OnInit {
   protected readonly authStore = inject(AuthStore);
+  protected readonly session = inject(AuthSessionService);
   protected readonly i18n = inject(I18nService);
+  private readonly router = inject(Router);
   protected readonly currencies = SUPPORTED_CURRENCIES;
 
   protected homeCountry = 'TW';
@@ -355,5 +370,10 @@ export class ProfilePageComponent implements OnInit {
     } catch {
       // Clipboard may be unavailable in non-HTTPS contexts.
     }
+  }
+
+  protected async signOut(): Promise<void> {
+    await this.session.signOut();
+    await this.router.navigate(['/login']);
   }
 }
