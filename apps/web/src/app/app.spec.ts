@@ -24,7 +24,7 @@ describe('App', () => {
 
     expect(compiled.querySelector('h1')?.textContent?.trim()).toBe('Tripilot');
     expect(compiled.querySelector('.tagline')?.textContent?.trim()).toBe(
-      'Calm, agent-native travel planning.',
+      'Your pocket travel copilot.',
     );
 
     i18n.setLocale('zh-TW');
@@ -32,7 +32,7 @@ describe('App', () => {
     await fixture.whenStable();
 
     expect(compiled.querySelector('.tagline')?.textContent?.trim()).toBe(
-      '沉靜優雅的 AI 原生旅遊規劃平台。',
+      '你的隨身行程副駕駛。',
     );
   });
 });
