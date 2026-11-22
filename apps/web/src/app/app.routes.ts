@@ -15,6 +15,25 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'trips/:tripId/expenses',
+    loadComponent: () =>
+      import('./features/expenses/expenses-page.component').then(
+        (m) => m.ExpensesPageComponent,
+      ),
+  },
+  {
+    path: 'stats',
+    loadComponent: () =>
+      import('./features/stats/stats-page.component').then((m) => m.StatsPageComponent),
+  },
+  {
+    path: 'profile',
+    loadComponent: () =>
+      import('./features/profile/profile-page.component').then(
+        (m) => m.ProfilePageComponent,
+      ),
+  },
+  {
     path: 's/:shareToken',
     loadComponent: () =>
       import('./features/share/public-share-page.component').then(
