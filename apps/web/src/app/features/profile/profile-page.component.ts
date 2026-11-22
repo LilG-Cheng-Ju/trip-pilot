@@ -60,16 +60,25 @@ import { AuthStore } from '../../state/auth.store';
         <h3>{{ 'profile.tokensTitle' | t }}</h3>
         <p class="hint">{{ 'profile.tokensHint' | t }}</p>
 
-        <form class="token-form" (ngSubmit)="generateToken()">
+        <form class="token-form" (ngSubmit)="generateToken()" novalidate>
           <input
             type="text"
+            [class.has-error]="tokenNameError()"
             [(ngModel)]="newTokenName"
             name="newTokenName"
+            (ngModelChange)="tokenNameError.set(false)"
             [placeholder]="'profile.tokenNamePlaceholder' | t"
-            required
           />
-          <button type="submit" class="btn-primary">{{ 'profile.tokenGenerate' | t }}</button>
+          <button type="submit" class="btn-primary" [disabled]="generatingToken()">
+            {{ 'profile.tokenGenerate' | t }}
+          </button>
         </form>
+        @if (tokenNameError()) {
+          <p class="err-msg">{{ 'profile.tokenNameRequired' | t }}</p>
+        }
+        @if (tokenApiError()) {
+          <p class="err-msg">{{ tokenApiError() }}</p>
+        }
 
         @if (authStore.lastCreatedToken(); as created) {
           <div class="created-box">
@@ -204,6 +213,23 @@ import { AuthStore } from '../../state/auth.store';
       cursor: pointer;
     }
     .pill-btn.danger {
+      border-color: rgba(217, 107, 82, 0.45);
+      background: var(--color-alert-soft);
+      color: var(--color-alert);
+    }
+    .pill-btn.danger:hover {
+      background: var(--color-alert);
+      border-color: var(--color-alert);
+      color: #ffffff;
+    }
+    .token-form input.has-error {
+      border-color: var(--color-alert);
+      background: var(--color-alert-soft);
+    }
+    .err-msg {
+      margin: -8px 0 var(--space-3);
+      font-size: 0.78rem;
+      font-weight: 600;
       color: var(--color-alert);
     }
     .token-form {
@@ -278,6 +304,9 @@ export class ProfilePageComponent implements OnInit {
   protected newTokenName = '';
   protected readonly savedNotice = signal(false);
   protected readonly copied = signal(false);
+  protected readonly tokenNameError = signal(false);
+  protected readonly tokenApiError = signal<string | null>(null);
+  protected readonly generatingToken = signal(false);
 
   async ngOnInit(): Promise<void> {
     await Promise.all([this.authStore.loadProfile(), this.authStore.loadTokens()]);
@@ -298,9 +327,24 @@ export class ProfilePageComponent implements OnInit {
   }
 
   protected async generateToken(): Promise<void> {
-    if (!this.newTokenName.trim()) return;
-    await this.authStore.createToken(this.newTokenName.trim());
-    this.newTokenName = '';
+    this.tokenApiError.set(null);
+    if (!this.newTokenName.trim()) {
+      this.tokenNameError.set(true);
+      return;
+    }
+    this.generatingToken.set(true);
+    try {
+      await this.authStore.createToken(this.newTokenName.trim());
+      this.newTokenName = '';
+    } catch {
+      this.tokenApiError.set(
+        this.i18n.locale() === 'zh-TW'
+          ? '產生 Token 失敗，請確認後端服務正常。'
+          : 'Failed to generate token. Please check the API server.',
+      );
+    } finally {
+      this.generatingToken.set(false);
+    }
   }
 
   protected async copyToken(plaintext: string): Promise<void> {

@@ -29,7 +29,7 @@ export const MESSAGES_EN = {
   'trips.startsIn': 'In {count} days',
   'trips.startsToday': 'Starts today',
   'trips.action.complete': 'Mark Completed',
-  'trips.action.undoComplete': 'Move to Upcoming',
+  'trips.action.undoComplete': 'Reopen',
   'trips.action.archive': 'Archive',
   'trips.action.restore': 'Restore',
   'trips.form.title': 'Trip Title',
@@ -147,6 +147,7 @@ export const MESSAGES_EN = {
   'profile.tokensHint': 'Generate a scoped token for Antigravity / Gemini MCP automation.',
   'profile.tokenNamePlaceholder': 'Token name (e.g. Antigravity MCP)',
   'profile.tokenGenerate': 'Generate Token',
+  'profile.tokenNameRequired': 'Please enter a token name first.',
   'profile.tokenOnceWarning': 'Copy this token now — it will not be shown again:',
   'profile.tokenRevoked': 'Revoked',
 } as const;

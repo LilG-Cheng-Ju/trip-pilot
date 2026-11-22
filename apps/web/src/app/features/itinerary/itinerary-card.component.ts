@@ -445,7 +445,19 @@ import { ItineraryItem } from '../../core/models/tripilot.models';
       color: #ffffff;
     }
     .icon-btn.danger {
+      border-color: rgba(217, 107, 82, 0.4);
+      background: var(--color-alert-soft);
       color: var(--color-alert);
+    }
+    .icon-btn.danger:hover {
+      border-color: var(--color-alert);
+      background: var(--color-alert);
+      color: #ffffff;
+    }
+    .icon-btn.dark.danger {
+      border-color: rgba(217, 107, 82, 0.6);
+      background: rgba(217, 107, 82, 0.22);
+      color: #ffd6cc;
     }
     .icon-btn.alt-btn {
       border-style: dashed;

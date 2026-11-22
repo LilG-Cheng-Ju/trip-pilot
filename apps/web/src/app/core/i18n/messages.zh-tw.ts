@@ -31,7 +31,7 @@ export const MESSAGES_ZH_TW: Record<TranslationKey, string> = {
   'trips.startsIn': '{count} 天後出發',
   'trips.startsToday': '今天出發',
   'trips.action.complete': '標記完成',
-  'trips.action.undoComplete': '解除完成',
+  'trips.action.undoComplete': '移回進行中',
   'trips.action.archive': '封存',
   'trips.action.restore': '還原',
   'trips.form.title': '旅程名稱',
@@ -149,6 +149,7 @@ export const MESSAGES_ZH_TW: Record<TranslationKey, string> = {
   'profile.tokensHint': '產生專屬 Token 讓 Antigravity / Gemini 透過 MCP 自動讀寫你的行程。',
   'profile.tokenNamePlaceholder': 'Token 名稱（例如 Antigravity MCP）',
   'profile.tokenGenerate': '產生 Token',
+  'profile.tokenNameRequired': '請先輸入 Token 名稱（例如 Antigravity MCP）。',
   'profile.tokenOnceWarning': '請立刻複製此 Token，關閉後將無法再次檢視：',
   'profile.tokenRevoked': '已撤銷',
 };

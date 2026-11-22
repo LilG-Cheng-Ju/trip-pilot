@@ -113,7 +113,7 @@ type DateEndMode = 'end' | 'duration' | 'open';
                 } @else {
                   <button
                     type="button"
-                    class="action-pill"
+                    class="action-pill alert"
                     (click)="tripStore.updateTripStatus(trip.id, 'PLANNING')"
                   >
                     <span class="ms-icon sm" aria-hidden="true">undo</span>
@@ -462,6 +462,16 @@ type DateEndMode = 'end' | 'duration' | 'open';
       border-color: var(--color-primary);
       background: var(--color-primary);
       color: var(--color-text-on-primary);
+    }
+    .action-pill.alert {
+      border-color: rgba(217, 107, 82, 0.45);
+      background: var(--color-alert-soft);
+      color: var(--color-alert);
+    }
+    .action-pill.alert:hover {
+      background: var(--color-alert);
+      border-color: var(--color-alert);
+      color: #ffffff;
     }
     .empty-card {
       padding: var(--space-6);

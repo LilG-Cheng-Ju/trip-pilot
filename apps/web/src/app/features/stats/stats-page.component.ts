@@ -50,7 +50,7 @@ import { StatsStore } from '../../state/stats.store';
           <div class="kpi-card">
             <span class="kpi-label">{{ 'stats.totalSpend' | t }}</span>
             <strong class="kpi-value tabular-nums">{{ s.home_currency }} {{ s.total_spend_home }}</strong>
-            <span class="kpi-sub">{{ s.home_country_code }}</span>
+            <span class="kpi-sub">{{ countryLabel(s.home_country_code) }}</span>
           </div>
         </section>
 
@@ -261,9 +261,7 @@ export class StatsPageComponent implements OnInit {
   protected countryLabel(code: string): string {
     const match = findCountry(code);
     if (!match) return code;
-    return this.i18n.locale() === 'zh-TW'
-      ? `${match.nameZh} (${match.code})`
-      : `${match.nameEn} (${match.code})`;
+    return this.i18n.locale() === 'zh-TW' ? match.nameZh : match.nameEn;
   }
 
   protected categoryKey(

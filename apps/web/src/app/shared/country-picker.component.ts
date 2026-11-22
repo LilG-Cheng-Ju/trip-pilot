@@ -1,4 +1,13 @@
-import { Component, computed, inject, input, output, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  ElementRef,
+  HostListener,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import {
@@ -201,6 +210,7 @@ import { I18nService } from '../core/i18n/i18n.service';
 })
 export class AppCountryPickerComponent {
   protected readonly i18n = inject(I18nService);
+  private readonly hostRef = inject(ElementRef<HTMLElement>);
 
   readonly selectedCodes = input<string[]>([]);
   readonly multiple = input(false);
@@ -210,6 +220,20 @@ export class AppCountryPickerComponent {
 
   protected readonly open = signal(false);
   protected readonly query = signal('');
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    if (this.open() && !this.hostRef.nativeElement.contains(event.target as Node)) {
+      this.open.set(false);
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.open()) {
+      this.open.set(false);
+    }
+  }
 
   protected readonly filteredCountries = computed(() => {
     const q = this.query().trim().toLowerCase();
