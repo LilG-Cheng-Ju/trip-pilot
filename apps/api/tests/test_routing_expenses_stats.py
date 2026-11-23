@@ -169,9 +169,36 @@ async def test_ground_routing_cache_expenses_and_annual_stats(
         await api_client.get("/api/v1/stats?year=2026", headers=dev_headers)
     ).json()
     assert stats["total_trips"] == 2
+    assert stats["domestic_trips"] == 1
     assert stats["international_trips"] == 1
     assert stats["countries_visited"] == ["JP", "TW"]
+    assert stats["country_visit_counts"] == {"JP": 1, "TW": 1}
     assert stats["total_travel_days"] == 4
+    assert stats["flight_count"] == 1
     assert stats["total_ground_distance_km"] == 12.4
     assert 2080.0 <= stats["total_flight_distance_km"] <= 2120.0
     assert stats["total_spend_home"] == "2150.00"
+    assert stats["avg_spend_per_day"] == "537.50"
+    assert len(stats["trips"]) == 2
+    assert 2026 in stats["available_years"]
+
+    # Verify scope filtering cleanly splits domestic vs international metrics.
+    intl_stats = (
+        await api_client.get(
+            "/api/v1/stats?year=2026&scope=international", headers=dev_headers
+        )
+    ).json()
+    assert intl_stats["total_trips"] == 1
+    assert intl_stats["domestic_trips"] == 0
+    assert intl_stats["international_trips"] == 1
+    assert intl_stats["countries_visited"] == ["JP"]
+
+    dom_stats = (
+        await api_client.get(
+            "/api/v1/stats?year=2026&scope=domestic", headers=dev_headers
+        )
+    ).json()
+    assert dom_stats["total_trips"] == 1
+    assert dom_stats["domestic_trips"] == 1
+    assert dom_stats["international_trips"] == 0
+    assert dom_stats["total_spend_home"] == "0.00"
