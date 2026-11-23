@@ -14,11 +14,15 @@ export class AuthSessionService {
   private readonly firebaseConfig = getRuntimeConfig().firebase ?? null;
   private readonly idToken = signal<string | null>(null);
   private readonly emailSignal = signal<string | null>(null);
+  private readonly displayNameSignal = signal<string | null>(null);
+  private readonly photoUrlSignal = signal<string | null>(null);
   private readonly readySignal = signal<boolean>(!this.firebaseConfig);
 
   readonly isFirebaseEnabled = computed(() => this.firebaseConfig !== null);
   readonly isReady = this.readySignal.asReadonly();
   readonly userEmail = this.emailSignal.asReadonly();
+  readonly userDisplayName = this.displayNameSignal.asReadonly();
+  readonly userPhotoUrl = this.photoUrlSignal.asReadonly();
   readonly isAuthenticated = computed(() =>
     this.isFirebaseEnabled() ? this.idToken() !== null : true,
   );
@@ -53,6 +57,8 @@ export class AuthSessionService {
     const token = await result.user.getIdToken();
     this.idToken.set(token);
     this.emailSignal.set(result.user.email ?? null);
+    this.displayNameSignal.set(result.user.displayName ?? null);
+    this.photoUrlSignal.set(result.user.photoURL ?? null);
   }
 
   async signOut(): Promise<void> {
@@ -63,6 +69,8 @@ export class AuthSessionService {
     await authMod.signOut(this.firebaseAuthInstance);
     this.idToken.set(null);
     this.emailSignal.set(null);
+    this.displayNameSignal.set(null);
+    this.photoUrlSignal.set(null);
   }
 
   private async initFirebaseAuth(): Promise<void> {
@@ -76,16 +84,30 @@ export class AuthSessionService {
       const auth = authMod.getAuth(app);
       this.firebaseAuthInstance = auth;
 
-      authMod.onIdTokenChanged(auth, async (user: { email?: string | null; getIdToken: () => Promise<string> } | null) => {
-        if (user) {
-          this.idToken.set(await user.getIdToken());
-          this.emailSignal.set(user.email ?? null);
-        } else {
-          this.idToken.set(null);
-          this.emailSignal.set(null);
-        }
-        this.readySignal.set(true);
-      });
+      authMod.onIdTokenChanged(
+        auth,
+        async (
+          user: {
+            email?: string | null;
+            displayName?: string | null;
+            photoURL?: string | null;
+            getIdToken: () => Promise<string>;
+          } | null,
+        ) => {
+          if (user) {
+            this.idToken.set(await user.getIdToken());
+            this.emailSignal.set(user.email ?? null);
+            this.displayNameSignal.set(user.displayName ?? null);
+            this.photoUrlSignal.set(user.photoURL ?? null);
+          } else {
+            this.idToken.set(null);
+            this.emailSignal.set(null);
+            this.displayNameSignal.set(null);
+            this.photoUrlSignal.set(null);
+          }
+          this.readySignal.set(true);
+        },
+      );
     } catch {
       this.readySignal.set(true);
     }

@@ -18,6 +18,9 @@
             />
           </svg>
           <h1 class="brand-name">{{ 'app.name' | t }}</h1>
+          @if (isBeta) {
+            <span class="beta-badge">BETA</span>
+          }
         </a>
 
         <nav class="desktop-nav" aria-label="Primary navigation">
@@ -29,17 +32,93 @@
             <span class="ms-icon sm" aria-hidden="true">bar_chart</span>
             <span>{{ 'nav.stats' | t }}</span>
           </a>
-          <a routerLink="/profile" routerLinkActive="active" class="nav-tab">
-            <span class="ms-icon sm" aria-hidden="true">tune</span>
-            <span>{{ 'nav.profile' | t }}</span>
-          </a>
         </nav>
       </div>
 
-      <button type="button" class="locale-pill" (click)="i18n.toggleLocale()">
-        <span class="ms-icon sm" aria-hidden="true">translate</span>
-        <span>{{ i18n.locale() === 'en' ? '繁體中文' : 'EN' }}</span>
-      </button>
+      <div class="topbar-right">
+        <div class="account-menu-anchor">
+          <button
+            type="button"
+            class="avatar-btn"
+            [class.open]="accountMenuOpen()"
+            [attr.aria-label]="'account.menuAria' | t"
+            [attr.aria-expanded]="accountMenuOpen()"
+            (click)="toggleAccountMenu($event)"
+          >
+            @if (auth.userPhotoUrl(); as photoUrl) {
+              <img [src]="photoUrl" alt="" class="avatar-img" referrerpolicy="no-referrer" />
+            } @else {
+              <span class="avatar-initial">{{ avatarInitial() }}</span>
+            }
+          </button>
+
+          @if (accountMenuOpen()) {
+            <div class="account-dropdown" role="menu">
+              <div class="account-header">
+                <div class="account-avatar-lg">
+                  @if (auth.userPhotoUrl(); as photoUrl) {
+                    <img [src]="photoUrl" alt="" class="avatar-img" referrerpolicy="no-referrer" />
+                  } @else {
+                    <span>{{ avatarInitial() }}</span>
+                  }
+                </div>
+                <div class="account-identity">
+                  <div class="account-name">
+                    {{ auth.userDisplayName() || ('account.localDev' | t) }}
+                  </div>
+                  @if (auth.userEmail(); as email) {
+                    <div class="account-email">{{ email }}</div>
+                  }
+                </div>
+              </div>
+
+              <div class="menu-divider"></div>
+
+              <a
+                routerLink="/profile"
+                class="menu-item"
+                role="menuitem"
+                (click)="closeAccountMenu()"
+              >
+                <span class="ms-icon sm" aria-hidden="true">tune</span>
+                <span>{{ 'account.settings' | t }}</span>
+              </a>
+
+              <button
+                type="button"
+                class="menu-item"
+                role="menuitem"
+                (click)="i18n.toggleLocale()"
+              >
+                <span class="ms-icon sm" aria-hidden="true">translate</span>
+                <span>{{ 'account.language' | t }}</span>
+                <span class="menu-trailing">
+                  {{ i18n.locale() === 'en' ? '繁體中文' : 'EN' }}
+                </span>
+              </button>
+
+              @if (auth.isFirebaseEnabled()) {
+                <button
+                  type="button"
+                  class="menu-item danger"
+                  role="menuitem"
+                  (click)="signOut()"
+                >
+                  <span class="ms-icon sm" aria-hidden="true">logout</span>
+                  <span>{{ 'account.signOut' | t }}</span>
+                </button>
+              }
+
+              <div class="menu-divider"></div>
+
+              <div class="menu-footer">
+                <span>{{ 'app.name' | t }}</span>
+                <span class="version-pill">v{{ appVersion }}</span>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
     </header>
   }
 
@@ -56,10 +135,6 @@
       <a routerLink="/stats" routerLinkActive="active" class="bottom-item">
         <span class="ms-icon" aria-hidden="true">bar_chart</span>
         <span>{{ 'nav.stats' | t }}</span>
-      </a>
-      <a routerLink="/profile" routerLinkActive="active" class="bottom-item">
-        <span class="ms-icon" aria-hidden="true">tune</span>
-        <span>{{ 'nav.profile' | t }}</span>
       </a>
     </nav>
   }
