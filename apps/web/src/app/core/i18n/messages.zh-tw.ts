@@ -214,4 +214,9 @@ export const MESSAGES_ZH_TW: Record<TranslationKey, string> = {
   'brief.transitEmpty': '尚未新增需要訂票的鐵路、高鐵或長途巴士。',
   'brief.attachments': '旅程附件庫',
   'brief.attachmentsEmpty': '尚未附加任何雲端連結，可在各行程編輯頁貼上 Google Drive 或票券連結。',
+  'map.openSheet': '地圖',
+  'map.closeSheet': '關閉地圖',
+  'sync.syncing': '同步中...',
+  'sync.offlineCache': '離線快取檢視',
+  'sync.wakingServer': '正在連線伺服器（冷啟動約需數秒，請稍候）...',
 };

@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, ElementRef, inject, OnInit, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 
@@ -42,152 +42,147 @@ interface TimelineSlot {
   ],
   template: `
     @if (store.trip(); as trip) {
-      <div class="itinerary-layout" [class.map-hidden]="!store.desktopMapVisible()">
+      <div class="itinerary-layout">
         <section class="timeline-pane">
-          <app-trip-subnav
-            [tripId]="trip.id"
-            [title]="trip.title"
-            [dateRange]="trip.start_date + ' — ' + trip.end_date"
-          >
-            <button
-              type="button"
-              class="util-icon-btn"
-              [title]="'common.share' | t"
-              [attr.aria-label]="'common.share' | t"
-              (click)="openShareModal(trip.id)"
+          <!-- Frozen Header + Workspace Tabs + Day 1..N Strip -->
+          <div class="sticky-trip-top">
+            <app-trip-subnav
+              [tripId]="trip.id"
+              [title]="trip.title"
+              [dateRange]="trip.start_date + ' — ' + trip.end_date"
             >
-              <span class="ms-icon sm" aria-hidden="true">share</span>
-            </button>
-            <button
-              type="button"
-              class="util-icon-btn"
-              [class.active]="isMapVisible()"
-              [title]="isMapVisible() ? ('itinerary.map.hide' | t) : ('itinerary.map.show' | t)"
-              [attr.aria-label]="isMapVisible() ? ('itinerary.map.hide' | t) : ('itinerary.map.show' | t)"
-              (click)="toggleMap()"
-            >
-              <span class="ms-icon sm" aria-hidden="true">
-                {{ isMapVisible() ? 'map' : 'visibility_off' }}
-              </span>
-            </button>
-          </app-trip-subnav>
-
-          <!-- Horizontal Day Switcher (Day 1, Day 2, ... + Add Day) -->
-          <div class="day-strip" role="tablist">
-            @for (day of trip.days; track day.id) {
+              @if (store.usingOfflineCache()) {
+                <span class="status-pill offline" [title]="'sync.offlineCache' | t">
+                  <span class="ms-icon sm" aria-hidden="true">cloud_off</span>
+                </span>
+              } @else if (store.syncing()) {
+                <span class="status-pill syncing" [title]="'sync.syncing' | t">
+                  <span class="ms-icon sm spin" aria-hidden="true">sync</span>
+                </span>
+              }
               <button
                 type="button"
-                class="day-chip tabular-nums"
-                [class.active]="store.selectedDay()?.id === day.id"
-                (click)="store.selectDay(day.day_index)"
+                class="util-icon-btn"
+                [title]="'common.share' | t"
+                [attr.aria-label]="'common.share' | t"
+                (click)="openShareModal(trip.id)"
               >
-                <span class="day-num">Day {{ day.day_index }}</span>
-                <span class="day-date">{{ day.date.slice(5) }}</span>
+                <span class="ms-icon sm" aria-hidden="true">share</span>
               </button>
-            }
-            <button type="button" class="day-add-btn" (click)="store.appendDay()">
-              {{ 'itinerary.addDay' | t }}
-            </button>
-          </div>
+            </app-trip-subnav>
 
-          @if (store.selectedDay(); as day) {
-            <!-- Inline Editable Day Theme / Focus -->
-            <div class="day-theme-bar">
-              <span class="ms-icon sm theme-ico" aria-hidden="true">flag</span>
-              <input
-                type="text"
-                class="day-theme-input"
-                [ngModel]="day.title || ''"
-                (blur)="saveDayTheme(day.id, $any($event.target).value, day.title)"
-                (keydown.enter)="$any($event.target).blur()"
-                [placeholder]="'itinerary.dayThemePlaceholder' | t"
-              />
-            </div>
+            <!-- Horizontal Day Switcher (wheel + arrow + touch scroll) -->
+            <div class="day-strip-wrap">
+              <button
+                type="button"
+                class="day-scroll-btn"
+                aria-label="Scroll days left"
+                (click)="scrollDayStrip(-200)"
+              >
+                <span class="ms-icon sm" aria-hidden="true">chevron_left</span>
+              </button>
 
-            <!-- Whole-Day Plan A / Plan B Segmented Switcher -->
-            <div class="plan-bar">
-              <div class="plan-pills">
-                @for (opt of day.options; track opt.id) {
+              <div
+                #dayStrip
+                class="day-strip"
+                role="tablist"
+                (wheel)="onDayStripWheel($event)"
+              >
+                @for (day of trip.days; track day.id) {
                   <button
                     type="button"
-                    class="plan-pill"
-                    [class.selected]="store.selectedOption()?.id === opt.id"
-                    (click)="store.previewOption(day.id, opt.id)"
+                    class="day-chip tabular-nums"
+                    [class.active]="store.selectedDay()?.id === day.id"
+                    (click)="store.selectDay(day.day_index)"
                   >
-                    @if (day.active_option_id === opt.id) {
-                      <span class="active-dot" aria-hidden="true"></span>
-                    }
-                    <span>{{ opt.label }}</span>
-                    @if (opt.cached_ground_distance_km > 0) {
-                      <span class="opt-km tabular-nums">
-                        {{ opt.cached_distance_is_approx ? '~' : '' }}{{ opt.cached_ground_distance_km }} km
-                      </span>
-                    }
+                    <span class="day-num">Day {{ day.day_index }}</span>
+                    <span class="day-date">{{ day.date.slice(5) }}</span>
                   </button>
                 }
+                <button type="button" class="day-add-btn" (click)="store.appendDay()">
+                  {{ 'itinerary.addDay' | t }}
+                </button>
               </div>
-              <button type="button" class="clone-btn" (click)="openCloneModal()">
-                {{ 'itinerary.plan.addOption' | t }}
+
+              <button
+                type="button"
+                class="day-scroll-btn"
+                aria-label="Scroll days right"
+                (click)="scrollDayStrip(200)"
+              >
+                <span class="ms-icon sm" aria-hidden="true">chevron_right</span>
               </button>
             </div>
+          </div>
 
-            @if (store.selectedOption(); as option) {
-              @if (!store.isPreviewingActiveOption()) {
-                <div class="activate-banner">
-                  <span>{{ option.label }}</span>
-                  <button
-                    type="button"
-                    class="btn-accent"
-                    (click)="store.setActiveOption(day.id, option.id)"
-                  >
-                    {{ 'itinerary.plan.setActive' | t }}
-                  </button>
-                </div>
-              }
+          <div class="timeline-scroll">
+            @if (store.selectedDay(); as day) {
+              <!-- Inline Editable Day Theme / Focus -->
+              <div class="day-theme-bar">
+                <span class="ms-icon sm theme-ico" aria-hidden="true">flag</span>
+                <input
+                  type="text"
+                  class="day-theme-input"
+                  [ngModel]="day.title || ''"
+                  (blur)="saveDayTheme(day.id, $any($event.target).value, day.title)"
+                  (keydown.enter)="$any($event.target).blur()"
+                  [placeholder]="'itinerary.dayThemePlaceholder' | t"
+                />
+              </div>
 
-              <div class="summary-bar">
-                <span class="summary-text tabular-nums">
-                  {{ 'itinerary.summary.stops' | t: { count: store.stopCount() } }}
-                  · {{ option.cached_distance_is_approx ? '~' : '' }}{{ option.cached_ground_distance_km }} km
-                </span>
-
-                <div class="summary-controls">
-                  <div class="mobile-toggle">
+              <!-- Whole-Day Plan A / Plan B Segmented Switcher -->
+              <div class="plan-bar">
+                <div class="plan-pills">
+                  @for (opt of day.options; track opt.id) {
                     <button
                       type="button"
-                      [class.active]="store.mobileView() === 'list'"
-                      (click)="store.setMobileView('list')"
+                      class="plan-pill"
+                      [class.selected]="store.selectedOption()?.id === opt.id"
+                      (click)="store.previewOption(day.id, opt.id)"
                     >
-                      {{ 'itinerary.view.list' | t }}
+                      @if (day.active_option_id === opt.id) {
+                        <span class="active-dot" aria-hidden="true"></span>
+                      }
+                      <span>{{ opt.label }}</span>
+                      @if (opt.cached_ground_distance_km > 0) {
+                        <span class="opt-km tabular-nums">
+                          {{ opt.cached_distance_is_approx ? '~' : '' }}{{ opt.cached_ground_distance_km }} km
+                        </span>
+                      }
                     </button>
+                  }
+                </div>
+                <button type="button" class="clone-btn" (click)="openCloneModal()">
+                  {{ 'itinerary.plan.addOption' | t }}
+                </button>
+              </div>
+
+              @if (store.selectedOption(); as option) {
+                @if (!store.isPreviewingActiveOption()) {
+                  <div class="activate-banner">
+                    <span>{{ option.label }}</span>
                     <button
                       type="button"
-                      [class.active]="store.mobileView() === 'map'"
-                      (click)="store.setMobileView('map')"
+                      class="btn-accent"
+                      (click)="store.setActiveOption(day.id, option.id)"
                     >
-                      {{ 'itinerary.view.map' | t }}
+                      {{ 'itinerary.plan.setActive' | t }}
                     </button>
                   </div>
+                }
+
+                <div class="summary-bar">
+                  <span class="summary-text tabular-nums">
+                    {{ 'itinerary.summary.stops' | t: { count: store.stopCount() } }}
+                    · {{ option.cached_distance_is_approx ? '~' : '' }}{{ option.cached_ground_distance_km }} km
+                  </span>
+
                   <button type="button" class="add-item-btn" (click)="openAddItemModal()">
                     <span class="ms-icon sm" aria-hidden="true">add</span>
                     <span>{{ 'itinerary.addItem' | t }}</span>
                   </button>
                 </div>
-              </div>
 
-              @if (store.mobileView() === 'map') {
-                <div class="mobile-map-box">
-                  <app-itinerary-map
-                    [pins]="mapPins()"
-                    [routePath]="mapRoutePath()"
-                    [stayPin]="stayMapPin()"
-                    [connectFromStay]="connectFromStay()"
-                    [connectToStay]="connectToStay()"
-                    [selectedPinId]="store.selectedItemId()"
-                    (pinSelected)="store.selectItem($event)"
-                  />
-                </div>
-              } @else {
                 @if (timelineSlots().length === 0) {
                   <div class="empty-day">{{ 'itinerary.emptyDay' | t }}</div>
                 } @else {
@@ -242,11 +237,55 @@ interface TimelineSlot {
                 }
               }
             }
-          }
+          </div>
         </section>
 
-        @if (store.desktopMapVisible()) {
-          <aside class="desktop-map-pane">
+        <!-- Always-on Desktop Split Map -->
+        <aside class="desktop-map-pane">
+          <app-itinerary-map
+            [pins]="mapPins()"
+            [routePath]="mapRoutePath()"
+            [stayPin]="stayMapPin()"
+            [connectFromStay]="connectFromStay()"
+            [connectToStay]="connectToStay()"
+            [selectedPinId]="store.selectedItemId()"
+            (pinSelected)="store.selectItem($event)"
+          />
+        </aside>
+      </div>
+
+      <!-- Mobile Floating Map Pill (Thumb-Zone Airbnb pattern) -->
+      @if (!store.mobileMapOpen()) {
+        <button
+          type="button"
+          class="mobile-map-fab"
+          (click)="store.setMobileMapOpen(true)"
+        >
+          <span class="ms-icon sm fab-ico" aria-hidden="true">map</span>
+          <span>{{ 'map.openSheet' | t }}</span>
+        </button>
+      }
+
+      <!-- Mobile Non-Destructive Bottom Sheet Map Overlay -->
+      @if (store.mobileMapOpen()) {
+        <div class="mobile-map-sheet" role="dialog" aria-label="Interactive Map">
+          <div class="sheet-bar">
+            <span class="sheet-handle" aria-hidden="true"></span>
+            <span class="sheet-title tabular-nums">
+              @if (store.selectedDay(); as d) {
+                Day {{ d.day_index }} · {{ d.date.slice(5) }}
+              }
+            </span>
+            <button
+              type="button"
+              class="sheet-close-btn"
+              (click)="store.setMobileMapOpen(false)"
+            >
+              <span class="ms-icon sm" aria-hidden="true">close</span>
+              <span>{{ 'map.closeSheet' | t }}</span>
+            </button>
+          </div>
+          <div class="sheet-map-body">
             <app-itinerary-map
               [pins]="mapPins()"
               [routePath]="mapRoutePath()"
@@ -256,9 +295,9 @@ interface TimelineSlot {
               [selectedPinId]="store.selectedItemId()"
               (pinSelected)="store.selectItem($event)"
             />
-          </aside>
-        }
-      </div>
+          </div>
+        </div>
+      }
 
       <!-- Unified Add / Edit / Alternative Item Modal -->
       <app-item-form-modal
@@ -350,7 +389,10 @@ interface TimelineSlot {
         }
       </app-modal>
     } @else if (store.loading()) {
-      <p class="empty-day">{{ 'common.loading' | t }}</p>
+      <div class="cold-start-box">
+        <span class="ms-icon lg spin" aria-hidden="true">progress_activity</span>
+        <p>{{ 'sync.wakingServer' | t }}</p>
+      </div>
     }
   `,
   styles: `
@@ -361,14 +403,50 @@ interface TimelineSlot {
     }
     .timeline-pane {
       min-width: 0;
-      padding: var(--space-4) var(--space-4) calc(var(--nav-bottom-height) + var(--space-6));
+      display: flex;
+      flex-direction: column;
       max-width: 780px;
       width: 100%;
       margin: 0 auto;
     }
-    .desktop-map-pane,
-    .desktop-only {
+    .sticky-trip-top {
+      position: sticky;
+      top: 56px;
+      z-index: 20;
+      background: var(--color-bg);
+      padding: var(--space-3) var(--space-4) var(--space-2);
+      border-bottom: 1px solid var(--color-border);
+      flex-shrink: 0;
+    }
+    .timeline-scroll {
+      padding: var(--space-3) var(--space-4) calc(var(--nav-bottom-height) + 76px);
+    }
+    .desktop-map-pane {
       display: none;
+    }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+    }
+    .status-pill.syncing {
+      background: var(--color-primary-tint);
+      color: var(--color-primary);
+    }
+    .status-pill.offline {
+      background: var(--color-accent-soft);
+      color: #8b652d;
+    }
+    .spin {
+      animation: tp-spin 1s linear infinite;
+    }
+    @keyframes tp-spin {
+      to {
+        transform: rotate(360deg);
+      }
     }
     .util-icon-btn {
       display: inline-flex;
@@ -388,76 +466,145 @@ interface TimelineSlot {
       border-color: var(--color-primary);
       background: var(--color-primary-tint);
     }
-    .trip-bar {
+    .day-strip-wrap {
       display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      gap: var(--space-3);
-      margin-bottom: var(--space-4);
-    }
-    .trip-bar-left {
-      display: flex;
-      align-items: center;
-      gap: var(--space-3);
-    }
-    .back-btn {
-      display: grid;
-      place-items: center;
-      width: 36px;
-      height: 36px;
-      border-radius: var(--radius-pill);
-      background: var(--color-surface);
-      border: 1px solid var(--color-border);
-      color: var(--color-primary);
-      text-decoration: none;
-    }
-    .trip-name {
-      margin: 0;
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: var(--color-primary);
-    }
-    .trip-range {
-      margin: 2px 0 0;
-      font-size: 0.75rem;
-      color: var(--color-text-muted);
-    }
-    .trip-bar-actions {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
-    .pill-btn {
-      display: inline-flex;
       align-items: center;
       gap: 4px;
-      padding: 7px 12px;
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-pill);
-      background: var(--color-surface);
-      color: var(--color-primary);
-      text-decoration: none;
-      font: inherit;
-      font-size: 0.8125rem;
-      font-weight: 600;
-      cursor: pointer;
+      max-width: 100%;
     }
-    .pill-btn.danger {
-      color: var(--color-alert);
+    .day-scroll-btn {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 44px;
+      padding: 0;
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      background: var(--color-surface);
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .day-scroll-btn:hover {
+      border-color: var(--color-primary);
+      color: var(--color-primary);
     }
     .day-strip {
       display: flex;
+      flex: 1;
+      min-width: 0;
       gap: 8px;
       max-width: 100%;
       overflow-x: auto;
+      scroll-behavior: smooth;
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
-      padding-bottom: var(--space-2);
-      margin-bottom: var(--space-3);
+      padding: 2px 0;
     }
     .day-strip::-webkit-scrollbar {
       display: none;
+    }
+    .mobile-map-fab {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: calc(var(--nav-bottom-height) + env(safe-area-inset-bottom) + 12px);
+      z-index: 35;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: var(--radius-pill);
+      background: var(--color-primary);
+      color: #ffffff;
+      font: inherit;
+      font-size: 0.85rem;
+      font-weight: 700;
+      box-shadow: 0 8px 24px rgba(27, 42, 74, 0.32);
+      cursor: pointer;
+    }
+    .fab-ico {
+      color: var(--color-accent);
+    }
+    .mobile-map-sheet {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: calc(var(--nav-bottom-height) + env(safe-area-inset-bottom));
+      height: 70dvh;
+      z-index: 38;
+      display: flex;
+      flex-direction: column;
+      background: var(--color-surface);
+      border-top: 1px solid var(--color-border);
+      border-radius: 16px 16px 0 0;
+      box-shadow: 0 -10px 30px rgba(15, 23, 42, 0.22);
+      overflow: hidden;
+    }
+    .sheet-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--color-border);
+      background: var(--color-surface);
+      position: relative;
+    }
+    .sheet-handle {
+      position: absolute;
+      top: 5px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 36px;
+      height: 4px;
+      border-radius: 99px;
+      background: var(--color-border);
+    }
+    .sheet-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--color-primary);
+    }
+    .sheet-close-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 5px 11px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-pill);
+      background: var(--color-bg);
+      color: var(--color-primary);
+      font: inherit;
+      font-size: 0.76rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .sheet-map-body {
+      flex: 1;
+      min-height: 0;
+      padding: 8px;
+    }
+    .cold-start-box {
+      max-width: 420px;
+      margin: 48px auto;
+      padding: var(--space-6);
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      color: var(--color-text-secondary);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-card);
+    }
+    .cold-start-box p {
+      margin: 0;
+      font-size: 0.85rem;
     }
     .day-chip {
       flex-shrink: 0;
@@ -627,33 +774,6 @@ interface TimelineSlot {
       font-weight: 600;
       color: var(--color-text-secondary);
     }
-    .summary-controls {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 8px;
-    }
-    .mobile-toggle {
-      display: inline-flex;
-      padding: 3px;
-      border-radius: var(--radius-pill);
-      background: var(--color-surface-muted);
-    }
-    .mobile-toggle button {
-      padding: 5px 12px;
-      border: none;
-      border-radius: var(--radius-pill);
-      background: transparent;
-      color: var(--color-text-secondary);
-      font: inherit;
-      font-size: 0.75rem;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    .mobile-toggle button.active {
-      background: var(--color-surface);
-      color: var(--color-primary);
-    }
     .timeline-list {
       display: flex;
       flex-direction: column;
@@ -707,9 +827,6 @@ interface TimelineSlot {
       background: var(--color-surface);
       color: #8b652d;
       cursor: pointer;
-    }
-    .mobile-map-box {
-      height: 62dvh;
     }
     .empty-day {
       padding: var(--space-6);
@@ -794,22 +911,52 @@ interface TimelineSlot {
       gap: 6px;
     }
 
-    @media (min-width: 1024px) {
-      .desktop-only {
+    .pill-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 7px 12px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-pill);
+      background: var(--color-surface);
+      color: var(--color-primary);
+      text-decoration: none;
+      font: inherit;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .pill-btn.danger {
+      color: var(--color-alert);
+    }
+    @media (min-width: 768px) {
+      .day-scroll-btn {
         display: inline-flex;
       }
-      .mobile-toggle,
-      .mobile-map-box {
+    }
+    @media (min-width: 1024px) {
+      .mobile-map-fab,
+      .mobile-map-sheet {
         display: none;
       }
-      .itinerary-layout:not(.map-hidden) {
+      .itinerary-layout {
         grid-template-columns: minmax(440px, 46%) 1fr;
         height: calc(100dvh - 56px);
       }
-      .itinerary-layout:not(.map-hidden) .timeline-pane {
+      .timeline-pane {
         max-width: none;
+        height: calc(100dvh - 56px);
+        overflow: hidden;
+      }
+      .sticky-trip-top {
+        position: static;
+        padding: var(--space-4) var(--space-5) var(--space-3);
+      }
+      .timeline-scroll {
+        flex: 1;
+        min-height: 0;
         overflow-y: auto;
-        padding: var(--space-5);
+        padding: var(--space-4) var(--space-5) var(--space-6);
       }
       .desktop-map-pane {
         display: block;
@@ -953,24 +1100,29 @@ export class ItineraryPageComponent implements OnInit {
     }
   }
 
+  private readonly dayStrip = viewChild<ElementRef<HTMLDivElement>>('dayStrip');
+
   protected openQuickExpenseModal(item: ItineraryItem): void {
     this.quickExpenseItem.set(item);
     this.showQuickExpenseModal.set(true);
   }
 
-  protected isMapVisible(): boolean {
-    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-      return this.store.mobileView() === 'map';
+  protected scrollDayStrip(deltaPx: number): void {
+    const el = this.dayStrip()?.nativeElement;
+    if (el) {
+      el.scrollBy({ left: deltaPx, behavior: 'smooth' });
     }
-    return this.store.desktopMapVisible();
   }
 
-  protected toggleMap(): void {
-    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-      this.store.setMobileView(this.store.mobileView() === 'map' ? 'list' : 'map');
+  protected onDayStripWheel(event: WheelEvent): void {
+    const el = this.dayStrip()?.nativeElement;
+    if (!el || el.scrollWidth <= el.clientWidth) {
       return;
     }
-    this.store.toggleDesktopMap();
+    if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
+      event.preventDefault();
+      el.scrollLeft += event.deltaY;
+    }
   }
 
   protected openAddItemModal(): void {

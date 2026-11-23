@@ -2,6 +2,7 @@ import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 
 import { CreateItemPayload, TripilotApiService } from '../core/api/tripilot-api.service';
+import { OfflineCacheService } from '../core/cache/offline-cache.service';
 import {
   DayOption,
   ItineraryItem,
@@ -18,9 +19,10 @@ interface ItineraryState {
   // Tracks which Plan A/B option is being previewed without mutating active_option_id.
   previewOptionByDay: Record<string, string>;
   selectedItemId: string | null;
-  mobileView: 'list' | 'map';
-  desktopMapVisible: boolean;
+  mobileMapOpen: boolean;
   loading: boolean;
+  syncing: boolean;
+  usingOfflineCache: boolean;
   error: string | null;
 }
 
@@ -30,9 +32,10 @@ const initialState: ItineraryState = {
   selectedDayIndex: 1,
   previewOptionByDay: {},
   selectedItemId: null,
-  mobileView: 'list',
-  desktopMapVisible: true,
+  mobileMapOpen: false,
   loading: false,
+  syncing: false,
+  usingOfflineCache: false,
   error: null,
 };
 
@@ -119,49 +122,89 @@ export const ItineraryStore = signalStore(
       basecampStay,
     };
   }),
-  withMethods((store, api = inject(TripilotApiService)) => ({
-    selectDay(dayIndex: number): void {
-      patchState(store, { selectedDayIndex: dayIndex, selectedItemId: null });
-    },
+  withMethods(
+    (
+      store,
+      api = inject(TripilotApiService),
+      cache = inject(OfflineCacheService),
+    ) => ({
+      selectDay(dayIndex: number): void {
+        patchState(store, { selectedDayIndex: dayIndex, selectedItemId: null });
+      },
 
-    previewOption(dayId: string, optionId: string): void {
-      patchState(store, {
-        previewOptionByDay: {
-          ...store.previewOptionByDay(),
-          [dayId]: optionId,
-        },
-        selectedItemId: null,
-      });
-    },
-
-    selectItem(itemId: string | null): void {
-      patchState(store, { selectedItemId: itemId });
-    },
-
-    setMobileView(mobileView: 'list' | 'map'): void {
-      patchState(store, { mobileView });
-    },
-
-    toggleDesktopMap(): void {
-      patchState(store, { desktopMapVisible: !store.desktopMapVisible() });
-    },
-
-    async loadTrip(tripId: string): Promise<void> {
-      patchState(store, { loading: true, error: null });
-      try {
-        const trip = await api.getTrip(tripId);
-        const currentDayIdx = store.selectedDayIndex();
-        const validDayIdx = trip.days.some((d) => d.day_index === currentDayIdx)
-          ? currentDayIdx
-          : (trip.days[0]?.day_index ?? 1);
-        patchState(store, { trip, selectedDayIndex: validDayIdx, loading: false });
-      } catch (err) {
+      previewOption(dayId: string, optionId: string): void {
         patchState(store, {
-          loading: false,
-          error: err instanceof Error ? err.message : 'Failed to load itinerary',
+          previewOptionByDay: {
+            ...store.previewOptionByDay(),
+            [dayId]: optionId,
+          },
+          selectedItemId: null,
         });
-      }
-    },
+      },
+
+      selectItem(itemId: string | null): void {
+        patchState(store, { selectedItemId: itemId });
+      },
+
+      setMobileMapOpen(mobileMapOpen: boolean): void {
+        patchState(store, { mobileMapOpen });
+      },
+
+      toggleMobileMap(): void {
+        patchState(store, { mobileMapOpen: !store.mobileMapOpen() });
+      },
+
+      async loadTrip(tripId: string): Promise<void> {
+        const cached = cache.get<TripDetail>(`trip.${tripId}`);
+        const hasCurrent = store.trip()?.id === tripId;
+
+        if (!hasCurrent && cached) {
+          const validDayIdx = cached.days[0]?.day_index ?? 1;
+          patchState(store, {
+            trip: cached,
+            selectedDayIndex: validDayIdx,
+            loading: false,
+            syncing: true,
+            usingOfflineCache: false,
+            error: null,
+          });
+        } else {
+          patchState(store, {
+            loading: !hasCurrent,
+            syncing: hasCurrent,
+            usingOfflineCache: false,
+            error: null,
+          });
+        }
+
+        try {
+          const trip = await api.getTrip(tripId);
+          cache.set(`trip.${tripId}`, trip);
+          const currentDayIdx = store.selectedDayIndex();
+          const validDayIdx = trip.days.some((d) => d.day_index === currentDayIdx)
+            ? currentDayIdx
+            : (trip.days[0]?.day_index ?? 1);
+          patchState(store, {
+            trip,
+            selectedDayIndex: validDayIdx,
+            loading: false,
+            syncing: false,
+            usingOfflineCache: false,
+          });
+        } catch (err) {
+          const fallbackReady = store.trip()?.id === tripId;
+          patchState(store, {
+            loading: false,
+            syncing: false,
+            usingOfflineCache: fallbackReady,
+            error: fallbackReady
+              ? null
+              : err instanceof Error
+                ? err.message
+                : 'Failed to load itinerary',
+          });
+        }
+      },
 
     async cloneCurrentOption(label: string): Promise<void> {
       const day = store.selectedDay();
@@ -199,8 +242,64 @@ export const ItineraryStore = signalStore(
       if (!trip) {
         return;
       }
-      await api.selectChoiceItem(itemId);
-      await this.loadTrip(trip.id);
+
+      // Optimistic 0ms UI flip so cards & map switch immediately before OSRM finishes.
+      let targetGroupId: string | null = null;
+      let targetOptionId: string | null = null;
+      for (const day of trip.days) {
+        for (const opt of day.options) {
+          const hit = opt.items.find((it) => it.id === itemId);
+          if (hit) {
+            targetGroupId = hit.choice_group_id;
+            targetOptionId = opt.id;
+            break;
+          }
+        }
+        if (targetOptionId) break;
+      }
+
+      const previousTrip = trip;
+      if (targetOptionId && targetGroupId) {
+        const optimisticTrip: TripDetail = {
+          ...trip,
+          days: trip.days.map((day) => ({
+            ...day,
+            options: day.options.map((opt) =>
+              opt.id !== targetOptionId
+                ? opt
+                : {
+                    ...opt,
+                    items: opt.items.map((it) =>
+                      it.choice_group_id === targetGroupId
+                        ? { ...it, is_selected: it.id === itemId }
+                        : it,
+                    ),
+                  },
+            ),
+          })),
+        };
+        patchState(store, { trip: optimisticTrip });
+      }
+
+      try {
+        const updatedOption = await api.selectChoiceItem(itemId);
+        const latest = store.trip();
+        if (!latest) return;
+        const mergedTrip: TripDetail = {
+          ...latest,
+          days: latest.days.map((day) => ({
+            ...day,
+            options: day.options.map((opt) =>
+              opt.id === updatedOption.id ? updatedOption : opt,
+            ),
+          })),
+        };
+        cache.set(`trip.${mergedTrip.id}`, mergedTrip);
+        patchState(store, { trip: mergedTrip });
+      } catch {
+        // Revert optimistic update if the server request fails.
+        patchState(store, { trip: previousTrip });
+      }
     },
 
     async setActiveOption(dayId: string, optionId: string): Promise<void> {

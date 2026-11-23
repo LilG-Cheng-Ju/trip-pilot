@@ -2,6 +2,7 @@ import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 
 import { CreateExpensePayload, TripilotApiService } from '../core/api/tripilot-api.service';
+import { OfflineCacheService } from '../core/cache/offline-cache.service';
 import { ExpenseCategory, TripExpensesSummary } from '../core/models/tripilot.models';
 
 export interface ItemExpenseSummary {
@@ -74,36 +75,53 @@ export const ExpenseStore = signalStore(
       return map;
     }),
   })),
-  withMethods((store, api = inject(TripilotApiService)) => ({
-    setCategoryFilter(selectedCategory: ExpenseCategory | 'ALL'): void {
-      patchState(store, { selectedCategory });
-    },
+  withMethods(
+    (
+      store,
+      api = inject(TripilotApiService),
+      cache = inject(OfflineCacheService),
+    ) => ({
+      setCategoryFilter(selectedCategory: ExpenseCategory | 'ALL'): void {
+        patchState(store, { selectedCategory });
+      },
 
-    setItemFilter(selectedItemId: string | null): void {
-      patchState(store, { selectedItemId });
-    },
+      setItemFilter(selectedItemId: string | null): void {
+        patchState(store, { selectedItemId });
+      },
 
-    async loadExpenses(tripId: string): Promise<void> {
-      patchState(store, { loading: true, error: null });
-      try {
-        const summary = await api.listExpenses(tripId);
-        patchState(store, { summary, loading: false });
-      } catch (err) {
-        patchState(store, {
-          loading: false,
-          error: err instanceof Error ? err.message : 'Failed to load expenses',
-        });
-      }
-    },
+      async loadExpenses(tripId: string): Promise<void> {
+        const cached = cache.get<TripExpensesSummary>(`expenses.${tripId}`);
+        if (cached && store.summary()?.trip_id !== tripId) {
+          patchState(store, { summary: cached, loading: false, error: null });
+        } else {
+          patchState(store, { loading: store.summary()?.trip_id !== tripId, error: null });
+        }
+        try {
+          const summary = await api.listExpenses(tripId);
+          cache.set(`expenses.${tripId}`, summary);
+          patchState(store, { summary, loading: false });
+        } catch (err) {
+          const hasData = store.summary()?.trip_id === tripId;
+          patchState(store, {
+            loading: false,
+            error: hasData
+              ? null
+              : err instanceof Error
+                ? err.message
+                : 'Failed to load expenses',
+          });
+        }
+      },
 
-    async addExpense(tripId: string, payload: CreateExpensePayload): Promise<void> {
-      await api.createExpense(tripId, payload);
-      await this.loadExpenses(tripId);
-    },
+      async addExpense(tripId: string, payload: CreateExpensePayload): Promise<void> {
+        await api.createExpense(tripId, payload);
+        await this.loadExpenses(tripId);
+      },
 
-    async deleteExpense(tripId: string, expenseId: string): Promise<void> {
-      await api.deleteExpense(expenseId);
-      await this.loadExpenses(tripId);
-    },
-  })),
+      async deleteExpense(tripId: string, expenseId: string): Promise<void> {
+        await api.deleteExpense(expenseId);
+        await this.loadExpenses(tripId);
+      },
+    }),
+  ),
 );

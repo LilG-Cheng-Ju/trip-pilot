@@ -212,6 +212,11 @@ export const MESSAGES_EN = {
   'brief.transitEmpty': 'No reserved trains, buses, or ferries added yet.',
   'brief.attachments': 'Cloud Attachments',
   'brief.attachmentsEmpty': 'No cloud links attached yet. Add Google Drive or PDF links on any stop.',
+  'map.openSheet': 'Map',
+  'map.closeSheet': 'Close Map',
+  'sync.syncing': 'Syncing...',
+  'sync.offlineCache': 'Offline cache (read-only)',
+  'sync.wakingServer': 'Connecting to server (cold start may take a few seconds)...',
 } as const;
 
 export type TranslationKey = keyof typeof MESSAGES_EN;
