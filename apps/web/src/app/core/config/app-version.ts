@@ -1,2 +1,2 @@
-export const APP_VERSION = '0.1.5 - beta';
+export const APP_VERSION = '0.2.0 - beta';
 export const IS_BETA = true;

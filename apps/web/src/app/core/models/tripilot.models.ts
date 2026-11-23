@@ -178,18 +178,38 @@ export interface TripExpensesSummary {
   items: ExpenseItem[];
 }
 
+export type StatsScope = 'all' | 'domestic' | 'international';
+
+export interface TripStatSummary {
+  id: string;
+  title: string;
+  start_date: string;
+  end_date: string;
+  days: number;
+  country_codes: string[];
+  is_international: boolean;
+  spend_home: string;
+}
+
 export interface TravelStats {
   year: number | null;
+  scope: StatsScope;
   home_country_code: string;
   home_currency: string;
+  available_years: number[];
   total_trips: number;
+  domestic_trips: number;
   international_trips: number;
   countries_visited: string[];
+  country_visit_counts: Record<string, number>;
   total_travel_days: number;
+  flight_count: number;
   total_flight_distance_km: number;
   total_ground_distance_km: number;
   total_spend_home: string;
+  avg_spend_per_day: string;
   spend_by_category: Record<string, string>;
+  trips: TripStatSummary[];
 }
 
 export interface AirportEntry {

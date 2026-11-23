@@ -16,6 +16,7 @@ import {
   PlaceCandidate,
   PublicTrip,
   ShareVisibilityPolicy,
+  StatsScope,
   TravelStats,
   TripDay,
   TripDetail,
@@ -263,8 +264,8 @@ export class TripilotApiService {
     );
   }
 
-  getStats(year?: number | null): Promise<TravelStats> {
-    let params = new HttpParams();
+  getStats(year?: number | null, scope: StatsScope = 'all'): Promise<TravelStats> {
+    let params = new HttpParams().set('scope', scope);
     if (year) {
       params = params.set('year', String(year));
     }
