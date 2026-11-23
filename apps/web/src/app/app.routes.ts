@@ -24,6 +24,14 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'trips/:tripId/brief',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/itinerary/trip-brief-page.component').then(
+        (m) => m.TripBriefPageComponent,
+      ),
+  },
+  {
     path: 'trips/:tripId/expenses',
     canActivate: [authGuard],
     loadComponent: () =>

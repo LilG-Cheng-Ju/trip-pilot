@@ -1,12 +1,13 @@
 import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 
 import { TripilotApiService } from '../../core/api/tripilot-api.service';
 import { COMMON_CURRENCIES, CurrencyOption } from '../../core/config/currencies';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ExpenseCategory } from '../../core/models/tripilot.models';
 import { EXPENSE_CATEGORIES, expenseCategoryKey } from '../../core/utils/travel-format.utils';
+import { TripSubnavComponent } from '../../shared/trip-subnav.component';
 import { ExpenseStore } from '../../state/expense.store';
 import { ItineraryStore } from '../../state/itinerary.store';
 
@@ -15,18 +16,18 @@ const RATE_STORAGE_PREFIX = 'tripilot.fxRate.';
 /** Low-friction per-trip expense ledger with instant currency conversion. */
 @Component({
   selector: 'app-expenses-page',
-  imports: [FormsModule, RouterLink, TranslatePipe],
+  imports: [FormsModule, TranslatePipe, TripSubnavComponent],
   template: `
     <div class="page">
-      <header class="page-head">
-        <a class="back-btn" [routerLink]="['/trips', tripId()]">←</a>
-        <div>
-          <h2 class="page-title">{{ 'expenses.title' | t }}</h2>
-          @if (itineraryStore.trip(); as trip) {
-            <p class="trip-sub">{{ trip.title }}</p>
-          }
-        </div>
-      </header>
+      @if (itineraryStore.trip(); as trip) {
+        <app-trip-subnav
+          [tripId]="trip.id"
+          [title]="trip.title"
+          [dateRange]="trip.start_date + ' — ' + trip.end_date"
+        />
+      } @else {
+        <app-trip-subnav [tripId]="tripId()" [title]="'expenses.title' | t" />
+      }
 
       <div class="expenses-grid">
         <div class="summary-col">

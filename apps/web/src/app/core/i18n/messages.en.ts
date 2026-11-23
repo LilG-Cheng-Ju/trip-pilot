@@ -187,6 +187,20 @@ export const MESSAGES_EN = {
   'item.attachmentAdd': 'Add Link',
   'item.attachmentsBadge': '{count} files',
   'item.attachmentSingle': '1 file',
+  'trip.tab.itinerary': 'Itinerary',
+  'trip.tab.brief': 'Brief',
+  'trip.tab.expenses': 'Expenses',
+  'brief.stays': 'Accommodations',
+  'brief.staysEmpty': 'No stays added yet. Add a Stay item on any day to track check-in & hotel changes.',
+  'brief.nights': '{count} nights',
+  'brief.nightSingle': '1 night',
+  'brief.hotelChange': 'Hotel change',
+  'brief.flights': 'Flights',
+  'brief.flightsEmpty': 'No flights recorded in this trip yet.',
+  'brief.transit': 'Reserved Transit',
+  'brief.transitEmpty': 'No reserved trains, buses, or ferries added yet.',
+  'brief.attachments': 'Cloud Attachments',
+  'brief.attachmentsEmpty': 'No cloud links attached yet. Add Google Drive or PDF links on any stop.',
 } as const;
 
 export type TranslationKey = keyof typeof MESSAGES_EN;

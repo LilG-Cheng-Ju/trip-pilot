@@ -1,10 +1,11 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ItineraryItem } from '../../core/models/tripilot.models';
 import { AppModalComponent } from '../../shared/modal.component';
+import { TripSubnavComponent } from '../../shared/trip-subnav.component';
 import { ExpenseStore } from '../../state/expense.store';
 import { ItineraryStore } from '../../state/itinerary.store';
 import { TripStore } from '../../state/trip.store';
@@ -31,9 +32,9 @@ interface TimelineSlot {
   selector: 'app-itinerary-page',
   imports: [
     FormsModule,
-    RouterLink,
     TranslatePipe,
     AppModalComponent,
+    TripSubnavComponent,
     ItemFormModalComponent,
     ItineraryCardComponent,
     ItineraryMapComponent,
@@ -43,39 +44,33 @@ interface TimelineSlot {
     @if (store.trip(); as trip) {
       <div class="itinerary-layout" [class.map-hidden]="!store.desktopMapVisible()">
         <section class="timeline-pane">
-          <header class="trip-bar">
-            <div class="trip-bar-left">
-              <a routerLink="/trips" class="back-btn" [attr.aria-label]="'common.back' | t">
-                <span class="ms-icon">arrow_back</span>
-              </a>
-              <div>
-                <h2 class="trip-name">{{ trip.title }}</h2>
-                <p class="trip-range tabular-nums">{{ trip.start_date }} — {{ trip.end_date }}</p>
-              </div>
-            </div>
-            <div class="trip-bar-actions">
-              <a class="pill-btn" [routerLink]="['/trips', trip.id, 'expenses']">
-                <span class="ms-icon sm" aria-hidden="true">payments</span>
-                <span>{{ 'common.expenses' | t }}</span>
-              </a>
-              <button type="button" class="pill-btn" (click)="openShareModal(trip.id)">
-                <span class="ms-icon sm" aria-hidden="true">share</span>
-                <span>{{ 'common.share' | t }}</span>
-              </button>
-              <button
-                type="button"
-                class="pill-btn desktop-only"
-                (click)="store.toggleDesktopMap()"
-              >
-                <span class="ms-icon sm" aria-hidden="true">
-                  {{ store.desktopMapVisible() ? 'visibility_off' : 'map' }}
-                </span>
-                <span>
-                  {{ store.desktopMapVisible() ? ('itinerary.map.hide' | t) : ('itinerary.map.show' | t) }}
-                </span>
-              </button>
-            </div>
-          </header>
+          <app-trip-subnav
+            [tripId]="trip.id"
+            [title]="trip.title"
+            [dateRange]="trip.start_date + ' — ' + trip.end_date"
+          >
+            <button
+              type="button"
+              class="util-icon-btn"
+              [title]="'common.share' | t"
+              [attr.aria-label]="'common.share' | t"
+              (click)="openShareModal(trip.id)"
+            >
+              <span class="ms-icon sm" aria-hidden="true">share</span>
+            </button>
+            <button
+              type="button"
+              class="util-icon-btn desktop-only"
+              [class.active]="store.desktopMapVisible()"
+              [title]="store.desktopMapVisible() ? ('itinerary.map.hide' | t) : ('itinerary.map.show' | t)"
+              [attr.aria-label]="store.desktopMapVisible() ? ('itinerary.map.hide' | t) : ('itinerary.map.show' | t)"
+              (click)="store.toggleDesktopMap()"
+            >
+              <span class="ms-icon sm" aria-hidden="true">
+                {{ store.desktopMapVisible() ? 'map' : 'visibility_off' }}
+              </span>
+            </button>
+          </app-trip-subnav>
 
           <!-- Horizontal Day Switcher (Day 1, Day 2, ... + Add Day) -->
           <div class="day-strip" role="tablist">
@@ -371,6 +366,24 @@ interface TimelineSlot {
       margin: 0 auto;
     }
     .desktop-map-pane,
+    .util-icon-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      padding: 0;
+      border: 1px solid var(--color-border);
+      border-radius: 9px;
+      background: var(--color-surface);
+      color: var(--color-primary);
+      cursor: pointer;
+    }
+    .util-icon-btn:hover,
+    .util-icon-btn.active {
+      border-color: var(--color-primary);
+      background: var(--color-primary-tint);
+    }
     .desktop-only {
       display: none;
     }
