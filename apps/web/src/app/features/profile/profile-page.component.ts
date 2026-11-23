@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 
@@ -119,52 +119,36 @@ import { AuthStore } from '../../state/auth.store';
             </div>
           }
         </div>
-      </section>
 
-      <section class="panel">
-        <h3>{{ 'profile.aiConnectTitle' | t }}</h3>
-        <p class="hint">{{ 'profile.aiConnectHint' | t }}</p>
-
-        <div class="connect-rows">
-          <div class="connect-row">
-            <div class="connect-info">
-              <span class="connect-label">{{ 'profile.aiMcpLabel' | t }}</span>
-              <code class="connect-url">{{ mcpEndpoint }}</code>
+        @if (hasActiveToken()) {
+          <div class="mcp-divider"></div>
+          <div class="mcp-block">
+            <h4 class="mcp-subhead">{{ 'profile.aiConnectTitle' | t }}</h4>
+            <div class="connect-row">
+              <div class="connect-info">
+                <span class="connect-label">{{ 'profile.aiMcpLabel' | t }}</span>
+                <code class="connect-url">{{ mcpEndpoint }}</code>
+              </div>
+              <button
+                type="button"
+                class="pill-btn"
+                (click)="copySnippet('mcp', mcpEndpoint)"
+              >
+                {{ copiedKey() === 'mcp' ? ('common.copied' | t) : ('common.copy' | t) }}
+              </button>
             </div>
             <button
               type="button"
-              class="pill-btn"
-              (click)="copySnippet('mcp', mcpEndpoint)"
+              class="btn-secondary"
+              (click)="copySnippet('prompt', quickStartPrompt())"
             >
-              {{ copiedKey() === 'mcp' ? ('common.copied' | t) : ('common.copy' | t) }}
+              <span class="ms-icon sm" aria-hidden="true">content_copy</span>
+              <span>
+                {{ copiedKey() === 'prompt' ? ('common.copied' | t) : ('profile.aiCopyPrompt' | t) }}
+              </span>
             </button>
           </div>
-
-          <div class="connect-row">
-            <div class="connect-info">
-              <span class="connect-label">{{ 'profile.aiDocsLabel' | t }}</span>
-              <code class="connect-url">{{ llmsTxtUrl }}</code>
-            </div>
-            <button
-              type="button"
-              class="pill-btn"
-              (click)="copySnippet('llms', llmsTxtUrl)"
-            >
-              {{ copiedKey() === 'llms' ? ('common.copied' | t) : ('common.copy' | t) }}
-            </button>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          class="btn-secondary"
-          (click)="copySnippet('prompt', quickStartPrompt())"
-        >
-          <span class="ms-icon sm" aria-hidden="true">content_copy</span>
-          <span>
-            {{ copiedKey() === 'prompt' ? ('common.copied' | t) : ('profile.aiCopyPrompt' | t) }}
-          </span>
-        </button>
+        }
       </section>
     </div>
   `,
@@ -354,13 +338,25 @@ import { AuthStore } from '../../state/auth.store';
       font-weight: 600;
       color: var(--color-text-muted);
     }
-    .connect-rows {
+    .mcp-divider {
+      height: 1px;
+      background: var(--color-border);
+      margin: var(--space-4) 0;
+    }
+    .mcp-block {
       display: flex;
       flex-direction: column;
+      align-items: flex-start;
       gap: 10px;
-      margin-bottom: var(--space-4);
+    }
+    .mcp-subhead {
+      margin: 0;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--color-primary);
     }
     .connect-row {
+      width: 100%;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -428,6 +424,10 @@ export class ProfilePageComponent implements OnInit {
     getApiBaseUrl() || (typeof window !== 'undefined' ? window.location.origin : '');
   protected readonly mcpEndpoint = `${this.apiOrigin}/mcp`;
   protected readonly llmsTxtUrl = `${this.apiOrigin}/llms.txt`;
+
+  protected readonly hasActiveToken = computed(() =>
+    this.authStore.tokens().some((tok) => !tok.revoked_at),
+  );
 
   async ngOnInit(): Promise<void> {
     await Promise.all([this.authStore.loadProfile(), this.authStore.loadTokens()]);

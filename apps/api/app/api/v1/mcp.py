@@ -469,12 +469,19 @@ async def mcp_streamable_http(
     params = body.get("params") or {}
 
     if method == "initialize":
+        base = str(request.base_url).rstrip("/")
         return _jsonrpc_ok(
             req_id,
             {
                 "protocolVersion": MCP_PROTOCOL_VERSION,
                 "capabilities": {"tools": {}},
-                "serverInfo": {"name": "tripilot", "version": "0.4.0"},
+                "serverInfo": {"name": "tripilot", "version": "0.4.1"},
+                "instructions": (
+                    "Tripilot travel planning MCP server. Always geocode STAY/SPOT/FOOD/RESERVED_TRANSIT "
+                    "items via search_places, set details.local_name for non-English venues, attach cloud "
+                    "files in details.attachments as [{name, url}], and use get_fx_rate before add_expense. "
+                    f"Full reference: {base}/llms.txt"
+                ),
             },
         )
 
