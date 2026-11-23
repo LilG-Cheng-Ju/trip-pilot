@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { TripilotApiService } from '../../core/api/tripilot-api.service';
+import { COMMON_CURRENCIES, CurrencyOption } from '../../core/config/currencies';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ExpenseCategory } from '../../core/models/tripilot.models';
 import { ExpenseStore } from '../../state/expense.store';
@@ -48,6 +49,15 @@ const CATEGORIES: ExpenseCategory[] = [
               <span class="hero-count tabular-nums">
                 {{ 'expenses.count' | t: { count: summary.items.length } }}
               </span>
+              @if (originalCurrencyTotals().length > 0) {
+                <div class="currency-breakdown tabular-nums">
+                  @for (entry of originalCurrencyTotals(); track entry.currency) {
+                    <span class="currency-pill">
+                      {{ entry.currency }} {{ entry.totalFormatted }}
+                    </span>
+                  }
+                </div>
+              }
             </section>
           }
 
@@ -55,55 +65,76 @@ const CATEGORIES: ExpenseCategory[] = [
           <form class="quick-card" (ngSubmit)="submitExpense()">
             <h3 class="section-title">{{ 'expenses.quickAdd' | t }}</h3>
 
-            <input
-              type="text"
-              class="input-main"
-              [(ngModel)]="title"
-              name="title"
-              [placeholder]="'expenses.itemPlaceholder' | t"
-              required
-            />
-
-            <div class="amount-row">
-              <input
-                type="number"
-                step="any"
-                min="0.01"
-                class="input-amount tabular-nums"
-                [(ngModel)]="amount"
-                name="amount"
-                [placeholder]="'expenses.amountPlaceholder' | t"
-                required
-              />
+            <label class="field">
+              <span class="field-label">
+                {{ 'expenses.field.title' | t }} <em class="req">*</em>
+              </span>
               <input
                 type="text"
-                maxlength="3"
-                class="input-currency"
-                [(ngModel)]="currency"
-                name="currency"
-                (ngModelChange)="onCurrencyChange($event)"
+                class="input-main"
+                [(ngModel)]="title"
+                name="title"
+                [placeholder]="'expenses.itemPlaceholder' | t"
+                required
               />
-              <div class="rate-box">
-                <span>{{ 'expenses.rateLabel' | t }}</span>
+            </label>
+
+            <div class="amount-row">
+              <label class="field">
+                <span class="field-label">
+                  {{ 'expenses.field.amount' | t }} <em class="req">*</em>
+                </span>
                 <input
                   type="number"
                   step="any"
-                  min="0.0001"
-                  class="tabular-nums"
-                  [(ngModel)]="exchangeRate"
-                  name="exchangeRate"
+                  min="0.01"
+                  class="input-amount tabular-nums"
+                  [(ngModel)]="amount"
+                  name="amount"
+                  placeholder="0"
+                  required
                 />
-                <button
-                  type="button"
-                  class="fx-btn"
-                  [disabled]="fetchingRate()"
-                  [title]="'fx.refresh' | t"
-                  (click)="fetchLiveRate()"
+              </label>
+
+              <label class="field">
+                <span class="field-label">
+                  {{ 'expenses.field.currency' | t }} <em class="req">*</em>
+                </span>
+                <select
+                  class="input-currency"
+                  [(ngModel)]="currency"
+                  name="currency"
+                  (ngModelChange)="onCurrencyChange($event)"
                 >
-                  <span class="ms-icon sm" [class.spin]="fetchingRate()" aria-hidden="true">
-                    sync
-                  </span>
-                </button>
+                  @for (opt of currencyOptions(); track opt.code) {
+                    <option [value]="opt.code">{{ opt.code }}</option>
+                  }
+                </select>
+              </label>
+
+              <div class="field">
+                <span class="field-label">{{ 'expenses.rateLabel' | t }}</span>
+                <div class="rate-box">
+                  <input
+                    type="number"
+                    step="any"
+                    min="0.0001"
+                    class="tabular-nums"
+                    [(ngModel)]="exchangeRate"
+                    name="exchangeRate"
+                  />
+                  <button
+                    type="button"
+                    class="fx-btn"
+                    [disabled]="fetchingRate()"
+                    [title]="'fx.refresh' | t"
+                    (click)="fetchLiveRate()"
+                  >
+                    <span class="ms-icon sm" [class.spin]="fetchingRate()" aria-hidden="true">
+                      sync
+                    </span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -141,20 +172,26 @@ const CATEGORIES: ExpenseCategory[] = [
 
             @if (showMore()) {
               <div class="extra-fields">
-                <input
-                  type="text"
-                  class="input-main"
-                  [(ngModel)]="paymentMethod"
-                  name="paymentMethod"
-                  [placeholder]="'expenses.paymentMethod' | t"
-                />
-                <input
-                  type="text"
-                  class="input-main"
-                  [(ngModel)]="notes"
-                  name="notes"
-                  [placeholder]="'itinerary.form.notes' | t"
-                />
+                <label class="field">
+                  <span class="field-label">{{ 'expenses.field.paymentMethod' | t }}</span>
+                  <input
+                    type="text"
+                    class="input-main"
+                    [(ngModel)]="paymentMethod"
+                    name="paymentMethod"
+                    [placeholder]="'expenses.field.paymentPlaceholder' | t"
+                  />
+                </label>
+                <label class="field">
+                  <span class="field-label">{{ 'expenses.field.notes' | t }}</span>
+                  <input
+                    type="text"
+                    class="input-main"
+                    [(ngModel)]="notes"
+                    name="notes"
+                    [placeholder]="'expenses.field.notesPlaceholder' | t"
+                  />
+                </label>
               </div>
             }
 
@@ -215,10 +252,14 @@ const CATEGORIES: ExpenseCategory[] = [
                     </div>
                   </div>
                   <div class="exp-right tabular-nums">
-                    <span class="exp-home">{{ exp.currency_home }} {{ exp.amount_home }}</span>
-                    @if (exp.currency_original !== exp.currency_home) {
-                      <span class="exp-orig">{{ exp.currency_original }} {{ exp.amount_original }}</span>
-                    }
+                    <div class="exp-amounts">
+                      <span class="exp-home">{{ exp.currency_home }} {{ exp.amount_home }}</span>
+                      @if (exp.currency_original !== exp.currency_home) {
+                        <span class="exp-orig">
+                          {{ exp.currency_original }} {{ exp.amount_original }}
+                        </span>
+                      }
+                    </div>
                     <button
                       type="button"
                       class="del-btn"
@@ -311,6 +352,43 @@ const CATEGORIES: ExpenseCategory[] = [
       font-size: 0.8125rem;
       opacity: 0.8;
     }
+    .currency-breakdown {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.14);
+    }
+    .currency-pill {
+      padding: 3px 9px;
+      border-radius: var(--radius-pill);
+      background: rgba(255, 255, 255, 0.12);
+      color: rgba(255, 255, 255, 0.92);
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .field-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--color-text-secondary);
+    }
+    .req {
+      color: var(--color-alert);
+      font-style: normal;
+      font-weight: 700;
+    }
+    .exp-amounts {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 1px;
+    }
     .quick-card,
     .breakdown-card {
       padding: var(--space-4);
@@ -341,19 +419,21 @@ const CATEGORIES: ExpenseCategory[] = [
     }
     .amount-row {
       display: grid;
-      grid-template-columns: 1fr 68px 132px;
+      grid-template-columns: 1fr 78px 118px;
       gap: 8px;
+      align-items: end;
     }
     .input-currency {
       text-transform: uppercase;
-      text-align: center;
       font-weight: 700;
+      padding: 9px 6px;
     }
     .rate-box {
       display: flex;
       align-items: center;
       gap: 4px;
-      padding: 0 6px 0 8px;
+      height: 39px;
+      padding: 0 4px 0 8px;
       border: 1px solid var(--color-border);
       border-radius: var(--radius-sm);
       background: var(--color-bg);
@@ -614,6 +694,47 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
   protected category: ExpenseCategory = 'FOOD';
   protected paymentMethod = '';
   protected notes = '';
+
+  protected readonly currencyOptions = computed<CurrencyOption[]>(() => {
+    const list: CurrencyOption[] = [...COMMON_CURRENCIES];
+    const extras = [
+      this.itineraryStore.trip()?.default_currency,
+      this.expenseStore.summary()?.home_currency,
+      this.currency,
+    ];
+    for (const code of extras) {
+      const upper = code?.trim().toUpperCase();
+      if (upper && upper.length === 3 && !list.some((c) => c.code === upper)) {
+        list.unshift({ code: upper, label: upper });
+      }
+    }
+    return list;
+  });
+
+  protected readonly originalCurrencyTotals = computed(() => {
+    const summary = this.expenseStore.summary();
+    if (!summary || summary.items.length === 0) {
+      return [];
+    }
+    const totals = new Map<string, number>();
+    for (const exp of summary.items) {
+      const cur = exp.currency_original.toUpperCase();
+      totals.set(cur, (totals.get(cur) ?? 0) + (Number(exp.amount_original) || 0));
+    }
+    // Only show breakdown when spending occurs in a foreign currency or multiple currencies.
+    if (totals.size === 1 && totals.has(summary.home_currency.toUpperCase())) {
+      return [];
+    }
+    return Array.from(totals.entries())
+      .map(([currency, total]) => ({
+        currency,
+        total,
+        totalFormatted: Number.isInteger(total)
+          ? total.toLocaleString()
+          : total.toLocaleString(undefined, { maximumFractionDigits: 2 }),
+      }))
+      .sort((a, b) => b.total - a.total);
+  });
 
   protected readonly filteredItemTitle = computed(() => {
     const itemId = this.expenseStore.selectedItemId();

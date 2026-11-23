@@ -39,9 +39,9 @@ import { ItemExpenseSummary } from '../../state/expense.store';
               class="connector-spend-btn"
               (click)="logExpense.emit(item())"
               [title]="'item.logExpense' | t"
+              [attr.aria-label]="'item.logExpense' | t"
             >
               <span class="ms-icon sm" aria-hidden="true">payments</span>
-              <span>{{ 'item.spendShort' | t }}</span>
             </button>
             <div class="overflow-anchor">
               <button
@@ -100,10 +100,10 @@ import { ItemExpenseSummary } from '../../state/expense.store';
                 type="button"
                 class="head-action-btn dark accent-dark"
                 [title]="'item.logExpense' | t"
+                [attr.aria-label]="'item.logExpense' | t"
                 (click)="logExpense.emit(item())"
               >
                 <span class="ms-icon sm" aria-hidden="true">payments</span>
-                <span>{{ 'item.spendShort' | t }}</span>
               </button>
               <div class="overflow-anchor">
                 <button
@@ -246,9 +246,9 @@ import { ItemExpenseSummary } from '../../state/expense.store';
                 target="_blank"
                 rel="noopener noreferrer"
                 [title]="'common.navigate' | t"
+                [attr.aria-label]="'common.navigate' | t"
               >
                 <span class="ms-icon sm" aria-hidden="true">near_me</span>
-                <span>{{ 'item.navShort' | t }}</span>
               </a>
             }
 
@@ -257,10 +257,10 @@ import { ItemExpenseSummary } from '../../state/expense.store';
                 type="button"
                 class="head-action-btn expense-trigger"
                 [title]="'item.logExpense' | t"
+                [attr.aria-label]="'item.logExpense' | t"
                 (click)="logExpense.emit(item())"
               >
                 <span class="ms-icon sm" aria-hidden="true">payments</span>
-                <span>{{ 'item.spendShort' | t }}</span>
               </button>
 
               <div class="overflow-anchor">
@@ -432,12 +432,12 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       align-items: center;
       flex-wrap: wrap;
       gap: 6px;
-      padding: 5px 8px 5px 12px;
-      border-radius: 10px;
+      padding: 3px 6px 3px 10px;
+      border-radius: 9px;
       background: var(--color-surface);
       border: 1px solid var(--color-border);
       color: var(--color-text-secondary);
-      font-size: 0.78rem;
+      font-size: 0.76rem;
       font-weight: 600;
     }
     .connector-dur {
@@ -451,16 +451,14 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     .connector-spend-btn {
       display: inline-flex;
       align-items: center;
-      gap: 4px;
-      height: 28px;
-      padding: 0 9px;
+      justify-content: center;
+      width: 30px;
+      height: 22px;
+      padding: 0;
       border: 1px solid rgba(200, 155, 91, 0.55);
-      border-radius: 7px;
+      border-radius: 6px;
       background: var(--color-accent-soft);
       color: #8b652d;
-      font: inherit;
-      font-size: 0.74rem;
-      font-weight: 700;
       cursor: pointer;
     }
     .connector-spend-btn:hover {
@@ -472,11 +470,11 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 28px;
-      height: 28px;
+      width: 22px;
+      height: 22px;
       padding: 0;
       border: 1px solid var(--color-border);
-      border-radius: 7px;
+      border-radius: 6px;
       background: var(--color-bg);
       color: var(--color-text-secondary);
       cursor: pointer;
@@ -628,26 +626,22 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     .head-actions {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
       flex-shrink: 0;
     }
     .head-action-btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 4px;
-      height: 32px;
-      padding: 0 10px;
+      width: 36px;
+      height: 28px;
+      padding: 0;
       border: 1px solid var(--color-border);
-      border-radius: 8px;
+      border-radius: 7px;
       background: var(--color-bg);
       color: var(--color-primary);
       text-decoration: none;
-      font: inherit;
-      font-size: 0.76rem;
-      font-weight: 700;
       cursor: pointer;
-      white-space: nowrap;
       transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
     }
     .head-action-btn:hover {
@@ -682,11 +676,11 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 32px;
-      height: 32px;
+      width: 28px;
+      height: 28px;
       padding: 0;
       border: 1px solid var(--color-border);
-      border-radius: 8px;
+      border-radius: 7px;
       background: var(--color-bg);
       color: var(--color-text-secondary);
       cursor: pointer;

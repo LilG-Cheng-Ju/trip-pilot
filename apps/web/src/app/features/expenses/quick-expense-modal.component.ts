@@ -1,7 +1,8 @@
-import { Component, effect, inject, input, output, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import { TripilotApiService } from '../../core/api/tripilot-api.service';
+import { COMMON_CURRENCIES, CurrencyOption } from '../../core/config/currencies';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ExpenseCategory, ItemType, ItineraryItem } from '../../core/models/tripilot.models';
 import { AppModalComponent } from '../../shared/modal.component';
@@ -52,108 +53,105 @@ function mapItemTypeToCategory(type: ItemType): ExpenseCategory {
       }
 
       <form class="form" (ngSubmit)="submit()">
-        <input
-          type="text"
-          class="input-main"
-          [(ngModel)]="title"
-          name="title"
-          [placeholder]="'expenses.itemPlaceholder' | t"
-          required
-        />
-
-        <div class="amount-row">
-          <input
-            type="number"
-            step="any"
-            min="0.01"
-            class="input-amount tabular-nums"
-            [(ngModel)]="amount"
-            name="amount"
-            [placeholder]="'expenses.amountPlaceholder' | t"
-            required
-          />
+        <label class="field">
+          <span class="field-label">
+            {{ 'expenses.field.title' | t }} <em class="req">*</em>
+          </span>
           <input
             type="text"
-            maxlength="3"
-            class="input-currency"
-            [(ngModel)]="currency"
-            name="currency"
-            (ngModelChange)="onCurrencyChange($event)"
+            class="input-control"
+            [(ngModel)]="title"
+            name="title"
+            [placeholder]="'expenses.itemPlaceholder' | t"
+            required
           />
-          <div class="rate-box">
-            <span>{{ 'expenses.rateLabel' | t }}</span>
+        </label>
+
+        <div class="amount-grid">
+          <label class="field">
+            <span class="field-label">
+              {{ 'expenses.field.amount' | t }} <em class="req">*</em>
+            </span>
             <input
               type="number"
               step="any"
-              min="0.0001"
-              class="tabular-nums"
-              [(ngModel)]="exchangeRate"
-              name="exchangeRate"
+              min="0.01"
+              class="input-control tabular-nums"
+              [(ngModel)]="amount"
+              name="amount"
+              placeholder="0"
+              required
             />
-            <button
-              type="button"
-              class="fx-btn"
-              [disabled]="fetchingRate()"
-              [title]="'fx.refresh' | t"
-              (click)="fetchLiveRate()"
+          </label>
+
+          <label class="field">
+            <span class="field-label">
+              {{ 'expenses.field.currency' | t }} <em class="req">*</em>
+            </span>
+            <select
+              class="input-control"
+              [(ngModel)]="currency"
+              name="currency"
+              (ngModelChange)="onCurrencyChange($event)"
             >
-              <span class="ms-icon sm" [class.spin]="fetchingRate()" aria-hidden="true">
-                sync
-              </span>
-            </button>
+              @for (opt of currencyOptions(); track opt.code) {
+                <option [value]="opt.code">{{ opt.label }}</option>
+              }
+            </select>
+          </label>
+        </div>
+
+        @if (previewHomeAmount() !== null && currency !== homeCurrency()) {
+          <div class="preview-line tabular-nums">
+            <span>≈ {{ homeCurrency() }} {{ previewHomeAmount() }}</span>
+          </div>
+        }
+
+        <div class="field">
+          <span class="field-label">{{ 'expenses.field.category' | t }}</span>
+          <div class="cat-chips">
+            @for (cat of categories; track cat) {
+              <button
+                type="button"
+                class="cat-chip"
+                [class.active]="category === cat"
+                (click)="category = cat"
+              >
+                {{ categoryKey(cat) | t }}
+              </button>
+            }
           </div>
         </div>
 
-        <div class="rate-meta tabular-nums">
-          @if (previewHomeAmount() !== null) {
-            <span class="preview-val">
-              ≈ {{ homeCurrency() }} {{ previewHomeAmount() }}
-            </span>
-          }
-          @if (fetchingRate()) {
-            <span class="fx-status">{{ 'fx.loading' | t }}</span>
-          } @else if (rateSource()) {
-            <span class="fx-status">
-              {{ (rateSource() === 'fallback' ? 'fx.fallbackHint' : 'fx.liveHint') | t }}
-            </span>
-          }
-        </div>
-
-        <div class="cat-chips">
-          @for (cat of categories; track cat) {
-            <button
-              type="button"
-              class="cat-chip"
-              [class.active]="category === cat"
-              (click)="category = cat"
-            >
-              {{ categoryKey(cat) | t }}
-            </button>
-          }
-        </div>
-
         <div class="extra-row">
-          <input
-            type="text"
-            class="input-main"
-            [(ngModel)]="paymentMethod"
-            name="paymentMethod"
-            [placeholder]="'expenses.paymentMethod' | t"
-          />
-          <input
-            type="text"
-            class="input-main"
-            [(ngModel)]="notes"
-            name="notes"
-            [placeholder]="'itinerary.form.notes' | t"
-          />
+          <label class="field">
+            <span class="field-label">{{ 'expenses.field.paymentMethod' | t }}</span>
+            <input
+              type="text"
+              class="input-control"
+              [(ngModel)]="paymentMethod"
+              name="paymentMethod"
+              [placeholder]="'expenses.field.paymentPlaceholder' | t"
+            />
+          </label>
+
+          <label class="field">
+            <span class="field-label">{{ 'expenses.field.notes' | t }}</span>
+            <input
+              type="text"
+              class="input-control"
+              [(ngModel)]="notes"
+              name="notes"
+              [placeholder]="'expenses.field.notesPlaceholder' | t"
+            />
+          </label>
         </div>
 
         <div class="modal-actions">
           <button type="button" class="btn-ghost" (click)="closed.emit()">
             {{ 'common.cancel' | t }}
           </button>
-          <button type="submit" class="btn-primary" [disabled]="submitting()">
+          <button type="submit" class="btn-primary" [disabled]="submitting() || fetchingRate()">
             + {{ 'common.add' | t }}
           </button>
         </div>
@@ -186,89 +184,41 @@ function mapItemTypeToCategory(type: ItemType): ExpenseCategory {
       flex-direction: column;
       gap: var(--space-3);
     }
-    .input-main,
-    .input-amount,
-    .input-currency {
-      width: 100%;
-      padding: 10px 12px;
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-sm);
-      background: var(--color-bg);
-      color: var(--color-text-primary);
-      font: inherit;
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
     }
-    .amount-row {
-      display: grid;
-      grid-template-columns: 1fr 68px 132px;
-      gap: 8px;
+    .field-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--color-text-secondary);
     }
-    .input-currency {
-      text-transform: uppercase;
-      text-align: center;
+    .req {
+      color: var(--color-alert);
+      font-style: normal;
       font-weight: 700;
     }
-    .rate-box {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      padding: 0 6px 0 8px;
+    .input-control {
+      width: 100%;
+      padding: 9px 11px;
       border: 1px solid var(--color-border);
       border-radius: var(--radius-sm);
       background: var(--color-bg);
-      font-size: 0.7rem;
-      color: var(--color-text-muted);
-    }
-    .rate-box input {
-      width: 100%;
-      min-width: 0;
-      border: none;
-      background: transparent;
       color: var(--color-text-primary);
       font: inherit;
-      font-size: 0.8125rem;
-      outline: none;
+      font-size: 0.875rem;
     }
-    .fx-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 24px;
-      height: 24px;
-      padding: 0;
-      border: none;
-      border-radius: var(--radius-sm);
-      background: transparent;
-      color: var(--color-primary);
-      cursor: pointer;
-      flex-shrink: 0;
+    .amount-grid {
+      display: grid;
+      grid-template-columns: 1fr 136px;
+      gap: 10px;
     }
-    .fx-btn:hover {
-      background: rgba(27, 42, 74, 0.08);
-    }
-    .spin {
-      animation: fx-spin 900ms linear infinite;
-    }
-    @keyframes fx-spin {
-      to {
-        transform: rotate(360deg);
-      }
-    }
-    .rate-meta {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+    .preview-line {
       margin-top: -6px;
       font-size: 0.78rem;
-      min-height: 18px;
-    }
-    .preview-val {
       font-weight: 700;
       color: var(--color-primary);
-    }
-    .fx-status {
-      margin-left: auto;
-      font-size: 0.72rem;
-      color: var(--color-text-muted);
     }
     .cat-chips {
       display: flex;
@@ -294,7 +244,7 @@ function mapItemTypeToCategory(type: ItemType): ExpenseCategory {
     .extra-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 8px;
+      gap: 10px;
     }
     .modal-actions {
       display: flex;
@@ -345,7 +295,17 @@ export class QuickExpenseModalComponent {
   protected readonly categories = CATEGORIES;
   protected readonly submitting = signal(false);
   protected readonly fetchingRate = signal(false);
-  protected readonly rateSource = signal<string | null>(null);
+
+  protected readonly currencyOptions = computed<CurrencyOption[]>(() => {
+    const list: CurrencyOption[] = [...COMMON_CURRENCIES];
+    for (const code of [this.defaultCurrency(), this.homeCurrency()]) {
+      const upper = code?.trim().toUpperCase();
+      if (upper && upper.length === 3 && !list.some((c) => c.code === upper)) {
+        list.unshift({ code: upper, label: upper });
+      }
+    }
+    return list;
+  });
 
   protected title = '';
   protected amount: number | null = null;
@@ -388,7 +348,7 @@ export class QuickExpenseModalComponent {
     if (!this.amount || !this.exchangeRate) {
       return null;
     }
-    return (this.amount * this.exchangeRate).toFixed(2);
+    return Math.round(this.amount * this.exchangeRate).toLocaleString();
   }
 
   protected onCurrencyChange(code: string): void {
@@ -398,7 +358,7 @@ export class QuickExpenseModalComponent {
     }
   }
 
-  protected async fetchLiveRate(overrideCode?: string): Promise<void> {
+  private async fetchLiveRate(overrideCode?: string): Promise<void> {
     const src = (overrideCode || this.currency || 'JPY').trim().toUpperCase();
     const dst = (this.homeCurrency() || 'TWD').trim().toUpperCase();
     if (src.length !== 3 || dst.length !== 3) {
@@ -406,16 +366,14 @@ export class QuickExpenseModalComponent {
     }
     if (src === dst) {
       this.exchangeRate = 1;
-      this.rateSource.set('identity');
       return;
     }
     this.fetchingRate.set(true);
     try {
       const res = await this.api.getExchangeRate(src, dst);
       this.exchangeRate = res.rate;
-      this.rateSource.set(res.source);
     } catch {
-      this.rateSource.set(null);
+      this.exchangeRate = 1;
     } finally {
       this.fetchingRate.set(false);
     }
