@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 
 import { AuthSessionService } from '../../core/auth/auth-session.service';
+import { getApiBaseUrl } from '../../core/config/runtime-config';
 import { SUPPORTED_CURRENCIES } from '../../core/constants/travel-options';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -118,6 +119,52 @@ import { AuthStore } from '../../state/auth.store';
             </div>
           }
         </div>
+      </section>
+
+      <section class="panel">
+        <h3>{{ 'profile.aiConnectTitle' | t }}</h3>
+        <p class="hint">{{ 'profile.aiConnectHint' | t }}</p>
+
+        <div class="connect-rows">
+          <div class="connect-row">
+            <div class="connect-info">
+              <span class="connect-label">{{ 'profile.aiMcpLabel' | t }}</span>
+              <code class="connect-url">{{ mcpEndpoint }}</code>
+            </div>
+            <button
+              type="button"
+              class="pill-btn"
+              (click)="copySnippet('mcp', mcpEndpoint)"
+            >
+              {{ copiedKey() === 'mcp' ? ('common.copied' | t) : ('common.copy' | t) }}
+            </button>
+          </div>
+
+          <div class="connect-row">
+            <div class="connect-info">
+              <span class="connect-label">{{ 'profile.aiDocsLabel' | t }}</span>
+              <code class="connect-url">{{ llmsTxtUrl }}</code>
+            </div>
+            <button
+              type="button"
+              class="pill-btn"
+              (click)="copySnippet('llms', llmsTxtUrl)"
+            >
+              {{ copiedKey() === 'llms' ? ('common.copied' | t) : ('common.copy' | t) }}
+            </button>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          class="btn-secondary"
+          (click)="copySnippet('prompt', quickStartPrompt())"
+        >
+          <span class="ms-icon sm" aria-hidden="true">content_copy</span>
+          <span>
+            {{ copiedKey() === 'prompt' ? ('common.copied' | t) : ('profile.aiCopyPrompt' | t) }}
+          </span>
+        </button>
       </section>
     </div>
   `,
@@ -307,6 +354,57 @@ import { AuthStore } from '../../state/auth.store';
       font-weight: 600;
       color: var(--color-text-muted);
     }
+    .connect-rows {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: var(--space-4);
+    }
+    .connect-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      background: var(--color-bg);
+      border: 1px solid var(--color-border);
+    }
+    .connect-info {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+    }
+    .connect-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--color-text-secondary);
+    }
+    .connect-url {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--color-primary);
+      word-break: break-all;
+    }
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 16px;
+      border: 1px solid var(--color-primary);
+      border-radius: var(--radius-pill);
+      background: var(--color-primary-tint);
+      color: var(--color-primary);
+      font: inherit;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-secondary:hover {
+      background: var(--color-primary);
+      color: #ffffff;
+    }
   `,
 })
 export class ProfilePageComponent implements OnInit {
@@ -321,9 +419,15 @@ export class ProfilePageComponent implements OnInit {
   protected newTokenName = '';
   protected readonly savedNotice = signal(false);
   protected readonly copied = signal(false);
+  protected readonly copiedKey = signal<string | null>(null);
   protected readonly tokenNameError = signal(false);
   protected readonly tokenApiError = signal<string | null>(null);
   protected readonly generatingToken = signal(false);
+
+  private readonly apiOrigin =
+    getApiBaseUrl() || (typeof window !== 'undefined' ? window.location.origin : '');
+  protected readonly mcpEndpoint = `${this.apiOrigin}/mcp`;
+  protected readonly llmsTxtUrl = `${this.apiOrigin}/llms.txt`;
 
   async ngOnInit(): Promise<void> {
     await Promise.all([this.authStore.loadProfile(), this.authStore.loadTokens()]);
@@ -369,6 +473,28 @@ export class ProfilePageComponent implements OnInit {
       await navigator.clipboard.writeText(plaintext);
       this.copied.set(true);
       setTimeout(() => this.copied.set(false), 1800);
+    } catch {
+      // Clipboard may be unavailable in non-HTTPS contexts.
+    }
+  }
+
+  protected quickStartPrompt(): string {
+    return (
+      `Please read the Tripilot API & MCP guide at ${this.llmsTxtUrl} ` +
+      `(Remote MCP endpoint: ${this.mcpEndpoint}). ` +
+      `I will provide my Personal API Token (tp_pat_...) so you can help me plan and update my trips.`
+    );
+  }
+
+  protected async copySnippet(key: string, text: string): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(text);
+      this.copiedKey.set(key);
+      setTimeout(() => {
+        if (this.copiedKey() === key) {
+          this.copiedKey.set(null);
+        }
+      }, 1800);
     } catch {
       // Clipboard may be unavailable in non-HTTPS contexts.
     }
