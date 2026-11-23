@@ -24,9 +24,9 @@ import { ItemExpenseSummary } from '../../state/expense.store';
         <div class="connector-line" aria-hidden="true"></div>
         <div class="connector-pill">
           <span class="ms-icon sm" aria-hidden="true">subway</span>
-          <span>{{ item().title }}</span>
+          <span class="connector-title">{{ item().title }}</span>
           @if (detail('duration_minutes')) {
-            <span class="tabular-nums">· {{ detail('duration_minutes') }} min</span>
+            <span class="tabular-nums connector-dur">· {{ detail('duration_minutes') }} min</span>
           }
           @if (mapsUrl()) {
             <a [href]="mapsUrl()" target="_blank" rel="noopener noreferrer" class="connector-link">
@@ -36,19 +36,43 @@ import { ItemExpenseSummary } from '../../state/expense.store';
           @if (!readOnly()) {
             <button
               type="button"
-              class="mini-btn accent"
+              class="connector-spend-btn"
               (click)="logExpense.emit(item())"
               [title]="'item.logExpense' | t"
-              [attr.aria-label]="'item.logExpense' | t"
             >
-              <span class="ms-icon sm">payments</span>
+              <span class="ms-icon sm" aria-hidden="true">payments</span>
+              <span>{{ 'item.spendShort' | t }}</span>
             </button>
-            <button type="button" class="mini-btn" (click)="edited.emit(item())" aria-label="Edit">
-              <span class="ms-icon sm">edit</span>
-            </button>
-            <button type="button" class="mini-btn" (click)="deleted.emit(item().id)" aria-label="Delete">
-              <span class="ms-icon sm">close</span>
-            </button>
+            <div class="overflow-anchor">
+              <button
+                type="button"
+                class="connector-menu-btn"
+                [title]="'item.moreActions' | t"
+                [attr.aria-label]="'item.moreActions' | t"
+                [attr.aria-expanded]="menuOpen()"
+                (click)="toggleMenu($event)"
+              >
+                <span class="ms-icon sm" aria-hidden="true">more_vert</span>
+              </button>
+              @if (menuOpen()) {
+                <div class="action-menu" role="menu">
+                  <button type="button" class="action-menu-item" role="menuitem" (click)="onEdit()">
+                    <span class="ms-icon sm" aria-hidden="true">edit</span>
+                    <span>{{ 'common.edit' | t }}</span>
+                  </button>
+                  <div class="action-menu-divider"></div>
+                  <button
+                    type="button"
+                    class="action-menu-item danger"
+                    role="menuitem"
+                    (click)="onDelete()"
+                  >
+                    <span class="ms-icon sm" aria-hidden="true">delete</span>
+                    <span>{{ 'common.delete' | t }}</span>
+                  </button>
+                </div>
+              }
+            </div>
           }
         </div>
         <div class="connector-line" aria-hidden="true"></div>
@@ -74,17 +98,17 @@ import { ItemExpenseSummary } from '../../state/expense.store';
             <div class="head-actions" (click)="$event.stopPropagation()">
               <button
                 type="button"
-                class="head-icon-btn dark accent-dark"
+                class="head-action-btn dark accent-dark"
                 [title]="'item.logExpense' | t"
-                [attr.aria-label]="'item.logExpense' | t"
                 (click)="logExpense.emit(item())"
               >
                 <span class="ms-icon sm" aria-hidden="true">payments</span>
+                <span>{{ 'item.spendShort' | t }}</span>
               </button>
               <div class="overflow-anchor">
                 <button
                   type="button"
-                  class="head-icon-btn dark"
+                  class="head-menu-btn dark"
                   [title]="'item.moreActions' | t"
                   [attr.aria-label]="'item.moreActions' | t"
                   [attr.aria-expanded]="menuOpen()"
@@ -98,6 +122,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
                       <span class="ms-icon sm" aria-hidden="true">edit</span>
                       <span>{{ 'common.edit' | t }}</span>
                     </button>
+                    <div class="action-menu-divider"></div>
                     <button
                       type="button"
                       class="action-menu-item danger"
@@ -131,80 +156,60 @@ import { ItemExpenseSummary } from '../../state/expense.store';
           </div>
         </div>
 
-        @if (attachments().length > 0 || expenseSummary()) {
-          <div class="micro-pills dark" (click)="$event.stopPropagation()">
-            @if (attachments().length > 0) {
-              <button
-                type="button"
-                class="micro-pill dark"
-                (click)="attachmentsOpen.set(!attachmentsOpen())"
-              >
-                <span class="ms-icon sm" aria-hidden="true">attach_file</span>
-                <span>
-                  {{
-                    attachments().length === 1
-                      ? ('item.attachmentSingle' | t)
-                      : ('item.attachmentsBadge' | t: { count: attachments().length })
-                  }}
-                </span>
-              </button>
-            }
-            @if (expenseSummary(); as exp) {
-              @if (tripId()) {
-                <a
-                  class="micro-pill dark expense-pill-dark tabular-nums"
-                  [routerLink]="['/trips', tripId(), 'expenses']"
-                  [queryParams]="{ itemId: item().id }"
-                >
-                  <span class="ms-icon sm" aria-hidden="true">receipt_long</span>
-                  <span>
-                    {{
-                      'expenses.itemSummary'
-                        | t: { count: exp.count, currency: exp.currencyHome, total: formatAmount(exp.totalHome) }
-                    }}
-                  </span>
-                </a>
-              }
-            }
-          </div>
-
-          @if (attachmentsOpen() && attachments().length > 0) {
-            <div class="attachment-drawer dark" (click)="$event.stopPropagation()">
+        @if (!readOnly() || attachments().length > 0 || expenseSummary()) {
+          <div class="card-footer dark" (click)="$event.stopPropagation()">
+            <div class="footer-pills">
               @for (att of attachments(); track $index) {
                 <a
-                  class="attachment-item dark"
+                  class="attachment-chip dark"
                   [href]="att.url"
                   target="_blank"
                   rel="noopener noreferrer"
+                  [title]="att.name"
                 >
-                  <span class="ms-icon sm" aria-hidden="true">open_in_new</span>
-                  <span>{{ att.name }}</span>
+                  <span class="ms-icon sm" aria-hidden="true">attach_file</span>
+                  <span class="chip-truncate">{{ att.name }}</span>
                 </a>
               }
+              @if (expenseSummary(); as exp) {
+                @if (tripId()) {
+                  <a
+                    class="expense-chip dark tabular-nums"
+                    [routerLink]="['/trips', tripId(), 'expenses']"
+                    [queryParams]="{ itemId: item().id }"
+                  >
+                    <span class="ms-icon sm" aria-hidden="true">receipt_long</span>
+                    <span>
+                      {{
+                        'expenses.itemSummary'
+                          | t: { count: exp.count, currency: exp.currencyHome, total: formatAmount(exp.totalHome) }
+                      }}
+                    </span>
+                  </a>
+                }
+              }
             </div>
-          }
-        }
 
-        @if (!readOnly()) {
-          <div class="card-footer dark">
-            <div class="order-controls">
-              <button
-                type="button"
-                class="order-btn dark"
-                (click)="$event.stopPropagation(); moveUp.emit(item())"
-                aria-label="Move up"
-              >
-                <span class="ms-icon sm">keyboard_arrow_up</span>
-              </button>
-              <button
-                type="button"
-                class="order-btn dark"
-                (click)="$event.stopPropagation(); moveDown.emit(item())"
-                aria-label="Move down"
-              >
-                <span class="ms-icon sm">keyboard_arrow_down</span>
-              </button>
-            </div>
+            @if (!readOnly()) {
+              <div class="order-controls">
+                <button
+                  type="button"
+                  class="order-btn dark"
+                  (click)="moveUp.emit(item())"
+                  aria-label="Move up"
+                >
+                  <span class="ms-icon sm">keyboard_arrow_up</span>
+                </button>
+                <button
+                  type="button"
+                  class="order-btn dark"
+                  (click)="moveDown.emit(item())"
+                  aria-label="Move down"
+                >
+                  <span class="ms-icon sm">keyboard_arrow_down</span>
+                </button>
+              </div>
+            }
           </div>
         }
       </article>
@@ -236,32 +241,32 @@ import { ItemExpenseSummary } from '../../state/expense.store';
           <div class="head-actions" (click)="$event.stopPropagation()">
             @if (mapsUrl()) {
               <a
-                class="head-icon-btn"
+                class="head-action-btn"
                 [href]="mapsUrl()"
                 target="_blank"
                 rel="noopener noreferrer"
                 [title]="'common.navigate' | t"
-                [attr.aria-label]="'common.navigate' | t"
               >
                 <span class="ms-icon sm" aria-hidden="true">near_me</span>
+                <span>{{ 'item.navShort' | t }}</span>
               </a>
             }
 
             @if (!readOnly()) {
               <button
                 type="button"
-                class="head-icon-btn expense-trigger"
+                class="head-action-btn expense-trigger"
                 [title]="'item.logExpense' | t"
-                [attr.aria-label]="'item.logExpense' | t"
                 (click)="logExpense.emit(item())"
               >
                 <span class="ms-icon sm" aria-hidden="true">payments</span>
+                <span>{{ 'item.spendShort' | t }}</span>
               </button>
 
               <div class="overflow-anchor">
                 <button
                   type="button"
-                  class="head-icon-btn"
+                  class="head-menu-btn"
                   [title]="'item.moreActions' | t"
                   [attr.aria-label]="'item.moreActions' | t"
                   [attr.aria-expanded]="menuOpen()"
@@ -307,76 +312,20 @@ import { ItemExpenseSummary } from '../../state/expense.store';
           <p class="card-sub">{{ item().address }}</p>
         }
 
-        @if (hasMicroPills()) {
-          <div class="micro-pills" (click)="$event.stopPropagation()">
-            @if (detail('local_name'); as localName) {
-              <button
-                type="button"
-                class="micro-pill"
-                (click)="copyLocalName(localName)"
-                [title]="localName"
-              >
-                <span class="ms-icon sm" aria-hidden="true">
-                  {{ copiedLocal() ? 'check' : 'content_copy' }}
-                </span>
-                <span class="pill-truncate">
-                  {{ copiedLocal() ? ('common.copied' | t) : localName }}
-                </span>
-              </button>
-            }
-
-            @if (attachments().length > 0) {
-              <button
-                type="button"
-                class="micro-pill"
-                [class.active]="attachmentsOpen()"
-                (click)="attachmentsOpen.set(!attachmentsOpen())"
-              >
-                <span class="ms-icon sm" aria-hidden="true">attach_file</span>
-                <span>
-                  {{
-                    attachments().length === 1
-                      ? ('item.attachmentSingle' | t)
-                      : ('item.attachmentsBadge' | t: { count: attachments().length })
-                  }}
-                </span>
-              </button>
-            }
-
-            @if (expenseSummary(); as exp) {
-              @if (tripId()) {
-                <a
-                  class="micro-pill expense-pill tabular-nums"
-                  [routerLink]="['/trips', tripId(), 'expenses']"
-                  [queryParams]="{ itemId: item().id }"
-                >
-                  <span class="ms-icon sm" aria-hidden="true">receipt_long</span>
-                  <span>
-                    {{
-                      'expenses.itemSummary'
-                        | t: { count: exp.count, currency: exp.currencyHome, total: formatAmount(exp.totalHome) }
-                    }}
-                  </span>
-                </a>
-              }
-            }
-          </div>
-        }
-
-        @if (attachmentsOpen() && attachments().length > 0) {
-          <div class="attachment-drawer" (click)="$event.stopPropagation()">
-            @for (att of attachments(); track $index) {
-              <a
-                class="attachment-item"
-                [href]="att.url"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <span class="ms-icon sm" aria-hidden="true">open_in_new</span>
-                <span>{{ att.name }}</span>
-              </a>
-            }
-          </div>
+        @if (detail('local_name'); as localName) {
+          <button
+            type="button"
+            class="local-copy-chip"
+            (click)="$event.stopPropagation(); copyLocalName(localName)"
+            [title]="localName"
+          >
+            <span class="ms-icon sm" aria-hidden="true">
+              {{ copiedLocal() ? 'check' : 'content_copy' }}
+            </span>
+            <span class="chip-truncate">
+              {{ copiedLocal() ? ('common.copied' | t) : localName }}
+            </span>
+          </button>
         }
 
         @if (hasDetailChips()) {
@@ -407,26 +356,60 @@ import { ItemExpenseSummary } from '../../state/expense.store';
           <p class="card-notes">{{ item().notes }}</p>
         }
 
-        @if (!readOnly()) {
-          <div class="card-footer">
-            <div class="order-controls">
-              <button
-                type="button"
-                class="order-btn"
-                (click)="$event.stopPropagation(); moveUp.emit(item())"
-                aria-label="Move up"
-              >
-                <span class="ms-icon sm">keyboard_arrow_up</span>
-              </button>
-              <button
-                type="button"
-                class="order-btn"
-                (click)="$event.stopPropagation(); moveDown.emit(item())"
-                aria-label="Move down"
-              >
-                <span class="ms-icon sm">keyboard_arrow_down</span>
-              </button>
+        @if (!readOnly() || attachments().length > 0 || expenseSummary()) {
+          <div class="card-footer" (click)="$event.stopPropagation()">
+            <div class="footer-pills">
+              @for (att of attachments(); track $index) {
+                <a
+                  class="attachment-chip"
+                  [href]="att.url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  [title]="att.name"
+                >
+                  <span class="ms-icon sm" aria-hidden="true">attach_file</span>
+                  <span class="chip-truncate">{{ att.name }}</span>
+                </a>
+              }
+              @if (expenseSummary(); as exp) {
+                @if (tripId()) {
+                  <a
+                    class="expense-chip tabular-nums"
+                    [routerLink]="['/trips', tripId(), 'expenses']"
+                    [queryParams]="{ itemId: item().id }"
+                  >
+                    <span class="ms-icon sm" aria-hidden="true">receipt_long</span>
+                    <span>
+                      {{
+                        'expenses.itemSummary'
+                          | t: { count: exp.count, currency: exp.currencyHome, total: formatAmount(exp.totalHome) }
+                      }}
+                    </span>
+                  </a>
+                }
+              }
             </div>
+
+            @if (!readOnly()) {
+              <div class="order-controls">
+                <button
+                  type="button"
+                  class="order-btn"
+                  (click)="moveUp.emit(item())"
+                  aria-label="Move up"
+                >
+                  <span class="ms-icon sm">keyboard_arrow_up</span>
+                </button>
+                <button
+                  type="button"
+                  class="order-btn"
+                  (click)="moveDown.emit(item())"
+                  aria-label="Move down"
+                >
+                  <span class="ms-icon sm">keyboard_arrow_down</span>
+                </button>
+              </div>
+            }
           </div>
         }
       </article>
@@ -447,30 +430,60 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     .connector-pill {
       display: inline-flex;
       align-items: center;
+      flex-wrap: wrap;
       gap: 6px;
-      padding: 5px 12px;
-      border-radius: var(--radius-pill);
+      padding: 5px 8px 5px 12px;
+      border-radius: 10px;
       background: var(--color-surface);
       border: 1px solid var(--color-border);
       color: var(--color-text-secondary);
-      font-size: 0.75rem;
+      font-size: 0.78rem;
       font-weight: 600;
+    }
+    .connector-dur {
+      color: var(--color-text-muted);
     }
     .connector-link {
       display: inline-flex;
       color: var(--color-primary);
       text-decoration: none;
     }
-    .mini-btn {
+    .connector-spend-btn {
       display: inline-flex;
-      border: none;
-      background: transparent;
-      color: var(--color-text-muted);
-      cursor: pointer;
-      padding: 2px;
-    }
-    .mini-btn.accent {
+      align-items: center;
+      gap: 4px;
+      height: 28px;
+      padding: 0 9px;
+      border: 1px solid rgba(200, 155, 91, 0.55);
+      border-radius: 7px;
+      background: var(--color-accent-soft);
       color: #8b652d;
+      font: inherit;
+      font-size: 0.74rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .connector-spend-btn:hover {
+      background: var(--color-accent);
+      border-color: var(--color-accent);
+      color: #ffffff;
+    }
+    .connector-menu-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border: 1px solid var(--color-border);
+      border-radius: 7px;
+      background: var(--color-bg);
+      color: var(--color-text-secondary);
+      cursor: pointer;
+    }
+    .connector-menu-btn:hover {
+      border-color: var(--color-primary);
+      color: var(--color-primary);
     }
     .card {
       border-radius: var(--radius-md);
@@ -572,7 +585,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       align-items: center;
       justify-content: space-between;
       gap: var(--space-2);
-      margin-bottom: 6px;
+      margin-bottom: 8px;
     }
     .card-meta {
       display: flex;
@@ -615,50 +628,77 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     .head-actions {
       display: inline-flex;
       align-items: center;
-      gap: 4px;
+      gap: 6px;
       flex-shrink: 0;
     }
-    .head-icon-btn {
+    .head-action-btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 30px;
-      height: 30px;
-      padding: 0;
+      gap: 4px;
+      height: 32px;
+      padding: 0 10px;
       border: 1px solid var(--color-border);
-      border-radius: var(--radius-pill);
+      border-radius: 8px;
       background: var(--color-bg);
-      color: var(--color-text-secondary);
+      color: var(--color-primary);
       text-decoration: none;
+      font: inherit;
+      font-size: 0.76rem;
+      font-weight: 700;
       cursor: pointer;
+      white-space: nowrap;
       transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
     }
-    .head-icon-btn:hover {
+    .head-action-btn:hover {
       border-color: var(--color-primary);
-      color: var(--color-primary);
+      background: var(--color-primary-tint);
     }
-    .head-icon-btn.expense-trigger {
+    .head-action-btn.expense-trigger {
       border-color: rgba(200, 155, 91, 0.55);
       background: var(--color-accent-soft);
       color: #8b652d;
     }
-    .head-icon-btn.expense-trigger:hover {
+    .head-action-btn.expense-trigger:hover {
       border-color: var(--color-accent);
       background: var(--color-accent);
       color: #ffffff;
     }
-    .head-icon-btn.dark {
+    .head-action-btn.dark {
       border-color: rgba(255, 255, 255, 0.24);
       background: rgba(255, 255, 255, 0.1);
       color: #ffffff;
     }
-    .head-icon-btn.dark:hover {
-      background: rgba(255, 255, 255, 0.2);
-    }
-    .head-icon-btn.accent-dark {
+    .head-action-btn.accent-dark {
       border-color: rgba(200, 155, 91, 0.65);
       background: rgba(200, 155, 91, 0.22);
       color: #f3d7a4;
+    }
+    .head-action-btn.accent-dark:hover {
+      background: var(--color-accent);
+      color: #ffffff;
+    }
+    .head-menu-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      background: var(--color-bg);
+      color: var(--color-text-secondary);
+      cursor: pointer;
+    }
+    .head-menu-btn:hover {
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+    }
+    .head-menu-btn.dark {
+      border-color: rgba(255, 255, 255, 0.24);
+      background: rgba(255, 255, 255, 0.1);
+      color: #ffffff;
     }
     .overflow-anchor {
       position: relative;
@@ -701,6 +741,9 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     .action-menu-item.danger {
       color: var(--color-alert);
     }
+    .action-menu-item.danger:hover {
+      background: var(--color-alert-soft);
+    }
     .action-menu-divider {
       height: 1px;
       background: var(--color-border);
@@ -717,85 +760,31 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       font-size: 0.8125rem;
       color: var(--color-text-secondary);
     }
-    .micro-pills {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-top: 6px;
-    }
-    .micro-pills.dark {
-      margin-top: 10px;
-    }
-    .micro-pill {
+    .local-copy-chip {
       display: inline-flex;
       align-items: center;
       gap: 4px;
       max-width: 100%;
-      padding: 3px 9px;
+      margin: 0 0 6px;
+      padding: 3px 8px;
       border: 1px solid var(--color-border);
-      border-radius: var(--radius-pill);
+      border-radius: 7px;
       background: var(--color-bg);
       color: var(--color-text-secondary);
-      text-decoration: none;
       font: inherit;
       font-size: 0.72rem;
       font-weight: 600;
       cursor: pointer;
     }
-    .micro-pill:hover,
-    .micro-pill.active {
+    .local-copy-chip:hover {
       border-color: var(--color-primary);
       color: var(--color-primary);
     }
-    .pill-truncate {
+    .chip-truncate {
       max-width: 180px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-    }
-    .micro-pill.expense-pill {
-      border-color: rgba(200, 155, 91, 0.5);
-      background: var(--color-accent-soft);
-      color: #8b652d;
-    }
-    .micro-pill.dark {
-      border-color: rgba(255, 255, 255, 0.24);
-      background: rgba(255, 255, 255, 0.1);
-      color: #ffffff;
-    }
-    .micro-pill.expense-pill-dark {
-      border-color: rgba(200, 155, 91, 0.6);
-      background: rgba(200, 155, 91, 0.2);
-      color: #f3d7a4;
-    }
-    .attachment-drawer {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      margin-top: 8px;
-      padding: 8px;
-      border-radius: var(--radius-sm);
-      background: var(--color-bg);
-      border: 1px solid var(--color-border);
-    }
-    .attachment-drawer.dark {
-      background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(255, 255, 255, 0.18);
-    }
-    .attachment-item {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.78rem;
-      font-weight: 600;
-      color: var(--color-primary);
-      text-decoration: none;
-    }
-    .attachment-item:hover {
-      text-decoration: underline;
-    }
-    .attachment-item.dark {
-      color: #f3d7a4;
     }
     .detail-chips {
       display: flex;
@@ -830,28 +819,77 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     .card-footer {
       display: flex;
       align-items: center;
-      justify-content: flex-end;
-      margin-top: 8px;
-      padding-top: 6px;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+      padding-top: 8px;
       border-top: 1px solid var(--color-border);
     }
     .card-footer.dark {
       border-top-color: rgba(255, 255, 255, 0.14);
     }
+    .footer-pills {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      min-width: 0;
+    }
+    .attachment-chip,
+    .expense-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      height: 28px;
+      padding: 0 9px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 0.74rem;
+      font-weight: 600;
+    }
+    .attachment-chip {
+      border: 1px solid var(--color-border);
+      background: var(--color-bg);
+      color: var(--color-primary);
+    }
+    .attachment-chip:hover {
+      border-color: var(--color-primary);
+      background: var(--color-primary-tint);
+    }
+    .attachment-chip.dark {
+      border-color: rgba(255, 255, 255, 0.24);
+      background: rgba(255, 255, 255, 0.1);
+      color: #ffffff;
+    }
+    .expense-chip {
+      border: 1px solid rgba(200, 155, 91, 0.5);
+      background: var(--color-accent-soft);
+      color: #8b652d;
+    }
+    .expense-chip:hover {
+      border-color: var(--color-accent);
+    }
+    .expense-chip.dark {
+      border-color: rgba(200, 155, 91, 0.6);
+      background: rgba(200, 155, 91, 0.2);
+      color: #f3d7a4;
+    }
     .order-controls {
       display: flex;
       align-items: center;
       gap: 4px;
+      margin-left: auto;
     }
     .order-btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       width: 28px;
-      height: 26px;
+      height: 28px;
       padding: 0;
       border: 1px solid var(--color-border);
-      border-radius: var(--radius-pill);
+      border-radius: 8px;
       background: var(--color-bg);
       color: var(--color-text-muted);
       cursor: pointer;
@@ -887,7 +925,6 @@ export class ItineraryCardComponent {
 
   protected readonly copiedLocal = signal(false);
   protected readonly menuOpen = signal(false);
-  protected readonly attachmentsOpen = signal(false);
 
   protected readonly attachments = computed<ItemAttachment[]>(() => {
     const raw = this.item().details?.['attachments'];
@@ -902,14 +939,6 @@ export class ItineraryCardComponent {
         (entry as ItemAttachment).url.trim().length > 0,
     );
   });
-
-  protected hasMicroPills(): boolean {
-    return (
-      Boolean(this.detail('local_name')) ||
-      this.attachments().length > 0 ||
-      this.expenseSummary() !== null
-    );
-  }
 
   protected hasDetailChips(): boolean {
     return Boolean(

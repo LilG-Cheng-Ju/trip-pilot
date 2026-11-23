@@ -171,6 +171,8 @@ export const MESSAGES_ZH_TW: Record<TranslationKey, string> = {
   'expenses.clearFilter': '顯示全部',
   'expenses.itemSummary': '{count} 筆 · {currency} {total}',
   'item.logExpense': '新增消費',
+  'item.spendShort': '記帳',
+  'item.navShort': '導航',
   'item.moreActions': '更多動作',
   'item.attachmentsTitle': '雲端附件連結',
   'item.attachmentsHint': '貼上 Google Drive、Dropbox、OneDrive 等雲端票券或文件連結（不佔資料庫空間）。',

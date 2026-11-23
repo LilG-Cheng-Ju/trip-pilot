@@ -257,6 +257,12 @@ export class TripilotApiService {
     );
   }
 
+  resolveLinkTitle(url: string): Promise<{ title: string | null }> {
+    return firstValueFrom(
+      this.http.post<{ title: string | null }>(`${this.baseUrl}/links/resolve-title`, { url }),
+    );
+  }
+
   getStats(year?: number | null): Promise<TravelStats> {
     let params = new HttpParams();
     if (year) {

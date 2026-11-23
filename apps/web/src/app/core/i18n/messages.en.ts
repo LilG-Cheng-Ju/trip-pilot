@@ -169,6 +169,8 @@ export const MESSAGES_EN = {
   'expenses.clearFilter': 'Show all',
   'expenses.itemSummary': '{count} · {currency} {total}',
   'item.logExpense': 'Log expense',
+  'item.spendShort': 'Spend',
+  'item.navShort': 'Map',
   'item.moreActions': 'More actions',
   'item.attachmentsTitle': 'Cloud Attachments',
   'item.attachmentsHint': 'Link tickets, PDFs, or folders from Google Drive, Dropbox, OneDrive, etc.',

@@ -246,8 +246,13 @@ export interface ItemFormSubmitEvent {
                 [placeholder]="'item.attachmentUrlPlaceholder' | t"
                 (keydown.enter)="$event.preventDefault(); addAttachment()"
               />
-              <button type="button" class="pill-btn" (click)="addAttachment()">
-                + {{ 'item.attachmentAdd' | t }}
+              <button
+                type="button"
+                class="pill-btn"
+                [disabled]="resolvingAttachment()"
+                (click)="addAttachment()"
+              >
+                {{ resolvingAttachment() ? '...' : '+ ' + ('item.attachmentAdd' | t) }}
               </button>
             </div>
           </div>
@@ -504,6 +509,7 @@ export class ItemFormModalComponent {
   protected readonly placeCandidates = signal<PlaceCandidate[]>([]);
   protected readonly pinnedPlace = signal<PlaceCandidate | null>(null);
   protected readonly attachments = signal<ItemAttachment[]>([]);
+  protected readonly resolvingAttachment = signal(false);
 
   protected itemType: ItemType = 'SPOT';
   protected itemTitle = '';
@@ -654,12 +660,28 @@ export class ItemFormModalComponent {
     }
   }
 
-  protected addAttachment(): void {
+  protected async addAttachment(): Promise<void> {
     const rawUrl = this.attachmentUrl.trim();
     if (!rawUrl || (!rawUrl.startsWith('http://') && !rawUrl.startsWith('https://'))) {
       return;
     }
-    const label = this.attachmentName.trim() || this.deriveAttachmentName(rawUrl);
+    let label = this.attachmentName.trim();
+    if (!label) {
+      const directFile = this.extractUrlFilename(rawUrl);
+      if (directFile) {
+        label = directFile;
+      } else {
+        this.resolvingAttachment.set(true);
+        try {
+          const resolved = await this.api.resolveLinkTitle(rawUrl);
+          label = resolved.title?.trim() || this.deriveAttachmentName(rawUrl);
+        } catch {
+          label = this.deriveAttachmentName(rawUrl);
+        } finally {
+          this.resolvingAttachment.set(false);
+        }
+      }
+    }
     this.attachments.update((list) => [...list, { name: label, url: rawUrl }]);
     this.attachmentName = '';
     this.attachmentUrl = '';
@@ -669,7 +691,7 @@ export class ItemFormModalComponent {
     this.attachments.update((list) => list.filter((_, i) => i !== index));
   }
 
-  private deriveAttachmentName(rawUrl: string): string {
+  private extractUrlFilename(rawUrl: string): string | null {
     try {
       const parsed = new URL(rawUrl);
       const segments = parsed.pathname.split('/').filter(Boolean);
@@ -678,6 +700,19 @@ export class ItemFormModalComponent {
       if (last && !generic.has(last.toLowerCase()) && last.includes('.')) {
         return last;
       }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  private deriveAttachmentName(rawUrl: string): string {
+    const directFile = this.extractUrlFilename(rawUrl);
+    if (directFile) {
+      return directFile;
+    }
+    try {
+      const parsed = new URL(rawUrl);
       const host = parsed.hostname.toLowerCase();
       if (host.includes('drive.google.com') || host.includes('docs.google.com')) {
         return 'Google Drive';
