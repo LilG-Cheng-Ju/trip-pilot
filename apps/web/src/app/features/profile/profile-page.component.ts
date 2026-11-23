@@ -101,21 +101,17 @@ import { AuthStore } from '../../state/auth.store';
         }
 
         <div class="token-list">
-          @for (tok of authStore.tokens(); track tok.id) {
-            <div class="token-row" [class.revoked]="tok.revoked_at">
+          @for (tok of activeTokens(); track tok.id) {
+            <div class="token-row">
               <div>
                 <strong>{{ tok.name }}</strong>
                 <p class="token-meta tabular-nums">
                   {{ tok.token_prefix }}… · {{ tok.scopes.join(', ') }}
                 </p>
               </div>
-              @if (tok.revoked_at) {
-                <span class="revoked-tag">{{ 'profile.tokenRevoked' | t }}</span>
-              } @else {
-                <button type="button" class="pill-btn danger" (click)="authStore.revokeToken(tok.id)">
-                  {{ 'share.revoke' | t }}
-                </button>
-              }
+              <button type="button" class="pill-btn danger" (click)="authStore.revokeToken(tok.id)">
+                {{ 'share.revoke' | t }}
+              </button>
             </div>
           }
         </div>
@@ -425,9 +421,11 @@ export class ProfilePageComponent implements OnInit {
   protected readonly mcpEndpoint = `${this.apiOrigin}/mcp`;
   protected readonly llmsTxtUrl = `${this.apiOrigin}/llms.txt`;
 
-  protected readonly hasActiveToken = computed(() =>
-    this.authStore.tokens().some((tok) => !tok.revoked_at),
+  protected readonly activeTokens = computed(() =>
+    this.authStore.tokens().filter((tok) => !tok.revoked_at),
   );
+
+  protected readonly hasActiveToken = computed(() => this.activeTokens().length > 0);
 
   async ngOnInit(): Promise<void> {
     await Promise.all([this.authStore.loadProfile(), this.authStore.loadTokens()]);

@@ -28,11 +28,23 @@ export class AuthSessionService {
   );
 
   private firebaseAuthInstance: unknown = null;
+  private readyResolve: (() => void) | null = null;
+  private readonly readyPromise: Promise<void>;
 
   constructor() {
     if (this.firebaseConfig) {
+      this.readyPromise = new Promise<void>((resolve) => {
+        this.readyResolve = resolve;
+      });
       void this.initFirebaseAuth();
+    } else {
+      this.readyPromise = Promise.resolve();
     }
+  }
+
+  /** Wait until Firebase Auth has restored any persisted browser session. */
+  waitUntilReady(): Promise<void> {
+    return this.readyPromise;
   }
 
   getBearerToken(): string {
@@ -143,10 +155,14 @@ export class AuthSessionService {
             this.photoUrlSignal.set(null);
           }
           this.readySignal.set(true);
+          this.readyResolve?.();
+          this.readyResolve = null;
         },
       );
     } catch {
       this.readySignal.set(true);
+      this.readyResolve?.();
+      this.readyResolve = null;
     }
   }
 
