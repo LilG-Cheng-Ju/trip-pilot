@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from app.models.enums import ItemType, RouteProfile, TripStatus
 
 SENSITIVE_DETAIL_KEYS: frozenset[str] = frozenset(
-    {"booking_ref", "confirmation_code", "reservation_code"}
+    {"booking_ref", "confirmation_code", "reservation_code", "attachments"}
 )
 
 
