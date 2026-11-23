@@ -366,6 +366,9 @@ interface TimelineSlot {
       margin: 0 auto;
     }
     .desktop-map-pane,
+    .desktop-only {
+      display: none;
+    }
     .util-icon-btn {
       display: inline-flex;
       align-items: center;
@@ -383,9 +386,6 @@ interface TimelineSlot {
     .util-icon-btn.active {
       border-color: var(--color-primary);
       background: var(--color-primary-tint);
-    }
-    .desktop-only {
-      display: none;
     }
     .trip-bar {
       display: flex;

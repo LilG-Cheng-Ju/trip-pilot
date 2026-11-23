@@ -106,7 +106,7 @@ export const MESSAGES_ZH_TW: Record<TranslationKey, string> = {
   'item.type.localTransit': '在地轉乘',
   'item.type.stay': '住宿',
   'item.type.spot': '景點',
-  'item.type.food': '美食',
+  'item.type.food': '餐飲',
   'share.title': '建立唯讀分享連結',
   'share.create': '產生分享連結',
   'share.hideSecrets': '隱藏訂位代號與飯店確認碼',
