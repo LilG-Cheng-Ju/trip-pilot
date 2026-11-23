@@ -54,11 +54,48 @@ export class AuthSessionService {
     const authMod = await this.loadFirebaseAuthModule();
     const provider = new authMod.GoogleAuthProvider();
     const result = await authMod.signInWithPopup(this.firebaseAuthInstance, provider);
-    const token = await result.user.getIdToken();
+    await this.applyFirebaseUser(result.user);
+  }
+
+  async signInWithEmail(email: string, password: string): Promise<void> {
+    if (!this.firebaseConfig) {
+      return;
+    }
+    await this.initFirebaseAuth();
+    const authMod = await this.loadFirebaseAuthModule();
+    const result = await authMod.signInWithEmailAndPassword(
+      this.firebaseAuthInstance,
+      email.trim(),
+      password,
+    );
+    await this.applyFirebaseUser(result.user);
+  }
+
+  async signUpWithEmail(email: string, password: string): Promise<void> {
+    if (!this.firebaseConfig) {
+      return;
+    }
+    await this.initFirebaseAuth();
+    const authMod = await this.loadFirebaseAuthModule();
+    const result = await authMod.createUserWithEmailAndPassword(
+      this.firebaseAuthInstance,
+      email.trim(),
+      password,
+    );
+    await this.applyFirebaseUser(result.user);
+  }
+
+  private async applyFirebaseUser(user: {
+    email?: string | null;
+    displayName?: string | null;
+    photoURL?: string | null;
+    getIdToken: () => Promise<string>;
+  }): Promise<void> {
+    const token = await user.getIdToken();
     this.idToken.set(token);
-    this.emailSignal.set(result.user.email ?? null);
-    this.displayNameSignal.set(result.user.displayName ?? null);
-    this.photoUrlSignal.set(result.user.photoURL ?? null);
+    this.emailSignal.set(user.email ?? null);
+    this.displayNameSignal.set(user.displayName ?? null);
+    this.photoUrlSignal.set(user.photoURL ?? null);
   }
 
   async signOut(): Promise<void> {

@@ -1,5 +1,13 @@
 import { Component, computed, ElementRef, HostListener, inject, signal } from '@angular/core';
-import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
+import {
+  NavigationEnd,
+  Router,
+  RouterLink,
+  RouterLinkActive,
+  RouterOutlet,
+} from '@angular/router';
+import { filter, map } from 'rxjs';
 
 import { AuthSessionService } from './core/auth/auth-session.service';
 import { APP_VERSION, IS_BETA } from './core/config/app-version';
@@ -22,9 +30,22 @@ export class App {
   protected readonly isBeta = IS_BETA;
   protected readonly accountMenuOpen = signal(false);
 
-  protected readonly isPublicShareRoute = computed(() =>
-    this.router.url.startsWith('/s/'),
+  private readonly currentUrl = toSignal(
+    this.router.events.pipe(
+      filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+      map((e) => e.urlAfterRedirects),
+    ),
+    { initialValue: this.router.url },
   );
+
+  /** Hide topbar, avatar, and bottom nav on public share links, login, or unauthenticated cloud states. */
+  protected readonly hideAppChrome = computed(() => {
+    const url = this.currentUrl();
+    if (url.startsWith('/s/') || url.startsWith('/login')) {
+      return true;
+    }
+    return this.auth.isFirebaseEnabled() && !this.auth.isAuthenticated();
+  });
 
   protected readonly avatarInitial = computed(() => {
     const label = this.auth.userDisplayName() || this.auth.userEmail() || 'T';

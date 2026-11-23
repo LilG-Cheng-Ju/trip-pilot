@@ -1,5 +1,5 @@
-<div class="app-shell" [class.public-mode]="isPublicShareRoute()">
-  @if (!isPublicShareRoute()) {
+<div class="app-shell" [class.public-mode]="hideAppChrome()">
+  @if (!hideAppChrome()) {
     <header class="topbar">
       <div class="topbar-left">
         <a class="brand" routerLink="/trips">
@@ -126,7 +126,7 @@
     <router-outlet />
   </main>
 
-  @if (!isPublicShareRoute()) {
+  @if (!hideAppChrome()) {
     <nav class="mobile-bottom-nav" aria-label="Mobile navigation">
       <a routerLink="/trips" routerLinkActive="active" class="bottom-item">
         <span class="ms-icon" aria-hidden="true">luggage</span>
