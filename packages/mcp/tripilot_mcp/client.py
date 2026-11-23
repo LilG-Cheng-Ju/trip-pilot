@@ -133,6 +133,25 @@ class TripilotClient:
         """Partially update trip metadata."""
         return await self._request("PATCH", f"/trips/{trip_id}", json_body=payload)
 
+    async def append_day(self, trip_id: str) -> dict[str, Any]:
+        """Append a new calendar day (with default Plan A) to an existing trip."""
+        return await self._request("POST", f"/trips/{trip_id}/days")
+
+    async def update_day(
+        self,
+        day_id: str,
+        *,
+        title: str | None = None,
+        notes: str | None = None,
+    ) -> dict[str, Any]:
+        """Update a TripDay's theme title or notes."""
+        payload: dict[str, Any] = {}
+        if title is not None:
+            payload["title"] = title
+        if notes is not None:
+            payload["notes"] = notes
+        return await self._request("PATCH", f"/days/{day_id}", json_body=payload)
+
     async def add_day_option(
         self,
         day_id: str,
@@ -192,6 +211,32 @@ class TripilotClient:
     async def delete_item(self, item_id: str) -> None:
         """Delete an itinerary item by ID."""
         await self._request("DELETE", f"/items/{item_id}")
+
+    async def select_choice_item(self, item_id: str) -> dict[str, Any]:
+        """Select an item as the active choice within its slot choice group."""
+        return await self._request("PATCH", f"/items/{item_id}/select")
+
+    async def search_places(
+        self,
+        q: str,
+        *,
+        lang: str = "zh-TW",
+        limit: int = 5,
+    ) -> list[dict[str, Any]]:
+        """Search venues/landmarks via Google Places API (New) or Photon fallback."""
+        return await self._request(
+            "GET",
+            "/places/search",
+            params={"q": q, "lang": lang, "limit": limit},
+        )
+
+    async def resolve_place_url(self, url: str) -> dict[str, Any]:
+        """Resolve a Google Maps URL (full or maps.app.goo.gl) into coordinates."""
+        return await self._request(
+            "POST",
+            "/places/resolve-url",
+            json_body={"url": url},
+        )
 
     async def list_expenses(self, trip_id: str) -> dict[str, Any]:
         """Retrieve all expenses and category totals for a trip."""

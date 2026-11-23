@@ -23,6 +23,7 @@ def _build_item_payload(
     google_maps_url: str | None = None,
     notes: str | None = None,
     details: dict[str, Any] | None = None,
+    alternative_for_item_id: str | None = None,
 ) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "type": item_type.strip().upper(),
@@ -37,6 +38,7 @@ def _build_item_payload(
         "longitude": longitude,
         "google_maps_url": google_maps_url,
         "notes": notes,
+        "alternative_for_item_id": alternative_for_item_id,
     }
     for key, value in optional_fields.items():
         if value is not None:
@@ -175,6 +177,7 @@ async def add_itinerary_item(
     google_maps_url: str | None = None,
     notes: str | None = None,
     details: dict[str, Any] | None = None,
+    alternative_for_item_id: str | None = None,
 ) -> dict[str, Any]:
     """Add an itinerary item directly to a known DayOption ID.
 
@@ -190,7 +193,9 @@ async def add_itinerary_item(
         google_maps_url: Optional Google Maps deep link.
         notes: Optional private notes.
         details: Optional type-specific metadata dictionary (e.g. flight_number,
-            dep_iata, arr_iata, booking_ref, distance_km, train_number).
+            origin_iata, dest_iata, booking_ref, local_name, line_or_train_no).
+        alternative_for_item_id: Optional existing item ID to attach this item as a
+            slot-level multi-choice alternative (e.g. lunch 3-way choice).
     """
     payload = _build_item_payload(
         item_type=item_type,
@@ -203,6 +208,7 @@ async def add_itinerary_item(
         google_maps_url=google_maps_url,
         notes=notes,
         details=details,
+        alternative_for_item_id=alternative_for_item_id,
     )
     async with TripilotClient() as client:
         return await client.add_item(option_id=day_option_id, payload=payload)
@@ -223,6 +229,7 @@ async def add_item_by_date(
     google_maps_url: str | None = None,
     notes: str | None = None,
     details: dict[str, Any] | None = None,
+    alternative_for_item_id: str | None = None,
 ) -> dict[str, Any]:
     """Add an itinerary item to a trip by calendar date (YYYY-MM-DD).
 
@@ -242,7 +249,9 @@ async def add_item_by_date(
         longitude: Optional WGS84 longitude (-180 to 180).
         google_maps_url: Optional Google Maps deep link.
         notes: Optional private notes.
-        details: Optional type-specific metadata dictionary.
+        details: Optional type-specific metadata dictionary (include local_name for
+            international venues).
+        alternative_for_item_id: Optional existing item ID to attach as a slot choice.
     """
     payload = _build_item_payload(
         item_type=item_type,
@@ -255,6 +264,7 @@ async def add_item_by_date(
         google_maps_url=google_maps_url,
         notes=notes,
         details=details,
+        alternative_for_item_id=alternative_for_item_id,
     )
     async with TripilotClient() as client:
         return await client.add_item_by_date(
@@ -355,6 +365,73 @@ async def search_airports(query: str) -> list[dict[str, Any]]:
     """
     async with TripilotClient() as client:
         return await client.search_airports(q=query)
+
+
+@mcp.tool()
+async def update_day_theme(
+    trip_day_id: str,
+    title: str | None = None,
+    notes: str | None = None,
+) -> dict[str, Any]:
+    """Set or update a TripDay's theme title or notes.
+
+    Args:
+        trip_day_id: Target TripDay ID.
+        title: Concise day focus/area (e.g. "East Busan · Luge & Sky Capsule").
+        notes: Optional day-level notes.
+    """
+    async with TripilotClient() as client:
+        return await client.update_day(day_id=trip_day_id, title=title, notes=notes)
+
+
+@mcp.tool()
+async def append_day(trip_id: str) -> dict[str, Any]:
+    """Append a new calendar day (with default Plan A) to an existing trip.
+
+    Args:
+        trip_id: Target trip ID.
+    """
+    async with TripilotClient() as client:
+        return await client.append_day(trip_id=trip_id)
+
+
+@mcp.tool()
+async def select_choice_item(item_id: str) -> dict[str, Any]:
+    """Promote an itinerary item as the active choice within its slot choice group.
+
+    Args:
+        item_id: ID of the item to activate.
+    """
+    async with TripilotClient() as client:
+        return await client.select_choice_item(item_id=item_id)
+
+
+@mcp.tool()
+async def search_places(
+    query: str,
+    lang: str = "zh-TW",
+    limit: int = 5,
+) -> list[dict[str, Any]]:
+    """Search places/venues via Google Places API (New) or Photon fallback.
+
+    Args:
+        query: Venue, landmark, or address keyword (e.g. "Senso-ji", "안목 서면점").
+        lang: Preferred language code (default "zh-TW").
+        limit: Maximum number of results (1-10, default 5).
+    """
+    async with TripilotClient() as client:
+        return await client.search_places(q=query, lang=lang, limit=limit)
+
+
+@mcp.tool()
+async def resolve_place_url(url: str) -> dict[str, Any]:
+    """Resolve a Google Maps URL (full or maps.app.goo.gl) into name and coordinates.
+
+    Args:
+        url: Google Maps link.
+    """
+    async with TripilotClient() as client:
+        return await client.resolve_place_url(url=url)
 
 
 def main() -> None:
