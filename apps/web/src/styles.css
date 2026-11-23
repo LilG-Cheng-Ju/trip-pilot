@@ -20,6 +20,18 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Centralized editorial display font for headings, trip titles, and hero KPI numerals. */
+h1,
+h2,
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.015em;
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }

@@ -1,6 +1,7 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 
+import { COPY_FEEDBACK_DURATION_MS } from '../../core/constants/app-limits';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ItemAttachment, ItineraryItem } from '../../core/models/tripilot.models';
 import {
@@ -87,12 +88,12 @@ interface TripAttachmentEntry {
 
                     <div class="chip-row">
                       @if (detail(stay.item, 'confirmation_code') || detail(stay.item, 'booking_ref'); as conf) {
-                        <span class="info-chip">Conf: {{ conf }}</span>
+                        <span class="info-chip">{{ 'detail.confirmation' | t }} {{ conf }}</span>
                       }
                       @if (detail(stay.item, 'free_cancellation_deadline'); as cancel) {
                         <span class="alert-chip">
                           <span class="ms-icon sm" aria-hidden="true">warning</span>
-                          <span>{{ cancel }}</span>
+                          <span>{{ 'detail.freeCancelBy' | t }} {{ cancel }}</span>
                         </span>
                       }
                       @if (detail(stay.item, 'local_name'); as localName) {
@@ -139,7 +140,9 @@ interface TripAttachmentEntry {
                         Day {{ entry.dayIndex }} · {{ entry.date }}
                       </span>
                       @if (detail(entry.item, 'booking_ref'); as ref) {
-                        <span class="ref-pill">{{ ref }}</span>
+                        <span class="ref-pill">{{ 'detail.bookingRef' | t }} {{ ref }}</span>
+                      } @else if (detail(entry.item, 'confirmation_code'); as conf) {
+                        <span class="ref-pill">{{ 'detail.confirmation' | t }} {{ conf }}</span>
                       }
                     </div>
                     <div class="flight-line tabular-nums">
@@ -203,7 +206,16 @@ interface TripAttachmentEntry {
                         <span class="info-chip">{{ seat }}</span>
                       }
                       @if (detail(entry.item, 'booking_ref'); as ref) {
-                        <span class="info-chip">Ref: {{ ref }}</span>
+                        <span class="info-chip">{{ 'detail.bookingRef' | t }} {{ ref }}</span>
+                      }
+                      @if (detail(entry.item, 'confirmation_code'); as conf) {
+                        <span class="info-chip">{{ 'detail.confirmation' | t }} {{ conf }}</span>
+                      }
+                      @if (detail(entry.item, 'free_cancellation_deadline'); as cancel) {
+                        <span class="alert-chip">
+                          <span class="ms-icon sm" aria-hidden="true">warning</span>
+                          <span>{{ 'detail.freeCancelBy' | t }} {{ cancel }}</span>
+                        </span>
                       }
                     </div>
                   </article>
@@ -320,11 +332,10 @@ interface TripAttachmentEntry {
       background: var(--color-bg);
       border: 1px solid var(--color-border);
     }
-    .stay-card {
-      border-left: 4px solid var(--item-stay);
-    }
+    .stay-card,
     .transit-card {
-      border-left: 4px solid var(--item-reserved);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
     }
     .flight-card {
       background: var(--color-primary);
@@ -633,7 +644,7 @@ export class TripBriefPageComponent implements OnInit {
     try {
       await navigator.clipboard.writeText(text);
       this.copiedId.set(id);
-      setTimeout(() => this.copiedId.set(null), 1600);
+      setTimeout(() => this.copiedId.set(null), COPY_FEEDBACK_DURATION_MS);
     } catch {
       // Ignore clipboard failures in restricted contexts.
     }

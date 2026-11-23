@@ -2,6 +2,11 @@ import { Component, computed, ElementRef, inject, OnInit, signal, viewChild } fr
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 
+import {
+  COPY_FEEDBACK_DURATION_MS,
+  DAY_STRIP_SCROLL_STEP_PX,
+  SHARE_COPY_FEEDBACK_DURATION_MS,
+} from '../../core/constants/app-limits';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ItineraryItem } from '../../core/models/tripilot.models';
 import { AppModalComponent } from '../../shared/modal.component';
@@ -77,7 +82,7 @@ interface TimelineSlot {
                 type="button"
                 class="day-scroll-btn"
                 aria-label="Scroll days left"
-                (click)="scrollDayStrip(-200)"
+                (click)="scrollDayStrip(-dayStripScrollStepPx)"
               >
                 <span class="ms-icon sm" aria-hidden="true">chevron_left</span>
               </button>
@@ -108,7 +113,7 @@ interface TimelineSlot {
                 type="button"
                 class="day-scroll-btn"
                 aria-label="Scroll days right"
-                (click)="scrollDayStrip(200)"
+                (click)="scrollDayStrip(dayStripScrollStepPx)"
               >
                 <span class="ms-icon sm" aria-hidden="true">chevron_right</span>
               </button>
@@ -130,32 +135,56 @@ interface TimelineSlot {
                 />
               </div>
 
-              <!-- Whole-Day Plan A / Plan B Segmented Switcher -->
-              <div class="plan-bar">
-                <div class="plan-pills">
-                  @for (opt of day.options; track opt.id) {
-                    <button
-                      type="button"
-                      class="plan-pill"
-                      [class.selected]="store.selectedOption()?.id === opt.id"
-                      (click)="store.previewOption(day.id, opt.id)"
-                    >
-                      @if (day.active_option_id === opt.id) {
-                        <span class="active-dot" aria-hidden="true"></span>
-                      }
-                      <span>{{ opt.label }}</span>
-                      @if (opt.cached_ground_distance_km > 0) {
-                        <span class="opt-km tabular-nums">
-                          {{ opt.cached_distance_is_approx ? '~' : '' }}{{ opt.cached_ground_distance_km }} km
-                        </span>
-                      }
+              <!-- Whole-Day Plan A / Plan B Segmented Switcher (shown once a day has 2+ plans) -->
+              @if (day.options.length > 1) {
+                <div class="plan-bar">
+                  <div class="plan-pills">
+                    @for (opt of day.options; track opt.id) {
+                      <button
+                        type="button"
+                        class="plan-pill"
+                        [class.selected]="store.selectedOption()?.id === opt.id"
+                        (click)="store.previewOption(day.id, opt.id)"
+                      >
+                        @if (day.active_option_id === opt.id) {
+                          <span class="active-dot" aria-hidden="true"></span>
+                        }
+                        <span>{{ opt.label }}</span>
+                        @if (opt.cached_ground_distance_km > 0) {
+                          <span class="opt-km tabular-nums">
+                            {{ opt.cached_distance_is_approx ? '~' : '' }}{{ opt.cached_ground_distance_km }} km
+                          </span>
+                        }
+                      </button>
+                    }
+                  </div>
+                  <div class="plan-actions">
+                    @if (store.selectedOption(); as currentOpt) {
+                      <button
+                        type="button"
+                        class="plan-icon-btn"
+                        [title]="'itinerary.plan.rename' | t"
+                        [attr.aria-label]="'itinerary.plan.rename' | t"
+                        (click)="openRenameOptionModal(currentOpt.id, currentOpt.label)"
+                      >
+                        <span class="ms-icon sm" aria-hidden="true">edit</span>
+                      </button>
+                      <button
+                        type="button"
+                        class="plan-icon-btn danger"
+                        [title]="'itinerary.plan.delete' | t"
+                        [attr.aria-label]="'itinerary.plan.delete' | t"
+                        (click)="confirmDeleteOption(day.id, currentOpt.id, currentOpt.label)"
+                      >
+                        <span class="ms-icon sm" aria-hidden="true">delete</span>
+                      </button>
+                    }
+                    <button type="button" class="clone-btn" (click)="openCloneModal()">
+                      {{ 'itinerary.plan.addOption' | t }}
                     </button>
-                  }
+                  </div>
                 </div>
-                <button type="button" class="clone-btn" (click)="openCloneModal()">
-                  {{ 'itinerary.plan.addOption' | t }}
-                </button>
-              </div>
+              }
 
               @if (store.selectedOption(); as option) {
                 @if (!store.isPreviewingActiveOption()) {
@@ -177,10 +206,17 @@ interface TimelineSlot {
                     · {{ option.cached_distance_is_approx ? '~' : '' }}{{ option.cached_ground_distance_km }} km
                   </span>
 
-                  <button type="button" class="add-item-btn" (click)="openAddItemModal()">
-                    <span class="ms-icon sm" aria-hidden="true">add</span>
-                    <span>{{ 'itinerary.addItem' | t }}</span>
-                  </button>
+                  <div class="summary-actions">
+                    @if (day.options.length === 1) {
+                      <button type="button" class="clone-btn" (click)="openCloneModal()">
+                        {{ 'itinerary.plan.addOption' | t }}
+                      </button>
+                    }
+                    <button type="button" class="add-item-btn" (click)="openAddItemModal()">
+                      <span class="ms-icon sm" aria-hidden="true">add</span>
+                      <span>{{ 'itinerary.addItem' | t }}</span>
+                    </button>
+                  </div>
                 </div>
 
                 @if (timelineSlots().length === 0) {
@@ -394,13 +430,34 @@ interface TimelineSlot {
         (closed)="showQuickExpenseModal.set(false)"
       />
 
-      <!-- Modal: Create Plan B Option -->
+      <!-- Modal: Create Day Plan Option (Blank or Clone) -->
       <app-modal
         [open]="showCloneModal()"
         [title]="'itinerary.plan.modalTitle' | t"
         (closed)="showCloneModal.set(false)"
       >
-        <form class="modal-form" (ngSubmit)="submitCloneOption()" novalidate>
+        <form class="modal-form" (ngSubmit)="submitCreateOption()" novalidate>
+          @if (canCloneCurrentOption()) {
+            <div class="plan-mode-seg" role="radiogroup">
+              <button
+                type="button"
+                class="plan-mode-btn"
+                [class.active]="newOptionMode() === 'blank'"
+                (click)="newOptionMode.set('blank')"
+              >
+                {{ 'itinerary.plan.modeBlank' | t }}
+              </button>
+              <button
+                type="button"
+                class="plan-mode-btn"
+                [class.active]="newOptionMode() === 'clone'"
+                (click)="newOptionMode.set('clone')"
+              >
+                {{ 'itinerary.plan.modeClone' | t }}
+              </button>
+            </div>
+          }
+
           <label class="field" [class.has-error]="cloneLabelError()">
             <span>{{ 'itinerary.plan.clonePrompt' | t }} <em class="req">*</em></span>
             <input
@@ -421,6 +478,66 @@ interface TimelineSlot {
             <button type="submit" class="add-item-btn">{{ 'common.add' | t }}</button>
           </div>
         </form>
+      </app-modal>
+
+      <!-- Modal: Rename Day Plan Option -->
+      <app-modal
+        [open]="showRenameModal()"
+        [title]="'itinerary.plan.rename' | t"
+        (closed)="showRenameModal.set(false)"
+      >
+        <form class="modal-form" (ngSubmit)="submitRenameOption()" novalidate>
+          <label class="field" [class.has-error]="renameLabelError()">
+            <span>{{ 'itinerary.plan.clonePrompt' | t }} <em class="req">*</em></span>
+            <input
+              type="text"
+              [(ngModel)]="renameLabel"
+              name="renameLabel"
+              (ngModelChange)="renameLabelError.set(false)"
+              placeholder="Plan A · 晴天戶外版"
+            />
+            @if (renameLabelError()) {
+              <small class="err-msg">{{ 'itinerary.plan.errRequired' | t }}</small>
+            }
+          </label>
+          <div class="add-actions">
+            <button type="button" class="pill-btn" (click)="showRenameModal.set(false)">
+              {{ 'common.cancel' | t }}
+            </button>
+            <button type="submit" class="add-item-btn">{{ 'common.save' | t }}</button>
+          </div>
+        </form>
+      </app-modal>
+
+      <!-- Modal: Confirm Delete Day Plan Option -->
+      <app-modal
+        [open]="pendingDeleteOption() !== null"
+        [title]="'itinerary.plan.delete' | t"
+        (closed)="pendingDeleteOption.set(null)"
+      >
+        @if (pendingDeleteOption(); as target) {
+          <div class="modal-form">
+            <p class="confirm-copy">
+              {{ 'itinerary.plan.deleteConfirm' | t: { name: target.label } }}
+            </p>
+            <div class="add-actions">
+              <button
+                type="button"
+                class="pill-btn"
+                (click)="pendingDeleteOption.set(null)"
+              >
+                {{ 'common.cancel' | t }}
+              </button>
+              <button
+                type="button"
+                class="btn-danger"
+                (click)="executeDeleteOption()"
+              >
+                {{ 'itinerary.plan.delete' | t }}
+              </button>
+            </div>
+          </div>
+        }
       </app-modal>
 
       <!-- Modal: Read-Only Share Settings -->
@@ -486,9 +603,10 @@ interface TimelineSlot {
     }
     .sticky-trip-top {
       position: sticky;
-      top: 56px;
+      top: 54px;
       z-index: 20;
-      background: var(--color-bg);
+      background: rgba(245, 246, 248, 0.88);
+      backdrop-filter: blur(12px);
       padding: var(--space-3) var(--space-4) var(--space-2);
       border-bottom: 1px solid var(--color-border);
       flex-shrink: 0;
@@ -870,6 +988,76 @@ interface TimelineSlot {
       margin-bottom: var(--space-3);
       flex-wrap: wrap;
     }
+    .plan-actions,
+    .summary-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .plan-icon-btn {
+      width: 28px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-pill);
+      background: var(--color-surface);
+      color: var(--color-text-secondary);
+      cursor: pointer;
+    }
+    .plan-icon-btn:hover {
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+    }
+    .plan-icon-btn.danger:hover {
+      border-color: var(--color-alert);
+      color: var(--color-alert);
+    }
+    .plan-mode-seg {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      padding: 4px;
+      border-radius: var(--radius-sm);
+      background: var(--color-surface-muted);
+    }
+    .plan-mode-btn {
+      padding: 7px 10px;
+      border: none;
+      border-radius: calc(var(--radius-sm) - 2px);
+      background: transparent;
+      color: var(--color-text-secondary);
+      font: inherit;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .plan-mode-btn.active {
+      background: var(--color-surface);
+      color: var(--color-primary);
+      box-shadow: var(--shadow-card);
+    }
+    .confirm-copy {
+      margin: 0;
+      font-size: 0.9rem;
+      line-height: 1.55;
+      color: var(--color-text-secondary);
+    }
+    .btn-danger {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 8px 16px;
+      border: none;
+      border-radius: var(--radius-pill);
+      background: var(--color-alert);
+      color: #ffffff;
+      font: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
     .plan-pills {
       display: inline-flex;
       flex-wrap: wrap;
@@ -1168,15 +1356,29 @@ export class ItineraryPageComponent implements OnInit {
   protected readonly quickExpenseItem = signal<ItineraryItem | null>(null);
 
   protected readonly showCloneModal = signal(false);
+  protected readonly newOptionMode = signal<'blank' | 'clone'>('blank');
+  protected readonly showRenameModal = signal(false);
+  protected readonly renamingOptionId = signal<string | null>(null);
+  protected readonly renameLabelError = signal(false);
+  protected readonly pendingDeleteOption = signal<{
+    dayId: string;
+    optionId: string;
+    label: string;
+  } | null>(null);
   protected readonly showShareModal = signal(false);
   protected readonly copiedToken = signal<string | null>(null);
   protected readonly copiedMiniLocal = signal(false);
   protected readonly cloneLabelError = signal(false);
 
   protected cloneLabel = 'Plan B · 雨天備案';
+  protected renameLabel = '';
   protected hideSecrets = true;
   protected includeNotes = false;
   protected includeBackups = false;
+
+  protected readonly canCloneCurrentOption = computed(
+    () => (this.store.selectedOption()?.items.length ?? 0) > 0,
+  );
 
   /** Groups items sharing a choice_group_id into single timeline slots. */
   protected readonly timelineSlots = computed<TimelineSlot[]>(() => {
@@ -1301,6 +1503,7 @@ export class ItineraryPageComponent implements OnInit {
   }
 
   private readonly dayStrip = viewChild<ElementRef<HTMLDivElement>>('dayStrip');
+  protected readonly dayStripScrollStepPx = DAY_STRIP_SCROLL_STEP_PX;
 
   protected itemMapsUrl(item: ItineraryItem): string | null {
     if (item.google_maps_url) return item.google_maps_url;
@@ -1322,7 +1525,7 @@ export class ItineraryPageComponent implements OnInit {
     try {
       await navigator.clipboard.writeText(text);
       this.copiedMiniLocal.set(true);
-      setTimeout(() => this.copiedMiniLocal.set(false), 1600);
+      setTimeout(() => this.copiedMiniLocal.set(false), COPY_FEEDBACK_DURATION_MS);
     } catch {
       // Ignore clipboard failures in restricted contexts.
     }
@@ -1391,18 +1594,64 @@ export class ItineraryPageComponent implements OnInit {
   }
 
   protected openCloneModal(): void {
-    this.cloneLabel = 'Plan B · 雨天備案';
+    const count = this.store.selectedDay()?.options.length ?? 1;
+    const nextLetter = String.fromCharCode(65 + Math.min(count, 25));
+    this.cloneLabel = `Plan ${nextLetter}`;
+    this.newOptionMode.set('blank');
     this.cloneLabelError.set(false);
     this.showCloneModal.set(true);
   }
 
-  protected async submitCloneOption(): Promise<void> {
+  protected async submitCreateOption(): Promise<void> {
     if (!this.cloneLabel.trim()) {
       this.cloneLabelError.set(true);
       return;
     }
-    await this.store.cloneCurrentOption(this.cloneLabel.trim());
+    const label = this.cloneLabel.trim();
+    if (this.canCloneCurrentOption() && this.newOptionMode() === 'clone') {
+      await this.store.cloneCurrentOption(label);
+    } else {
+      await this.store.createBlankOption(label);
+    }
     this.showCloneModal.set(false);
+  }
+
+  protected openRenameOptionModal(optionId: string, currentLabel: string): void {
+    this.renamingOptionId.set(optionId);
+    this.renameLabel = currentLabel;
+    this.renameLabelError.set(false);
+    this.showRenameModal.set(true);
+  }
+
+  protected async submitRenameOption(): Promise<void> {
+    const optionId = this.renamingOptionId();
+    if (!optionId || !this.renameLabel.trim()) {
+      this.renameLabelError.set(true);
+      return;
+    }
+    await this.store.renameOption(optionId, this.renameLabel.trim());
+    this.showRenameModal.set(false);
+  }
+
+  protected confirmDeleteOption(
+    dayId: string,
+    optionId: string,
+    label: string,
+  ): void {
+    const day = this.store.selectedDay();
+    if (!day || day.options.length <= 1) {
+      return;
+    }
+    this.pendingDeleteOption.set({ dayId, optionId, label });
+  }
+
+  protected async executeDeleteOption(): Promise<void> {
+    const target = this.pendingDeleteOption();
+    if (!target) {
+      return;
+    }
+    this.pendingDeleteOption.set(null);
+    await this.store.deleteOption(target.dayId, target.optionId);
   }
 
   protected openShareModal(tripId: string): void {
@@ -1427,7 +1676,7 @@ export class ItineraryPageComponent implements OnInit {
     try {
       await navigator.clipboard.writeText(this.shareUrl(token));
       this.copiedToken.set(token);
-      setTimeout(() => this.copiedToken.set(null), 1800);
+      setTimeout(() => this.copiedToken.set(null), SHARE_COPY_FEEDBACK_DURATION_MS);
     } catch {
       // Clipboard API may be blocked in non-HTTPS contexts.
     }

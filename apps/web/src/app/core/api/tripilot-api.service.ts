@@ -168,6 +168,18 @@ export class TripilotApiService {
     );
   }
 
+  updateDayOption(optionId: string, label: string): Promise<DayOption> {
+    return firstValueFrom(
+      this.http.patch<DayOption>(`${this.baseUrl}/options/${optionId}`, { label }),
+    );
+  }
+
+  deleteDayOption(optionId: string): Promise<TripDay> {
+    return firstValueFrom(
+      this.http.delete<TripDay>(`${this.baseUrl}/options/${optionId}`),
+    );
+  }
+
   setActiveOption(dayId: string, dayOptionId: string): Promise<TripDay> {
     return firstValueFrom(
       this.http.patch<TripDay>(`${this.baseUrl}/days/${dayId}/active-option`, {

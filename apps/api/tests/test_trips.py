@@ -166,3 +166,56 @@ async def test_public_share_enforces_visibility_policy(
     comp_item = comp_pub["days"][0]["options"][0]["items"][0]
     assert comp_item["details"]["booking_ref"] == "PNR-XYZ123"
     assert comp_item["notes"] == "Private passport reminder"
+
+
+@pytest.mark.asyncio
+async def test_day_option_rename_and_delete_guard(api_client, dev_headers):
+    trip_resp = await api_client.post(
+        "/api/v1/trips",
+        headers=dev_headers,
+        json={
+            "title": "Plan Options Guard Test",
+            "country_codes": ["JP"],
+            "start_date": "2027-04-01",
+            "end_date": "2027-04-01",
+            "default_currency": "JPY",
+        },
+    )
+    assert trip_resp.status_code == 201
+    day = trip_resp.json()["days"][0]
+    plan_a_id = day["options"][0]["id"]
+
+    # Deleting the only remaining option must be rejected.
+    blocked = await api_client.delete(
+        f"/api/v1/options/{plan_a_id}", headers=dev_headers
+    )
+    assert blocked.status_code == 400
+
+    # Rename Plan A.
+    renamed = await api_client.patch(
+        f"/api/v1/options/{plan_a_id}",
+        headers=dev_headers,
+        json={"label": "Sunny Outdoor"},
+    )
+    assert renamed.status_code == 200
+    assert renamed.json()["label"] == "Sunny Outdoor"
+
+    # Add a blank Plan B.
+    plan_b_resp = await api_client.post(
+        f"/api/v1/days/{day['id']}/options",
+        headers=dev_headers,
+        json={"label": "Rainy Indoor"},
+    )
+    assert plan_b_resp.status_code == 201
+    plan_b_id = plan_b_resp.json()["id"]
+    assert plan_b_resp.json()["items"] == []
+
+    # Deleting the active option (Plan A) succeeds and promotes Plan B as active.
+    deleted = await api_client.delete(
+        f"/api/v1/options/{plan_a_id}", headers=dev_headers
+    )
+    assert deleted.status_code == 200
+    updated_day = deleted.json()
+    assert len(updated_day["options"]) == 1
+    assert updated_day["options"][0]["id"] == plan_b_id
+    assert updated_day["active_option_id"] == plan_b_id

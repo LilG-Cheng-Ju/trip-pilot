@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 
 import { TripilotApiService } from '../../core/api/tripilot-api.service';
 import { COMMON_CURRENCIES, CurrencyOption } from '../../core/config/currencies';
+import { ISO_CURRENCY_CODE_LENGTH } from '../../core/constants/app-limits';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ExpenseCategory, ItineraryItem } from '../../core/models/tripilot.models';
 import {
@@ -285,7 +286,11 @@ export class QuickExpenseModalComponent {
     const list: CurrencyOption[] = [...COMMON_CURRENCIES];
     for (const code of [this.defaultCurrency(), this.homeCurrency()]) {
       const upper = code?.trim().toUpperCase();
-      if (upper && upper.length === 3 && !list.some((c) => c.code === upper)) {
+      if (
+        upper &&
+        upper.length === ISO_CURRENCY_CODE_LENGTH &&
+        !list.some((c) => c.code === upper)
+      ) {
         list.unshift({ code: upper, label: upper });
       }
     }
@@ -325,7 +330,7 @@ export class QuickExpenseModalComponent {
 
   protected onCurrencyChange(code: string): void {
     const upper = code.trim().toUpperCase();
-    if (upper.length === 3) {
+    if (upper.length === ISO_CURRENCY_CODE_LENGTH) {
       void this.fetchLiveRate(upper);
     }
   }
@@ -333,7 +338,10 @@ export class QuickExpenseModalComponent {
   private async fetchLiveRate(overrideCode?: string): Promise<void> {
     const src = (overrideCode || this.currency || 'JPY').trim().toUpperCase();
     const dst = (this.homeCurrency() || 'TWD').trim().toUpperCase();
-    if (src.length !== 3 || dst.length !== 3) {
+    if (
+      src.length !== ISO_CURRENCY_CODE_LENGTH ||
+      dst.length !== ISO_CURRENCY_CODE_LENGTH
+    ) {
       return;
     }
     if (src === dst) {

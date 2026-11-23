@@ -5,8 +5,10 @@ from typing import Protocol
 
 import httpx
 
+from app.core.constants import FX_CACHE_TTL_SECONDS, FX_HTTP_TIMEOUT_SEC
+
 OPEN_ER_API_URL = "https://open.er-api.com/v6/latest/{base}"
-DEFAULT_TTL_SECONDS = 6 * 3600  # 6 hours
+DEFAULT_TTL_SECONDS = FX_CACHE_TTL_SECONDS
 
 # Conservative offline fallback rates relative to USD when network is unavailable.
 _FALLBACK_USD_RATES: dict[str, float] = {
@@ -31,7 +33,9 @@ class OpenErApiProvider:
     """Free, key-less FX provider backed by open.er-api.com with TTL caching."""
 
     def __init__(
-        self, ttl_seconds: int = DEFAULT_TTL_SECONDS, timeout_sec: float = 4.0
+        self,
+        ttl_seconds: int = DEFAULT_TTL_SECONDS,
+        timeout_sec: float = FX_HTTP_TIMEOUT_SEC,
     ) -> None:
         self.ttl_seconds = ttl_seconds
         self.timeout_sec = timeout_sec

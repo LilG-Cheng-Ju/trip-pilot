@@ -334,8 +334,10 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
       opacity: 0.75;
     }
     .kpi-value {
-      font-size: 1.35rem;
-      font-weight: 800;
+      font-family: var(--font-display);
+      font-size: 1.55rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
       color: var(--color-primary);
       overflow-wrap: anywhere;
     }
@@ -582,7 +584,7 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
         padding: var(--space-4) var(--space-5);
       }
       .kpi-value {
-        font-size: 1.55rem;
+        font-size: 1.8rem;
       }
       .insights-grid {
         grid-template-columns: 1.15fr 0.85fr;

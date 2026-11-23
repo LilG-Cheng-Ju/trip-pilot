@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 from app.core.auth import AuthContext, get_auth_context
+from app.core.constants import PLACES_DEFAULT_LIMIT, PLACES_MAX_LIMIT
 from app.services.places import (
     PlaceCandidate,
     get_place_search_provider,
@@ -45,7 +46,7 @@ async def search_places(
     _auth_ctx: CurrentAuth,
     q: Annotated[str, Query(min_length=1, max_length=120)],
     lang: Annotated[str, Query(max_length=10)] = "zh-TW",
-    limit: Annotated[int, Query(ge=1, le=10)] = 5,
+    limit: Annotated[int, Query(ge=1, le=PLACES_MAX_LIMIT)] = PLACES_DEFAULT_LIMIT,
 ) -> list[PlaceCandidateResponse]:
     """Search places via Google Places API (New) or free Photon OSM fallback."""
     provider = get_place_search_provider()

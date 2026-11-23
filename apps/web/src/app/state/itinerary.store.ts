@@ -206,6 +206,17 @@ export const ItineraryStore = signalStore(
         }
       },
 
+    async createBlankOption(label: string): Promise<void> {
+      const day = store.selectedDay();
+      const trip = store.trip();
+      if (!day || !trip) {
+        return;
+      }
+      const created = await api.addDayOption(day.id, label);
+      await this.loadTrip(trip.id);
+      this.previewOption(day.id, created.id);
+    },
+
     async cloneCurrentOption(label: string): Promise<void> {
       const day = store.selectedDay();
       const option = store.selectedOption();
@@ -216,6 +227,27 @@ export const ItineraryStore = signalStore(
       const cloned = await api.cloneDayOption(option.id, label);
       await this.loadTrip(trip.id);
       this.previewOption(day.id, cloned.id);
+    },
+
+    async renameOption(optionId: string, label: string): Promise<void> {
+      const trip = store.trip();
+      if (!trip) {
+        return;
+      }
+      await api.updateDayOption(optionId, label);
+      await this.loadTrip(trip.id);
+    },
+
+    async deleteOption(dayId: string, optionId: string): Promise<void> {
+      const trip = store.trip();
+      if (!trip) {
+        return;
+      }
+      const updatedDay = await api.deleteDayOption(optionId);
+      await this.loadTrip(trip.id);
+      if (updatedDay.active_option_id) {
+        this.previewOption(dayId, updatedDay.active_option_id);
+      }
     },
 
     async appendDay(): Promise<void> {

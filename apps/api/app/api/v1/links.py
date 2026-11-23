@@ -10,6 +10,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from app.core.auth import AuthContext, get_auth_context
+from app.core.constants import (
+    LINK_MAX_REDIRECTS,
+    LINK_RESOLVE_TIMEOUT_SEC,
+    LINK_TITLE_MAX_LENGTH,
+)
 
 router = APIRouter(prefix="/links", tags=["links"])
 
@@ -77,7 +82,7 @@ def _clean_title(raw: str) -> str | None:
     generic = {"google drive", "google docs", "dropbox", "onedrive", "sign in"}
     if not cleaned or cleaned.lower() in generic:
         return None
-    return cleaned[:160]
+    return cleaned[:LINK_TITLE_MAX_LENGTH]
 
 
 def _extract_html_title(body: str) -> str | None:
@@ -102,8 +107,10 @@ async def fetch_cloud_link_title(url: str) -> str | None:
         "Accept": "text/html,application/xhtml+xml",
     }
     try:
-        async with httpx.AsyncClient(timeout=4.0, follow_redirects=False) as client:
-            for _ in range(4):
+        async with httpx.AsyncClient(
+            timeout=LINK_RESOLVE_TIMEOUT_SEC, follow_redirects=False
+        ) as client:
+            for _ in range(LINK_MAX_REDIRECTS):
                 resp = await client.get(current_url, headers=headers)
                 if resp.status_code in {301, 302, 303, 307, 308}:
                     location = resp.headers.get("location")

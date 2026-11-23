@@ -66,14 +66,10 @@ export interface ItemFormSubmitEvent {
         </div>
 
         @if (itemType === 'FLIGHT') {
-          <div class="two-col">
+          <div class="flight-grid">
             <label class="field">
               <span>{{ 'itinerary.form.flightNo' | t }}</span>
               <input type="text" [(ngModel)]="flightNo" name="flightNo" placeholder="NH852" />
-            </label>
-            <label class="field">
-              <span>{{ 'itinerary.form.bookingRef' | t }}</span>
-              <input type="text" [(ngModel)]="bookingRef" name="bookingRef" />
             </label>
             <label class="field">
               <span>{{ 'itinerary.form.originIata' | t }}</span>
@@ -84,27 +80,25 @@ export interface ItemFormSubmitEvent {
               <input type="text" [(ngModel)]="destIata" name="destIata" maxlength="3" placeholder="HND" />
             </label>
           </div>
-        } @else if (itemType === 'RESERVED_TRANSIT') {
-          <div class="two-col">
-            <label class="field">
-              <span>{{ 'itinerary.form.trainLine' | t }}</span>
-              <input type="text" [(ngModel)]="trainLine" name="trainLine" />
-            </label>
-            <label class="field">
-              <span>{{ 'itinerary.form.seat' | t }}</span>
-              <input type="text" [(ngModel)]="seat" name="seat" />
-            </label>
-          </div>
-          <label class="field">
-            <span>{{ 'itinerary.form.bookingRef' | t }}</span>
-            <input type="text" [(ngModel)]="bookingRef" name="bookingRef" />
-          </label>
         } @else if (itemType === 'LOCAL_TRANSIT') {
           <label class="field">
             <span>{{ 'itinerary.form.transitMin' | t }}</span>
             <input type="number" [(ngModel)]="transitMin" name="transitMin" min="1" />
           </label>
         } @else {
+          @if (itemType === 'RESERVED_TRANSIT') {
+            <div class="two-col">
+              <label class="field">
+                <span>{{ 'itinerary.form.trainLine' | t }}</span>
+                <input type="text" [(ngModel)]="trainLine" name="trainLine" />
+              </label>
+              <label class="field">
+                <span>{{ 'itinerary.form.seat' | t }}</span>
+                <input type="text" [(ngModel)]="seat" name="seat" />
+              </label>
+            </div>
+          }
+
           <div class="place-picker">
             <label class="field">
               <span>{{ 'itinerary.place.label' | t }}</span>
@@ -136,8 +130,8 @@ export interface ItemFormSubmitEvent {
                   <span class="ms-icon sm pin-ico">location_on</span>
                   <div>
                     <strong>{{ 'itinerary.place.selected' | t }}: {{ pinned.name }}</strong>
-                    @if (pinned.address) {
-                      <p>{{ pinned.address }}</p>
+                    @if (address.trim()) {
+                      <p>{{ address.trim() }}</p>
                     }
                   </div>
                 </div>
@@ -167,95 +161,151 @@ export interface ItemFormSubmitEvent {
             }
           </div>
 
-          @if (itemType === 'STAY') {
-            <div class="two-col">
+          @if (showAddress()) {
+            <label class="field">
+              <span>{{ 'itinerary.form.address' | t }}</span>
+              <input
+                type="text"
+                [(ngModel)]="address"
+                name="address"
+                placeholder="例如：三島站南口 → 河口湖站"
+              />
+            </label>
+          }
+
+          @if (showLocalName()) {
+            <label class="field">
+              <span>{{ 'itinerary.form.localName' | t }}</span>
+              <input
+                type="text"
+                [(ngModel)]="localName"
+                name="localName"
+                [placeholder]="'itinerary.form.localNamePlaceholder' | t"
+              />
+            </label>
+          }
+        }
+
+        @if (supportsBookingFields() && (showBookingRef() || showFreeCancel())) {
+          <div class="two-col">
+            @if (showBookingRef()) {
               <label class="field">
                 <span>{{ 'itinerary.form.bookingRef' | t }}</span>
                 <input type="text" [(ngModel)]="bookingRef" name="bookingRef" />
               </label>
+            }
+            @if (showFreeCancel()) {
               <label class="field">
                 <span>{{ 'itinerary.form.freeCancel' | t }}</span>
-                <input type="text" [(ngModel)]="freeCancel" name="freeCancel" placeholder="Nov 20" />
+                <input type="text" [(ngModel)]="freeCancel" name="freeCancel" placeholder="2027-01-28 23:59" />
               </label>
-            </div>
-          }
+            }
+          </div>
+        }
 
+        @if (showNotes()) {
           <label class="field">
-            <span>{{ 'itinerary.form.localName' | t }}</span>
-            <input
-              type="text"
-              [(ngModel)]="localName"
-              name="localName"
-              [placeholder]="'itinerary.form.localNamePlaceholder' | t"
-            />
+            <span>{{ 'itinerary.form.notes' | t }}</span>
+            <input type="text" [(ngModel)]="notes" name="notes" />
           </label>
         }
 
-        <label class="field">
-          <span>{{ 'itinerary.form.notes' | t }}</span>
-          <input type="text" [(ngModel)]="notes" name="notes" />
-        </label>
-
-        <div class="attachments-box">
-          <div class="att-head">
-            <span class="att-title">
-              <span class="ms-icon sm" aria-hidden="true">attach_file</span>
-              {{ 'item.attachmentsTitle' | t }}
-            </span>
-            <small class="place-hint">{{ 'item.attachmentsHint' | t }}</small>
-          </div>
-
-          @if (attachments().length > 0) {
-            <div class="att-list">
-              @for (att of attachments(); track $index) {
-                <div class="att-row">
-                  <span class="ms-icon sm att-ico" aria-hidden="true">link</span>
-                  <a
-                    [href]="att.url"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="att-link"
-                  >
-                    {{ att.name }}
-                  </a>
-                  <button
-                    type="button"
-                    class="att-remove"
-                    (click)="removeAttachment($index)"
-                    aria-label="Remove attachment"
-                  >
-                    <span class="ms-icon sm">close</span>
-                  </button>
-                </div>
-              }
+        @if (showAttachments()) {
+          <div class="attachments-box">
+            <div class="att-head">
+              <span class="att-title">
+                <span class="ms-icon sm" aria-hidden="true">attach_file</span>
+                {{ 'item.attachmentsTitle' | t }}
+              </span>
+              <small class="place-hint">{{ 'item.attachmentsHint' | t }}</small>
             </div>
-          }
 
-          <div class="att-inputs">
-            <input
-              type="text"
-              [(ngModel)]="attachmentName"
-              name="attachmentName"
-              [placeholder]="'item.attachmentNamePlaceholder' | t"
-            />
-            <div class="place-input-row">
+            @if (attachments().length > 0) {
+              <div class="att-list">
+                @for (att of attachments(); track $index) {
+                  <div class="att-row">
+                    <span class="ms-icon sm att-ico" aria-hidden="true">link</span>
+                    <a
+                      [href]="att.url"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="att-link"
+                    >
+                      {{ att.name }}
+                    </a>
+                    <button
+                      type="button"
+                      class="att-remove"
+                      (click)="removeAttachment($index)"
+                      aria-label="Remove attachment"
+                    >
+                      <span class="ms-icon sm">close</span>
+                    </button>
+                  </div>
+                }
+              </div>
+            }
+
+            <div class="att-inputs">
               <input
-                type="url"
-                [(ngModel)]="attachmentUrl"
-                name="attachmentUrl"
-                [placeholder]="'item.attachmentUrlPlaceholder' | t"
-                (keydown.enter)="$event.preventDefault(); addAttachment()"
+                type="text"
+                [(ngModel)]="attachmentName"
+                name="attachmentName"
+                [placeholder]="'item.attachmentNamePlaceholder' | t"
               />
-              <button
-                type="button"
-                class="pill-btn"
-                [disabled]="resolvingAttachment()"
-                (click)="addAttachment()"
-              >
-                {{ resolvingAttachment() ? '...' : '+ ' + ('item.attachmentAdd' | t) }}
-              </button>
+              <div class="place-input-row">
+                <input
+                  type="url"
+                  [(ngModel)]="attachmentUrl"
+                  name="attachmentUrl"
+                  [placeholder]="'item.attachmentUrlPlaceholder' | t"
+                  (keydown.enter)="$event.preventDefault(); addAttachment()"
+                />
+                <button
+                  type="button"
+                  class="pill-btn"
+                  [disabled]="resolvingAttachment()"
+                  (click)="addAttachment()"
+                >
+                  {{ resolvingAttachment() ? '...' : '+ ' + ('item.attachmentAdd' | t) }}
+                </button>
+              </div>
             </div>
           </div>
+        }
+
+        <!-- Progressive Disclosure: Dashed chips for optional fields -->
+        <div class="optional-chips">
+          @if (itemType !== 'FLIGHT' && itemType !== 'LOCAL_TRANSIT' && !showAddress()) {
+            <button type="button" class="dashed-chip" (click)="showAddress.set(true)">
+              {{ 'detail.optionalAdd.address' | t }}
+            </button>
+          }
+          @if (supportsBookingFields() && !showBookingRef()) {
+            <button type="button" class="dashed-chip" (click)="showBookingRef.set(true)">
+              {{ 'detail.optionalAdd.bookingRef' | t }}
+            </button>
+          }
+          @if (supportsBookingFields() && !showFreeCancel()) {
+            <button type="button" class="dashed-chip" (click)="showFreeCancel.set(true)">
+              {{ 'detail.optionalAdd.freeCancel' | t }}
+            </button>
+          }
+          @if (itemType !== 'FLIGHT' && itemType !== 'LOCAL_TRANSIT' && !showLocalName()) {
+            <button type="button" class="dashed-chip" (click)="showLocalName.set(true)">
+              {{ 'detail.optionalAdd.localName' | t }}
+            </button>
+          }
+          @if (!showNotes()) {
+            <button type="button" class="dashed-chip" (click)="showNotes.set(true)">
+              {{ 'detail.optionalAdd.notes' | t }}
+            </button>
+          }
+          @if (!showAttachments()) {
+            <button type="button" class="dashed-chip" (click)="showAttachments.set(true)">
+              {{ 'detail.optionalAdd.attachments' | t }}
+            </button>
+          }
         </div>
 
         <div class="actions">
@@ -276,6 +326,11 @@ export interface ItemFormSubmitEvent {
     .two-col {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: var(--space-3);
+    }
+    .flight-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr);
       gap: var(--space-3);
     }
     .field {
@@ -347,6 +402,7 @@ export interface ItemFormSubmitEvent {
       display: flex;
       align-items: flex-start;
       gap: 6px;
+      min-width: 0;
     }
     .pin-ico {
       color: var(--color-accent);
@@ -397,7 +453,33 @@ export interface ItemFormSubmitEvent {
       font: inherit;
       font-size: 0.8125rem;
       font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
       cursor: pointer;
+    }
+    .optional-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .dashed-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 11px;
+      border: 1px dashed var(--color-border);
+      border-radius: 7px;
+      background: transparent;
+      color: var(--color-text-secondary);
+      font: inherit;
+      font-size: 0.76rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: border-color 140ms ease, color 140ms ease, background-color 140ms ease;
+    }
+    .dashed-chip:hover {
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+      background: var(--color-bg);
     }
     .btn-primary {
       padding: 8px 18px;
@@ -512,9 +594,16 @@ export class ItemFormModalComponent {
   protected readonly pinnedPlace = signal<PlaceCandidate | null>(null);
   protected readonly attachments = signal<ItemAttachment[]>([]);
   protected readonly resolvingAttachment = signal(false);
+  protected readonly showAddress = signal(false);
+  protected readonly showBookingRef = signal(false);
+  protected readonly showFreeCancel = signal(false);
+  protected readonly showLocalName = signal(false);
+  protected readonly showNotes = signal(false);
+  protected readonly showAttachments = signal(false);
 
   protected itemType: ItemType = 'SPOT';
   protected itemTitle = '';
+  protected address = '';
   protected startTime = '';
   protected endTime = '';
   protected placeQuery = '';
@@ -547,6 +636,7 @@ export class ItemFormModalComponent {
       if (edit) {
         this.itemType = edit.type;
         this.itemTitle = edit.title;
+        this.address = edit.address ?? '';
         this.startTime = edit.start_time ?? '';
         this.endTime = edit.end_time ?? '';
         this.notes = edit.notes ?? '';
@@ -561,9 +651,8 @@ export class ItemFormModalComponent {
         this.freeCancel = String(d['free_cancellation_deadline'] ?? '');
         this.localName = String(d['local_name'] ?? '');
         const rawAttachments = d['attachments'];
-        if (Array.isArray(rawAttachments)) {
-          this.attachments.set(
-            rawAttachments
+        const parsedAttachments: ItemAttachment[] = Array.isArray(rawAttachments)
+          ? rawAttachments
               .filter(
                 (entry): entry is ItemAttachment =>
                   typeof entry === 'object' &&
@@ -574,11 +663,9 @@ export class ItemFormModalComponent {
               .map((entry) => ({
                 name: entry.name?.trim() || this.deriveAttachmentName(entry.url),
                 url: entry.url.trim(),
-              })),
-          );
-        } else {
-          this.attachments.set([]);
-        }
+              }))
+          : [];
+        this.attachments.set(parsedAttachments);
 
         if (edit.latitude !== null && edit.longitude !== null) {
           this.pinnedPlace.set({
@@ -592,9 +679,17 @@ export class ItemFormModalComponent {
         } else {
           this.pinnedPlace.set(null);
         }
+        this.showAddress.set(Boolean(this.address));
+        this.showBookingRef.set(Boolean(this.bookingRef));
+        this.showFreeCancel.set(Boolean(this.freeCancel));
+        this.showLocalName.set(Boolean(this.localName));
+        this.showNotes.set(Boolean(this.notes));
+        // Use local parsedAttachments so this effect never subscribes to the attachments() signal.
+        this.showAttachments.set(parsedAttachments.length > 0);
       } else {
         this.itemType = alt ? alt.type : 'SPOT';
         this.itemTitle = '';
+        this.address = '';
         this.startTime = alt?.start_time ?? '';
         this.endTime = alt?.end_time ?? '';
         this.notes = '';
@@ -609,6 +704,12 @@ export class ItemFormModalComponent {
         this.localName = '';
         this.pinnedPlace.set(null);
         this.attachments.set([]);
+        this.showAddress.set(false);
+        this.showBookingRef.set(false);
+        this.showFreeCancel.set(false);
+        this.showLocalName.set(false);
+        this.showNotes.set(false);
+        this.showAttachments.set(false);
       }
     });
   }
@@ -654,18 +755,33 @@ export class ItemFormModalComponent {
     }
   }
 
+  protected supportsBookingFields(): boolean {
+    return (
+      this.itemType === 'STAY' ||
+      this.itemType === 'FLIGHT' ||
+      this.itemType === 'RESERVED_TRANSIT'
+    );
+  }
+
   protected selectPlaceCandidate(cand: PlaceCandidate): void {
     this.pinnedPlace.set(cand);
     this.placeCandidates.set([]);
     if (!this.itemTitle.trim()) {
       this.itemTitle = cand.name;
     }
+    if (cand.address) {
+      this.address = cand.address;
+      this.showAddress.set(true);
+    }
   }
 
   protected async addAttachment(): Promise<void> {
-    const rawUrl = this.attachmentUrl.trim();
-    if (!rawUrl || (!rawUrl.startsWith('http://') && !rawUrl.startsWith('https://'))) {
+    let rawUrl = this.attachmentUrl.trim();
+    if (!rawUrl) {
       return;
+    }
+    if (!rawUrl.startsWith('http://') && !rawUrl.startsWith('https://')) {
+      rawUrl = `https://${rawUrl}`;
     }
     let label = this.attachmentName.trim();
     if (!label) {
@@ -748,10 +864,12 @@ export class ItemFormModalComponent {
       if (this.originIata) details['origin_iata'] = this.originIata.trim().toUpperCase();
       if (this.destIata) details['dest_iata'] = this.destIata.trim().toUpperCase();
       if (this.bookingRef) details['booking_ref'] = this.bookingRef.trim();
+      if (this.freeCancel) details['free_cancellation_deadline'] = this.freeCancel.trim();
     } else if (this.itemType === 'RESERVED_TRANSIT') {
       if (this.trainLine) details['line_or_train_no'] = this.trainLine.trim();
       if (this.seat) details['seat'] = this.seat.trim();
       if (this.bookingRef) details['booking_ref'] = this.bookingRef.trim();
+      if (this.freeCancel) details['free_cancellation_deadline'] = this.freeCancel.trim();
     } else if (this.itemType === 'LOCAL_TRANSIT') {
       if (this.transitMin) details['duration_minutes'] = this.transitMin;
     } else if (this.itemType === 'STAY') {
@@ -761,8 +879,20 @@ export class ItemFormModalComponent {
     if (this.localName.trim()) {
       details['local_name'] = this.localName.trim();
     }
-    if (this.attachments().length > 0) {
-      details['attachments'] = this.attachments();
+    const finalAttachments = [...this.attachments()];
+    const pendingUrl = this.attachmentUrl.trim();
+    if (pendingUrl) {
+      const normalized =
+        pendingUrl.startsWith('http://') || pendingUrl.startsWith('https://')
+          ? pendingUrl
+          : `https://${pendingUrl}`;
+      finalAttachments.push({
+        name: this.attachmentName.trim() || this.deriveAttachmentName(normalized),
+        url: normalized,
+      });
+    }
+    if (finalAttachments.length > 0) {
+      details['attachments'] = finalAttachments;
     }
 
     const pinned = this.pinnedPlace();
@@ -773,7 +903,7 @@ export class ItemFormModalComponent {
         title: this.itemTitle.trim(),
         start_time: this.startTime || null,
         end_time: this.endTime || null,
-        address: pinned?.address ?? null,
+        address: this.address.trim() || null,
         latitude: pinned?.latitude ?? null,
         longitude: pinned?.longitude ?? null,
         google_maps_url: pinned?.google_maps_url ?? null,

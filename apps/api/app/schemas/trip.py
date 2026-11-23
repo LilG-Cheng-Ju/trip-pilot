@@ -5,6 +5,11 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.core.constants import (
+    ISO_COUNTRY_CODE_LENGTH,
+    ISO_CURRENCY_CODE_LENGTH,
+    MAX_TRIP_DATE_SPAN_DAYS,
+)
 from app.models.enums import ItemType, RouteProfile, TripStatus
 
 SENSITIVE_DETAIL_KEYS: frozenset[str] = frozenset(
@@ -104,6 +109,11 @@ class DayOptionCloneRequest(BaseModel):
     label: str = Field(min_length=1, max_length=80)
 
 
+class DayOptionUpdate(BaseModel):
+    label: str | None = Field(default=None, min_length=1, max_length=80)
+    summary_notes: str | None = None
+
+
 class ActiveOptionUpdate(BaseModel):
     day_option_id: str
 
@@ -146,7 +156,11 @@ class TripCreate(BaseModel):
     country_codes: list[str] = Field(default_factory=list)
     start_date: date
     end_date: date
-    default_currency: str = Field(default="JPY", min_length=3, max_length=3)
+    default_currency: str = Field(
+        default="JPY",
+        min_length=ISO_CURRENCY_CODE_LENGTH,
+        max_length=ISO_CURRENCY_CODE_LENGTH,
+    )
     cover_image_url: str | None = Field(default=None, max_length=500)
     status: TripStatus = TripStatus.PLANNING
     notes: str | None = None
@@ -162,7 +176,7 @@ class TripCreate(BaseModel):
         normalized: list[str] = []
         for code in values:
             clean = code.strip().upper()
-            if len(clean) != 2:
+            if len(clean) != ISO_COUNTRY_CODE_LENGTH:
                 raise ValueError(f"Invalid ISO-2 country code: {code}")
             if clean not in normalized:
                 normalized.append(clean)
@@ -172,8 +186,10 @@ class TripCreate(BaseModel):
     def _validate_date_range(self) -> "TripCreate":
         if self.end_date < self.start_date:
             raise ValueError("end_date must be on or after start_date")
-        if (self.end_date - self.start_date).days > 60:
-            raise ValueError("Trip duration cannot exceed 61 days")
+        if (self.end_date - self.start_date).days > MAX_TRIP_DATE_SPAN_DAYS:
+            raise ValueError(
+                f"Trip duration cannot exceed {MAX_TRIP_DATE_SPAN_DAYS + 1} days"
+            )
         return self
 
 

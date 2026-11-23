@@ -10,6 +10,8 @@ import {
 } from '@angular/core';
 import maplibregl from 'maplibre-gl';
 
+import { COORDINATE_EPSILON } from '../../core/constants/app-limits';
+
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 export interface MapPin {
@@ -141,6 +143,22 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
     this.map = null;
   }
 
+  private pinColorForType(type?: string): string {
+    switch (type) {
+      case 'FOOD':
+        return 'var(--item-food, #d45d42)';
+      case 'SPOT':
+        return 'var(--item-spot, #2e7d62)';
+      case 'STAY':
+        return 'var(--item-stay, #c4924c)';
+      case 'RESERVED_TRANSIT':
+        return 'var(--item-reserved, #2f5fb3)';
+      case 'FLIGHT':
+      default:
+        return 'var(--item-flight, #162136)';
+    }
+  }
+
   private clearMarkers(): void {
     for (const marker of this.markers) {
       marker.remove();
@@ -161,8 +179,9 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
     }
     this.clearMarkers();
 
-    // Render dedicated Warm Champagne Gold hotel marker for the active basecamp Stay.
+    // Render dedicated Burnished Gold hotel marker for the active basecamp Stay.
     if (stay) {
+      const isStaySelected = stay.id === selectedId;
       const stayEl = document.createElement('button');
       stayEl.type = 'button';
       stayEl.title = stay.title;
@@ -170,13 +189,15 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
         '<span class="ms-icon" style="font-size:18px;color:#FFFFFF;">hotel</span>';
       stayEl.style.display = 'grid';
       stayEl.style.placeItems = 'center';
-      stayEl.style.width = '34px';
-      stayEl.style.height = '34px';
+      stayEl.style.width = isStaySelected ? '38px' : '34px';
+      stayEl.style.height = isStaySelected ? '38px' : '34px';
       stayEl.style.borderRadius = '9999px';
-      stayEl.style.border = '2.5px solid #1B2A4A';
-      stayEl.style.background = '#C89B5B';
+      stayEl.style.border = '2.5px solid #FFFFFF';
+      stayEl.style.background = 'var(--item-stay, #c4924c)';
       stayEl.style.cursor = 'pointer';
-      stayEl.style.boxShadow = '0 4px 12px rgba(27, 42, 74, 0.35)';
+      stayEl.style.boxShadow = isStaySelected
+        ? '0 0 0 3px #162136, 0 6px 16px rgba(20, 24, 31, 0.32)'
+        : '0 4px 12px rgba(20, 24, 31, 0.28)';
       stayEl.addEventListener('click', () => this.pinSelected.emit(stay.id));
 
       const stayMarker = new maplibregl.Marker({ element: stayEl })
@@ -187,6 +208,7 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
 
     for (const pin of pins) {
       const isSelected = pin.id === selectedId;
+      const pinColor = this.pinColorForType(pin.type);
       const el = document.createElement('button');
       el.type = 'button';
       el.title = pin.title;
@@ -195,12 +217,14 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
       el.style.justifyContent = 'center';
       el.style.gap = '2px';
       el.style.border = '2px solid #FFFFFF';
-      el.style.background = isSelected ? '#C89B5B' : '#1B2A4A';
+      el.style.background = pinColor;
       el.style.color = '#FFFFFF';
       el.style.fontWeight = '700';
       el.style.fontSize = '12px';
       el.style.cursor = 'pointer';
-      el.style.boxShadow = '0 3px 10px rgba(27, 42, 74, 0.35)';
+      el.style.boxShadow = isSelected
+        ? '0 0 0 3px var(--color-accent, #c4924c), 0 6px 16px rgba(20, 24, 31, 0.34)'
+        : '0 3px 10px rgba(20, 24, 31, 0.28)';
 
       if (pin.type === 'FLIGHT') {
         el.innerHTML =
@@ -208,7 +232,7 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
         el.style.width = isSelected ? '36px' : '32px';
         el.style.height = isSelected ? '36px' : '32px';
         el.style.borderRadius = '9999px';
-        el.style.border = '2px solid #C89B5B';
+        el.style.border = '2px solid var(--color-accent, #c4924c)';
       } else if (pin.type === 'RESERVED_TRANSIT') {
         el.innerHTML = `<span class="ms-icon" style="font-size:15px;color:#FFFFFF;">train</span><span>${pin.order}</span>`;
         el.style.height = isSelected ? '34px' : '30px';
@@ -250,7 +274,8 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
         const first = orderedCoords[0];
         const last = orderedCoords[orderedCoords.length - 1];
         const sameAsStay = (pt: [number, number]) =>
-          Math.abs(pt[0] - stay.lng) < 1e-5 && Math.abs(pt[1] - stay.lat) < 1e-5;
+          Math.abs(pt[0] - stay.lng) < COORDINATE_EPSILON &&
+      Math.abs(pt[1] - stay.lat) < COORDINATE_EPSILON;
         if (fromStay && !sameAsStay(first)) {
           stayLegs.push([[stay.lng, stay.lat], first]);
         }

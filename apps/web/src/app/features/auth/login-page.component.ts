@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 
 import { AuthSessionService } from '../../core/auth/auth-session.service';
 import { APP_VERSION, IS_BETA } from '../../core/config/app-version';
+import { MIN_PASSWORD_LENGTH } from '../../core/constants/app-limits';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
@@ -550,7 +551,7 @@ export class LoginPageComponent {
   }
 
   protected async submitEmailAuth(): Promise<void> {
-    if (!this.email.trim() || this.password.length < 6) {
+    if (!this.email.trim() || this.password.length < MIN_PASSWORD_LENGTH) {
       return;
     }
     this.signingIn.set(true);

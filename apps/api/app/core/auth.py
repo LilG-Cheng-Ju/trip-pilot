@@ -19,6 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
+from app.core.constants import API_TOKEN_PREFIX_LENGTH
 from app.core.database import get_db
 from app.models import ApiToken, User
 
@@ -65,7 +66,7 @@ def generate_personal_token() -> tuple[str, str, str]:
     """Generate a new (plaintext, prefix, sha256_hash) Personal API Token tuple."""
     raw = secrets.token_urlsafe(32)
     plaintext = f"{PAT_PREFIX}{raw}"
-    prefix = plaintext[:14]
+    prefix = plaintext[:API_TOKEN_PREFIX_LENGTH]
     return plaintext, prefix, hash_token(plaintext)
 
 

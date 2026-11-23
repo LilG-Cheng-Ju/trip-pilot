@@ -13,6 +13,7 @@ from app.schemas.trip import (
     DayOptionCloneRequest,
     DayOptionCreate,
     DayOptionResponse,
+    DayOptionUpdate,
     ItineraryItemCreate,
     ItineraryItemReorderRequest,
     ItineraryItemResponse,
@@ -135,6 +136,29 @@ async def clone_day_option(
         option_id, auth_ctx.user.id, payload
     )
     return DayOptionResponse.model_validate(option)
+
+
+@router.patch("/options/{option_id}", response_model=DayOptionResponse)
+async def update_day_option(
+    option_id: str,
+    payload: DayOptionUpdate,
+    auth_ctx: WriteTripsAuth,
+    db: DbSession,
+) -> DayOptionResponse:
+    option = await TripService(db).update_day_option(
+        option_id, auth_ctx.user.id, payload
+    )
+    return DayOptionResponse.model_validate(option)
+
+
+@router.delete("/options/{option_id}", response_model=TripDayResponse)
+async def delete_day_option(
+    option_id: str,
+    auth_ctx: WriteTripsAuth,
+    db: DbSession,
+) -> TripDayResponse:
+    day = await TripService(db).delete_day_option(option_id, auth_ctx.user.id)
+    return TripDayResponse.model_validate(day)
 
 
 @router.patch("/days/{day_id}", response_model=TripDayResponse)

@@ -4,6 +4,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 
 import { TripilotApiService } from '../../core/api/tripilot-api.service';
 import { COMMON_CURRENCIES, CurrencyOption } from '../../core/config/currencies';
+import { ISO_CURRENCY_CODE_LENGTH } from '../../core/constants/app-limits';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ExpenseCategory } from '../../core/models/tripilot.models';
 import { EXPENSE_CATEGORIES, expenseCategoryKey } from '../../core/utils/travel-format.utils';
@@ -335,8 +336,10 @@ const RATE_STORAGE_PREFIX = 'tripilot.fxRate.';
       align-items: baseline;
       gap: 8px;
       margin: 6px 0;
-      font-size: 2rem;
-      font-weight: 800;
+      font-family: var(--font-display);
+      font-size: 2.1rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
       color: var(--color-accent);
     }
     .hero-amount .currency {
@@ -712,7 +715,11 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
     ];
     for (const code of extras) {
       const upper = code?.trim().toUpperCase();
-      if (upper && upper.length === 3 && !list.some((c) => c.code === upper)) {
+      if (
+        upper &&
+        upper.length === ISO_CURRENCY_CODE_LENGTH &&
+        !list.some((c) => c.code === upper)
+      ) {
         list.unshift({ code: upper, label: upper });
       }
     }
@@ -818,7 +825,7 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
 
   protected onCurrencyChange(code: string): void {
     const upper = code.trim().toUpperCase();
-    if (upper.length === 3) {
+    if (upper.length === ISO_CURRENCY_CODE_LENGTH) {
       this.loadSavedRate(upper);
       void this.fetchLiveRate(upper);
     }
@@ -827,7 +834,10 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
   protected async fetchLiveRate(overrideCode?: string): Promise<void> {
     const src = (overrideCode || this.currency || 'JPY').trim().toUpperCase();
     const dst = (this.expenseStore.summary()?.home_currency || 'TWD').trim().toUpperCase();
-    if (src.length !== 3 || dst.length !== 3) {
+    if (
+      src.length !== ISO_CURRENCY_CODE_LENGTH ||
+      dst.length !== ISO_CURRENCY_CODE_LENGTH
+    ) {
       return;
     }
     if (src === dst) {

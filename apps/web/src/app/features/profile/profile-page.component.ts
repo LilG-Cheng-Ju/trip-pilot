@@ -4,6 +4,10 @@ import { Router } from '@angular/router';
 
 import { AuthSessionService } from '../../core/auth/auth-session.service';
 import { getApiBaseUrl } from '../../core/config/runtime-config';
+import {
+  SAVE_NOTICE_DURATION_MS,
+  SHARE_COPY_FEEDBACK_DURATION_MS,
+} from '../../core/constants/app-limits';
 import { SUPPORTED_CURRENCIES } from '../../core/constants/travel-options';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -442,7 +446,7 @@ export class ProfilePageComponent implements OnInit {
       home_currency: this.homeCurrency,
     });
     this.savedNotice.set(true);
-    setTimeout(() => this.savedNotice.set(false), 2000);
+    setTimeout(() => this.savedNotice.set(false), SAVE_NOTICE_DURATION_MS);
   }
 
   protected async generateToken(): Promise<void> {
@@ -470,7 +474,7 @@ export class ProfilePageComponent implements OnInit {
     try {
       await navigator.clipboard.writeText(plaintext);
       this.copied.set(true);
-      setTimeout(() => this.copied.set(false), 1800);
+      setTimeout(() => this.copied.set(false), SHARE_COPY_FEEDBACK_DURATION_MS);
     } catch {
       // Clipboard may be unavailable in non-HTTPS contexts.
     }
@@ -492,7 +496,7 @@ export class ProfilePageComponent implements OnInit {
         if (this.copiedKey() === key) {
           this.copiedKey.set(null);
         }
-      }, 1800);
+      }, SHARE_COPY_FEEDBACK_DURATION_MS);
     } catch {
       // Clipboard may be unavailable in non-HTTPS contexts.
     }

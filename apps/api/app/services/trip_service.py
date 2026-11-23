@@ -13,6 +13,7 @@ from app.schemas.trip import (
     DayOptionCloneRequest,
     DayOptionCreate,
     DayOptionResponse,
+    DayOptionUpdate,
     ItineraryItemCreate,
     ItineraryItemResponse,
     ItineraryItemUpdate,
@@ -246,6 +247,50 @@ class TripService:
             )
         await self.db.commit()
         loaded = await self.repo.get_option_for_user(cloned.id, user_id)
+        assert loaded is not None
+        return loaded
+
+    async def update_day_option(
+        self, option_id: str, user_id: str, payload: DayOptionUpdate
+    ) -> DayOption:
+        option = await self.repo.get_option_for_user(option_id, user_id)
+        if option is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Day option not found"
+            )
+        updates = payload.model_dump(exclude_unset=True)
+        if "label" in updates and updates["label"] is not None:
+            option.label = updates["label"].strip()
+        if "summary_notes" in updates:
+            option.summary_notes = updates["summary_notes"]
+        await self.db.commit()
+        loaded = await self.repo.get_option_for_user(option.id, user_id)
+        assert loaded is not None
+        return loaded
+
+    async def delete_day_option(self, option_id: str, user_id: str) -> TripDay:
+        option = await self.repo.get_option_for_user(option_id, user_id)
+        if option is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Day option not found"
+            )
+        day = await self.repo.get_day_for_user(option.trip_day_id, user_id)
+        assert day is not None
+        if len(day.options) <= 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot delete the last remaining day option",
+            )
+        remaining = [opt for opt in day.options if opt.id != option.id]
+        if day.active_option_id == option.id:
+            day.active_option_id = remaining[0].id
+            await self.db.flush()
+        await self.db.delete(option)
+        for idx, opt in enumerate(remaining):
+            opt.sort_order = idx
+        await self.db.commit()
+        self.db.expire(day, ["options"])
+        loaded = await self.repo.get_day_for_user(day.id, user_id)
         assert loaded is not None
         return loaded
 

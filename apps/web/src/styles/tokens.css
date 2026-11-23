@@ -1,47 +1,52 @@
 /*
- * Tripilot Design Tokens
- * Single source of truth for palette, surfaces, typography, spacing, and elevation.
+ * Tripilot Design Tokens — Single Source of Truth
+ * Palette, topbar theme, surfaces, centralized typography, radii, and elevation.
  */
 :root {
-  /* Primary: Refined Japanese Deep Navy */
-  --color-primary: #1b2a4a;
-  --color-primary-soft: #2b4162;
-  --color-primary-tint: #eef2f8;
+  /* Primary: Refined Deep Ink-Navy */
+  --color-primary: #162136;
+  --color-primary-soft: #253552;
+  --color-primary-tint: #eef3fa;
 
-  /* Accent: Warm Champagne Gold & Subtle Terracotta */
-  --color-accent: #c89b5b;
-  --color-accent-soft: #f5efe6;
-  --color-alert: #d96b52;
-  --color-alert-soft: #fdf1ee;
+  /* Topbar Theme: Matte Deep Navy + Champagne Gold Hairline */
+  --color-topbar-bg: rgba(20, 29, 46, 0.94);
+  --color-topbar-text: #f8fafc;
+  --color-topbar-border: rgba(200, 155, 91, 0.24);
+
+  /* Accent: Burnished Champagne Gold & Terracotta Alert */
+  --color-accent: #c4924c;
+  --color-accent-soft: #faf3e8;
+  --color-alert: #c84b3b;
+  --color-alert-soft: #fdf2f0;
 
   /* Surfaces & Hairline Borders */
-  --color-bg: #f7f6f2;
+  --color-bg: #f8f7f4;
   --color-surface: #ffffff;
-  --color-surface-muted: #efece5;
-  --color-border: #e6e4dd;
+  --color-surface-muted: #eeece6;
+  --color-border: rgba(20, 24, 31, 0.09);
 
   /* Typography Hierarchy */
-  --color-text-primary: #172033;
-  --color-text-secondary: #5a6475;
-  --color-text-muted: #8c94a3;
+  --color-text-primary: #14181f;
+  --color-text-secondary: #525b6b;
+  --color-text-muted: #8b93a1;
   --color-text-on-primary: #ffffff;
 
-  /* Semantic Item Accents */
-  --item-flight: #1b2a4a;
-  --item-reserved: #2b4162;
-  --item-stay: #c89b5b;
-  --item-food: #d96b52;
-  --item-spot: #3d6b5e;
+  /* Semantic Item Dot Accents */
+  --item-flight: #162136;
+  --item-reserved: #2f5fb3;
+  --item-stay: #c4924c;
+  --item-food: #d45d42;
+  --item-spot: #2e7d62;
 
-  /* Radii */
-  --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
+  /* Crisp Radii */
+  --radius-sm: 7px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
   --radius-pill: 9999px;
 
-  /* Elevation */
-  --shadow-card: 0 1px 3px rgba(27, 42, 74, 0.05), 0 4px 12px rgba(27, 42, 74, 0.04);
-  --shadow-float: 0 8px 24px rgba(27, 42, 74, 0.14);
+  /* Subtle Hairline Elevation */
+  --shadow-card: 0 1px 2px rgba(20, 24, 31, 0.04);
+  --shadow-float: 0 12px 32px rgba(20, 24, 31, 0.12);
 
   /* Spacing & Layout */
   --space-1: 4px;
@@ -50,9 +55,17 @@
   --space-4: 16px;
   --space-5: 20px;
   --space-6: 24px;
-  --nav-bottom-height: 64px;
+  --nav-bottom-height: 60px;
 
-  /* Typography */
-  --font-sans: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* Centralized Typography Roles */
+  --font-display: 'Newsreader', 'Noto Serif TC', Georgia, serif;
+  --font-sans: 'Inter', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Centralized Card Type Scale */
+  --text-card-hero: 1.3rem;
+  --text-card-title: 0.98rem;
+  --text-card-body: 0.79rem;
+  --text-card-meta: 0.78rem;
+  --text-badge: 0.71rem;
 }

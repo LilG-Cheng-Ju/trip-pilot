@@ -3,6 +3,13 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 
 import {
+  DEFAULT_TRIP_DURATION_DAYS,
+  MAX_TRIP_DURATION_DAYS,
+  MIN_TRIP_DURATION_DAYS,
+  MS_PER_DAY,
+  TRIP_COUNTDOWN_MAX_DAYS,
+} from '../../core/constants/app-limits';
+import {
   findCountry,
   SUPPORTED_CURRENCIES,
 } from '../../core/constants/travel-options';
@@ -70,12 +77,14 @@ type DateEndMode = 'end' | 'duration' | 'open';
                   </span>
                 </div>
                 @if (trip.status === 'PLANNING' || trip.status === 'ACTIVE') {
-                  @if (daysUntil(trip) > 0) {
-                    <span class="countdown-badge tabular-nums">
-                      {{ 'trips.startsIn' | t: { count: daysUntil(trip) } }}
-                    </span>
-                  } @else if (daysUntil(trip) === 0) {
-                    <span class="countdown-badge">{{ 'trips.startsToday' | t }}</span>
+                  @if (shouldShowCountdown(trip)) {
+                    @if (daysUntil(trip) > 0) {
+                      <span class="countdown-badge tabular-nums">
+                        {{ 'trips.startsIn' | t: { count: daysUntil(trip) } }}
+                      </span>
+                    } @else if (daysUntil(trip) === 0) {
+                      <span class="countdown-badge">{{ 'trips.startsToday' | t }}</span>
+                    }
                   }
                 }
               </div>
@@ -256,14 +265,14 @@ type DateEndMode = 'end' | 'duration' | 'open';
                 <button
                   type="button"
                   class="step-btn"
-                  (click)="durationDays = Math.max(1, durationDays - 1)"
+                  (click)="durationDays = Math.max(minTripDurationDays, durationDays - 1)"
                 >
                   <span class="ms-icon sm">remove</span>
                 </button>
                 <input
                   type="number"
-                  min="1"
-                  max="60"
+                  [min]="minTripDurationDays"
+                  [max]="maxTripDurationDays"
                   class="tabular-nums step-input"
                   [(ngModel)]="durationDays"
                   name="durationDays"
@@ -271,7 +280,7 @@ type DateEndMode = 'end' | 'duration' | 'open';
                 <button
                   type="button"
                   class="step-btn"
-                  (click)="durationDays = Math.min(60, durationDays + 1)"
+                  (click)="durationDays = Math.min(maxTripDurationDays, durationDays + 1)"
                 >
                   <span class="ms-icon sm">add</span>
                 </button>
@@ -393,47 +402,55 @@ type DateEndMode = 'end' | 'duration' | 'open';
       gap: 6px;
     }
     .country-badge {
-      padding: 3px 9px;
+      padding: 2px 8px;
       border-radius: var(--radius-pill);
-      background: var(--color-primary);
-      color: var(--color-text-on-primary);
-      font-size: 0.75rem;
-      font-weight: 700;
+      background: var(--color-primary-tint);
+      color: var(--color-primary);
+      font-size: var(--text-badge);
+      font-weight: 600;
     }
     .days-badge {
-      padding: 3px 8px;
+      padding: 2px 8px;
       border-radius: var(--radius-pill);
       background: var(--color-surface-muted);
       color: var(--color-text-secondary);
-      font-size: 0.75rem;
-      font-weight: 600;
+      font-size: var(--text-badge);
+      font-weight: 500;
     }
     .countdown-badge {
-      padding: 3px 10px;
+      padding: 2px 9px;
       border-radius: var(--radius-pill);
       background: var(--color-accent-soft);
       color: #8b652d;
-      font-size: 0.75rem;
-      font-weight: 700;
+      font-size: var(--text-badge);
+      font-weight: 600;
     }
     .card-link {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
       text-decoration: none;
       color: inherit;
     }
     .trip-title {
-      margin: 0 0 4px;
-      font-size: 1.125rem;
-      font-weight: 700;
+      margin: 2px 0 4px;
+      font-family: var(--font-display);
+      font-size: var(--text-card-hero);
+      font-weight: 600;
+      line-height: 1.28;
+      letter-spacing: -0.015em;
       color: var(--color-text-primary);
     }
     .trip-dest {
-      margin: 0 0 6px;
-      font-size: 0.875rem;
+      margin: 0;
+      font-size: var(--text-card-meta);
+      line-height: 1.45;
       color: var(--color-text-secondary);
     }
     .trip-dates {
       margin: 0;
-      font-size: 0.8125rem;
+      font-size: var(--text-card-meta);
+      line-height: 1.45;
       color: var(--color-text-muted);
     }
     .card-actions {
@@ -597,6 +614,8 @@ export class TripsPageComponent implements OnInit {
 
   protected readonly Math = Math;
   protected readonly currencies = SUPPORTED_CURRENCIES;
+  protected readonly minTripDurationDays = MIN_TRIP_DURATION_DAYS;
+  protected readonly maxTripDurationDays = MAX_TRIP_DURATION_DAYS;
 
   protected readonly showCreateModal = signal(false);
   protected readonly submitting = signal(false);
@@ -622,8 +641,12 @@ export class TripsPageComponent implements OnInit {
   protected destination = '';
   protected defaultCurrency = 'JPY';
   protected startDate = new Date().toISOString().slice(0, 10);
-  protected endDate = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
-  protected durationDays = 4;
+  protected endDate = new Date(
+    Date.now() + (DEFAULT_TRIP_DURATION_DAYS - 1) * MS_PER_DAY,
+  )
+    .toISOString()
+    .slice(0, 10);
+  protected durationDays = DEFAULT_TRIP_DURATION_DAYS;
 
   protected readonly computedEndDate = computed(() => {
     if (!this.startDate) return '';
@@ -676,14 +699,23 @@ export class TripsPageComponent implements OnInit {
   protected dayCount(trip: TripSummary): number {
     const start = new Date(`${trip.start_date}T00:00:00`);
     const end = new Date(`${trip.end_date}T00:00:00`);
-    return Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
+    return Math.max(
+      MIN_TRIP_DURATION_DAYS,
+      Math.round((end.getTime() - start.getTime()) / MS_PER_DAY) + 1,
+    );
   }
 
   protected daysUntil(trip: TripSummary): number {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const start = new Date(`${trip.start_date}T00:00:00`);
-    return Math.round((start.getTime() - today.getTime()) / 86400000);
+    return Math.round((start.getTime() - today.getTime()) / MS_PER_DAY);
+  }
+
+  protected shouldShowCountdown(trip: TripSummary): boolean {
+    const days = this.daysUntil(trip);
+    if (days < 0) return false;
+    return TRIP_COUNTDOWN_MAX_DAYS === null || days <= TRIP_COUNTDOWN_MAX_DAYS;
   }
 
   protected async submitTrip(): Promise<void> {

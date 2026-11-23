@@ -8,6 +8,12 @@ from urllib.parse import unquote, urljoin, urlparse
 import httpx
 
 from app.core.config import get_settings
+from app.core.constants import (
+    PLACES_DEFAULT_LIMIT,
+    PLACES_HTTP_TIMEOUT_SEC,
+    PLACES_MAX_LIMIT,
+    PLACES_MAX_REDIRECTS,
+)
 
 GOOGLE_PLACES_TEXT_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText"
 PHOTON_SEARCH_URL = "https://photon.komoot.io/api/"
@@ -52,19 +58,21 @@ class PlaceSearchProvider(Protocol):
     """Protocol for place search engines (Google Places, Photon OSM, etc.)."""
 
     async def search(
-        self, query: str, language: str = "zh-TW", limit: int = 5
+        self, query: str, language: str = "zh-TW", limit: int = PLACES_DEFAULT_LIMIT
     ) -> list[PlaceCandidate]: ...
 
 
 class GooglePlacesProvider:
     """Google Places API (New) text search using Essentials field mask."""
 
-    def __init__(self, api_key: str, timeout_sec: float = 5.0) -> None:
+    def __init__(
+        self, api_key: str, timeout_sec: float = PLACES_HTTP_TIMEOUT_SEC
+    ) -> None:
         self.api_key = api_key
         self.timeout_sec = timeout_sec
 
     async def search(
-        self, query: str, language: str = "zh-TW", limit: int = 5
+        self, query: str, language: str = "zh-TW", limit: int = PLACES_DEFAULT_LIMIT
     ) -> list[PlaceCandidate]:
         headers = {
             "X-Goog-Api-Key": self.api_key,
@@ -74,7 +82,7 @@ class GooglePlacesProvider:
         body = {
             "textQuery": query,
             "languageCode": language,
-            "pageSize": min(limit, 10),
+            "pageSize": min(limit, PLACES_MAX_LIMIT),
         }
         async with httpx.AsyncClient(timeout=self.timeout_sec) as client:
             response = await client.post(
@@ -107,11 +115,11 @@ class GooglePlacesProvider:
 class PhotonOsmProvider:
     """Zero-cost OpenStreetMap Photon fallback when no Google API key is configured."""
 
-    def __init__(self, timeout_sec: float = 5.0) -> None:
+    def __init__(self, timeout_sec: float = PLACES_HTTP_TIMEOUT_SEC) -> None:
         self.timeout_sec = timeout_sec
 
     async def search(
-        self, query: str, language: str = "zh-TW", limit: int = 5
+        self, query: str, language: str = "zh-TW", limit: int = PLACES_DEFAULT_LIMIT
     ) -> list[PlaceCandidate]:
         del language
         async with httpx.AsyncClient(timeout=self.timeout_sec) as client:
@@ -181,7 +189,9 @@ def parse_google_maps_url(url: str) -> PlaceCandidate | None:
 
 
 async def resolve_google_maps_url(
-    url: str, timeout_sec: float = 5.0, max_redirects: int = 5
+    url: str,
+    timeout_sec: float = PLACES_HTTP_TIMEOUT_SEC,
+    max_redirects: int = PLACES_MAX_REDIRECTS,
 ) -> PlaceCandidate | None:
     """Resolve short (maps.app.goo.gl) or full Google Maps links safely."""
     cleaned = url.strip()

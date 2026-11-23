@@ -9,6 +9,11 @@ from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.core.constants import (
+    METERS_PER_KM,
+    ROUTING_HTTP_TIMEOUT_SEC,
+    SECONDS_PER_MINUTE,
+)
 from app.models import DayOption, ItemType, ItineraryItem, RouteProfile, RouteSegment
 from app.services.airport_service import haversine_km
 
@@ -71,7 +76,7 @@ class OsrmRoutingProvider:
     def __init__(
         self,
         base_url: str | None = None,
-        timeout_sec: float = 3.0,
+        timeout_sec: float = ROUTING_HTTP_TIMEOUT_SEC,
         client: httpx.AsyncClient | None = None,
     ) -> None:
         self.base_url = (base_url or get_settings().osrm_base_url).rstrip("/")
@@ -114,8 +119,10 @@ class OsrmRoutingProvider:
                 routes = data.get("routes") or []
                 if routes:
                     best = routes[0]
-                    distance_km = round(float(best["distance"]) / 1000.0, 2)
-                    duration_min = max(1, round(float(best["duration"]) / 60.0))
+                    distance_km = round(float(best["distance"]) / METERS_PER_KM, 2)
+                    duration_min = max(
+                        1, round(float(best["duration"]) / SECONDS_PER_MINUTE)
+                    )
                     return RouteLegResult(
                         distance_km=distance_km,
                         duration_min=duration_min,
@@ -175,7 +182,7 @@ async def recalculate_option_routes(
         )
     else:
         # Share a single connection pool across all legs in the day option.
-        async with httpx.AsyncClient(timeout=3.0) as shared_client:
+        async with httpx.AsyncClient(timeout=ROUTING_HTTP_TIMEOUT_SEC) as shared_client:
             osrm = OsrmRoutingProvider(client=shared_client)
             legs = await asyncio.gather(
                 *[

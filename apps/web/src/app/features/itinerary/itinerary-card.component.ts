@@ -10,6 +10,8 @@ import {
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
+import { COPY_FEEDBACK_DURATION_MS } from '../../core/constants/app-limits';
+
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ItemAttachment, ItineraryItem } from '../../core/models/tripilot.models';
 import { extractItemAttachments } from '../../core/utils/travel-format.utils';
@@ -90,13 +92,25 @@ import { ItemExpenseSummary } from '../../state/expense.store';
               <span class="ms-icon sm" aria-hidden="true">flight</span>
               <span>{{ detail('flight_number') || item().title }}</span>
             </span>
-            @if (detail('booking_ref')) {
-              <span class="ref-chip">{{ detail('booking_ref') }}</span>
-            }
           </div>
 
-          @if (!readOnly()) {
-            <div class="head-actions" (click)="$event.stopPropagation()">
+          <div class="head-actions" (click)="$event.stopPropagation()">
+            @if (expenseSummary(); as exp) {
+              @if (tripId()) {
+                <a
+                  class="head-expense-pill dark tabular-nums"
+                  [routerLink]="['/trips', tripId(), 'expenses']"
+                  [queryParams]="{ itemId: item().id }"
+                  [title]="
+                    'expenses.itemSummary'
+                      | t: { count: exp.count, currency: exp.currencyHome, total: formatAmount(exp.totalHome) }
+                  "
+                >
+                  {{ exp.currencyHome }} {{ formatAmount(exp.totalHome) }}
+                </a>
+              }
+            }
+            @if (!readOnly()) {
               <button
                 type="button"
                 class="head-action-btn dark accent-dark"
@@ -136,8 +150,8 @@ import { ItemExpenseSummary } from '../../state/expense.store';
                   </div>
                 }
               </div>
-            </div>
-          }
+            }
+          </div>
         </div>
 
         <div class="flight-route tabular-nums">
@@ -157,9 +171,25 @@ import { ItemExpenseSummary } from '../../state/expense.store';
           </div>
         </div>
 
-        @if (!readOnly() || attachments().length > 0 || expenseSummary()) {
+        @if (!readOnly() || hasFooterPills()) {
           <div class="card-footer dark" (click)="$event.stopPropagation()">
-            <div class="footer-pills">
+            <div class="footer-pills dark" (wheel)="onFooterWheel($event)">
+              @if (detail('booking_ref'); as ref) {
+                <span class="meta-chip dark tabular-nums">
+                  {{ 'detail.bookingRef' | t }} {{ ref }}
+                </span>
+              }
+              @if (detail('confirmation_code'); as conf) {
+                <span class="meta-chip dark tabular-nums">
+                  {{ 'detail.confirmation' | t }} {{ conf }}
+                </span>
+              }
+              @if (detail('free_cancellation_deadline'); as cancel) {
+                <span class="meta-chip dark alert tabular-nums">
+                  <span class="ms-icon sm" aria-hidden="true">warning</span>
+                  <span>{{ 'detail.freeCancelBy' | t }} {{ cancel }}</span>
+                </span>
+              }
               @for (att of attachments(); track $index) {
                 <a
                   class="attachment-chip dark"
@@ -171,23 +201,6 @@ import { ItemExpenseSummary } from '../../state/expense.store';
                   <span class="ms-icon sm" aria-hidden="true">attach_file</span>
                   <span class="chip-truncate">{{ att.name }}</span>
                 </a>
-              }
-              @if (expenseSummary(); as exp) {
-                @if (tripId()) {
-                  <a
-                    class="expense-chip dark tabular-nums"
-                    [routerLink]="['/trips', tripId(), 'expenses']"
-                    [queryParams]="{ itemId: item().id }"
-                  >
-                    <span class="ms-icon sm" aria-hidden="true">receipt_long</span>
-                    <span>
-                      {{
-                        'expenses.itemSummary'
-                          | t: { count: exp.count, currency: exp.currencyHome, total: formatAmount(exp.totalHome) }
-                      }}
-                    </span>
-                  </a>
-                }
               }
             </div>
 
@@ -229,7 +242,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
               </span>
             }
             <span class="type-pill">
-              <span class="ms-icon sm" aria-hidden="true">{{ typeIcon() }}</span>
+              <span class="type-dot" [attr.data-type]="item().type" aria-hidden="true"></span>
               <span>{{ typeLabel() | t }}</span>
             </span>
             @if (item().start_time) {
@@ -240,6 +253,22 @@ import { ItemExpenseSummary } from '../../state/expense.store';
           </div>
 
           <div class="head-actions" (click)="$event.stopPropagation()">
+            @if (expenseSummary(); as exp) {
+              @if (tripId()) {
+                <a
+                  class="head-expense-pill tabular-nums"
+                  [routerLink]="['/trips', tripId(), 'expenses']"
+                  [queryParams]="{ itemId: item().id }"
+                  [title]="
+                    'expenses.itemSummary'
+                      | t: { count: exp.count, currency: exp.currencyHome, total: formatAmount(exp.totalHome) }
+                  "
+                >
+                  {{ exp.currencyHome }} {{ formatAmount(exp.totalHome) }}
+                </a>
+              }
+            }
+
             @if (mapsUrl()) {
               <a
                 class="head-action-btn"
@@ -329,37 +358,38 @@ import { ItemExpenseSummary } from '../../state/expense.store';
           </button>
         }
 
-        @if (hasDetailChips()) {
-          <div class="detail-chips">
-            @if (detail('line_or_train_no')) {
-              <span class="info-chip">
-                <span class="ms-icon sm">train</span> {{ detail('line_or_train_no') }}
-              </span>
-            }
-            @if (detail('seat')) {
-              <span class="info-chip">{{ detail('seat') }}</span>
-            }
-            @if (detail('booking_ref')) {
-              <span class="info-chip">Ref: {{ detail('booking_ref') }}</span>
-            }
-            @if (detail('confirmation_code')) {
-              <span class="info-chip">Conf: {{ detail('confirmation_code') }}</span>
-            }
-            @if (detail('free_cancellation_deadline')) {
-              <span class="alert-chip">
-                <span class="ms-icon sm">warning</span> {{ detail('free_cancellation_deadline') }}
-              </span>
-            }
-          </div>
-        }
-
         @if (item().notes) {
           <p class="card-notes">{{ item().notes }}</p>
         }
 
-        @if (!readOnly() || attachments().length > 0 || expenseSummary()) {
+        @if (!readOnly() || hasFooterPills()) {
           <div class="card-footer" (click)="$event.stopPropagation()">
-            <div class="footer-pills">
+            <div class="footer-pills" (wheel)="onFooterWheel($event)">
+              @if (detail('line_or_train_no'); as trainNo) {
+                <span class="meta-chip">
+                  <span class="ms-icon sm" aria-hidden="true">train</span>
+                  <span>{{ trainNo }}</span>
+                </span>
+              }
+              @if (detail('seat'); as seat) {
+                <span class="meta-chip">{{ seat }}</span>
+              }
+              @if (detail('confirmation_code'); as conf) {
+                <span class="meta-chip tabular-nums">
+                  {{ 'detail.confirmation' | t }} {{ conf }}
+                </span>
+              }
+              @if (detail('booking_ref'); as ref) {
+                <span class="meta-chip tabular-nums">
+                  {{ 'detail.bookingRef' | t }} {{ ref }}
+                </span>
+              }
+              @if (detail('free_cancellation_deadline'); as cancel) {
+                <span class="meta-chip alert tabular-nums">
+                  <span class="ms-icon sm" aria-hidden="true">warning</span>
+                  <span>{{ 'detail.freeCancelBy' | t }} {{ cancel }}</span>
+                </span>
+              }
               @for (att of attachments(); track $index) {
                 <a
                   class="attachment-chip"
@@ -371,23 +401,6 @@ import { ItemExpenseSummary } from '../../state/expense.store';
                   <span class="ms-icon sm" aria-hidden="true">attach_file</span>
                   <span class="chip-truncate">{{ att.name }}</span>
                 </a>
-              }
-              @if (expenseSummary(); as exp) {
-                @if (tripId()) {
-                  <a
-                    class="expense-chip tabular-nums"
-                    [routerLink]="['/trips', tripId(), 'expenses']"
-                    [queryParams]="{ itemId: item().id }"
-                  >
-                    <span class="ms-icon sm" aria-hidden="true">receipt_long</span>
-                    <span>
-                      {{
-                        'expenses.itemSummary'
-                          | t: { count: exp.count, currency: exp.currencyHome, total: formatAmount(exp.totalHome) }
-                      }}
-                    </span>
-                  </a>
-                }
               }
             </div>
 
@@ -569,16 +582,25 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     .standard-card {
       background: var(--color-surface);
       border: 1px solid var(--color-border);
-      border-left: 4px solid var(--item-spot);
     }
-    .standard-card[data-type='STAY'] {
-      border-left-color: var(--item-stay);
+    .standard-card:hover {
+      border-color: #cbd5e1;
     }
-    .standard-card[data-type='FOOD'] {
-      border-left-color: var(--item-food);
+    .type-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--item-spot);
+      flex-shrink: 0;
     }
-    .standard-card[data-type='RESERVED_TRANSIT'] {
-      border-left-color: var(--item-reserved);
+    .type-dot[data-type='STAY'] {
+      background: var(--item-stay);
+    }
+    .type-dot[data-type='FOOD'] {
+      background: var(--item-food);
+    }
+    .type-dot[data-type='RESERVED_TRANSIT'] {
+      background: var(--item-reserved);
     }
     .card-head {
       display: flex;
@@ -613,24 +635,43 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     .type-pill {
       display: inline-flex;
       align-items: center;
-      gap: 4px;
-      padding: 3px 9px;
-      border-radius: var(--radius-pill);
-      background: var(--color-surface-muted);
-      color: var(--color-primary);
+      gap: 5px;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: var(--color-bg);
+      color: var(--color-text-secondary);
       font-size: 0.72rem;
-      font-weight: 700;
+      font-weight: 500;
     }
     .time-pill {
-      font-size: 0.78rem;
-      font-weight: 600;
-      color: var(--color-text-secondary);
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
+      font-weight: 500;
+      color: var(--color-text-muted);
     }
     .head-actions {
       display: inline-flex;
       align-items: center;
       gap: 5px;
       flex-shrink: 0;
+    }
+    .head-expense-pill {
+      display: inline-flex;
+      align-items: center;
+      height: 28px;
+      padding: 0 8px;
+      border-radius: 7px;
+      border: 1px solid rgba(196, 146, 76, 0.35);
+      background: var(--color-accent-soft);
+      color: #8b652d;
+      text-decoration: none;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .head-expense-pill:hover {
+      border-color: var(--color-accent);
     }
     .head-action-btn {
       display: inline-flex;
@@ -747,15 +788,18 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       margin: 4px 2px;
     }
     .card-title {
-      margin: 0 0 4px;
-      font-size: 1rem;
-      font-weight: 700;
+      margin: 2px 0 3px;
+      font-size: var(--text-card-title);
+      font-weight: 600;
+      line-height: 1.35;
+      letter-spacing: -0.015em;
       color: var(--color-text-primary);
     }
     .card-sub {
-      margin: 0 0 6px;
-      font-size: 0.8125rem;
-      color: var(--color-text-secondary);
+      margin: 0 0 5px;
+      font-size: var(--text-card-meta);
+      line-height: 1.45;
+      color: var(--color-text-muted);
     }
     .local-copy-chip {
       display: inline-flex;
@@ -808,8 +852,9 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       color: var(--color-alert);
     }
     .card-notes {
-      margin: 8px 0 0;
-      font-size: 0.8125rem;
+      margin: 7px 0 0;
+      font-size: var(--text-card-body);
+      line-height: 1.55;
       color: var(--color-text-secondary);
       white-space: pre-line;
     }
@@ -817,7 +862,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       display: flex;
       align-items: center;
       justify-content: space-between;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       gap: 8px;
       margin-top: 10px;
       padding-top: 8px;
@@ -829,21 +874,77 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     .footer-pills {
       display: flex;
       align-items: center;
-      flex-wrap: wrap;
-      gap: 6px;
+      flex-wrap: nowrap;
+      flex: 1;
       min-width: 0;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(20, 24, 31, 0.22) transparent;
+      padding-bottom: 3px;
+      gap: 6px;
     }
+    .footer-pills::-webkit-scrollbar {
+      height: 4px;
+    }
+    .footer-pills::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .footer-pills::-webkit-scrollbar-thumb {
+      background: rgba(20, 24, 31, 0.18);
+      border-radius: 99px;
+    }
+    .footer-pills:hover::-webkit-scrollbar-thumb {
+      background: rgba(20, 24, 31, 0.32);
+    }
+    .meta-chip,
     .attachment-chip,
     .expense-chip {
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      height: 28px;
+      height: 27px;
       padding: 0 9px;
-      border-radius: 8px;
+      border-radius: 7px;
       text-decoration: none;
-      font-size: 0.74rem;
-      font-weight: 600;
+      font-size: 0.73rem;
+      font-weight: 500;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .meta-chip {
+      border: 1px solid var(--color-border);
+      background: var(--color-bg);
+      color: var(--color-text-secondary);
+    }
+    .meta-chip.alert {
+      border-color: rgba(200, 75, 59, 0.28);
+      background: var(--color-alert-soft);
+      color: var(--color-alert);
+    }
+    .meta-chip.dark {
+      border-color: rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.12);
+      color: #f8fafc;
+    }
+    .meta-chip.dark.alert {
+      border-color: rgba(252, 165, 165, 0.45);
+      background: rgba(200, 75, 59, 0.26);
+      color: #fecaca;
+    }
+    .footer-pills.dark {
+      scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+    }
+    .footer-pills.dark::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.26);
+    }
+    .head-expense-pill.dark {
+      border-color: rgba(212, 175, 55, 0.45);
+      background: rgba(212, 175, 55, 0.16);
+      color: #f4d87c;
+    }
+    .head-expense-pill.dark:hover {
+      background: rgba(212, 175, 55, 0.26);
     }
     .attachment-chip {
       border: 1px solid var(--color-border);
@@ -927,6 +1028,21 @@ export class ItineraryCardComponent {
     extractItemAttachments(this.item().details),
   );
 
+  protected hasFooterPills(): boolean {
+    return this.hasDetailChips() || this.attachments().length > 0;
+  }
+
+  protected onFooterWheel(event: WheelEvent): void {
+    const el = event.currentTarget as HTMLElement | null;
+    if (!el || el.scrollWidth <= el.clientWidth) {
+      return;
+    }
+    if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
+      event.preventDefault();
+      el.scrollLeft += event.deltaY;
+    }
+  }
+
   protected hasDetailChips(): boolean {
     return Boolean(
       this.detail('line_or_train_no') ||
@@ -984,7 +1100,7 @@ export class ItineraryCardComponent {
     try {
       await navigator.clipboard.writeText(text);
       this.copiedLocal.set(true);
-      setTimeout(() => this.copiedLocal.set(false), 1600);
+      setTimeout(() => this.copiedLocal.set(false), COPY_FEEDBACK_DURATION_MS);
     } catch {
       // Ignore clipboard failures in restricted contexts.
     }
