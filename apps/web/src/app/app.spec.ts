@@ -52,7 +52,7 @@ describe('App', () => {
     await fixture.whenStable();
 
     const dropdown = compiled.querySelector('.account-dropdown');
-    expect(dropdown?.textContent).toContain('Settings & Agent Access');
+    expect(dropdown?.textContent).toContain('Settings');
     expect(dropdown?.textContent).toContain(`v${APP_VERSION}`);
   });
 });

@@ -25,6 +25,7 @@ function mapItemTypeToCategory(type: ItemType): ExpenseCategory {
     case 'STAY':
       return 'LODGING';
     case 'RESERVED_TRANSIT':
+    case 'LOCAL_TRANSIT':
       return 'TRANSIT';
     case 'FOOD':
       return 'FOOD';

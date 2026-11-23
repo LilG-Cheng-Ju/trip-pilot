@@ -34,11 +34,24 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  vertical-align: middle;
+  flex-shrink: 0;
   white-space: nowrap;
   word-wrap: normal;
   direction: ltr;
   -webkit-font-smoothing: antialiased;
   user-select: none;
+}
+
+/* Prevent CJK/Latin baseline descent from sitting ~1px lower than Material Symbols inside flex buttons/pills. */
+button,
+a {
+  line-height: 1.2;
+}
+
+.ms-icon + span,
+.ms-icon + strong {
+  line-height: 1.2;
 }
 
 .ms-icon.sm {
