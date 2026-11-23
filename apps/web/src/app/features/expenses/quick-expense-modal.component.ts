@@ -190,7 +190,7 @@ import { ExpenseStore } from '../../state/expense.store';
     }
     .amount-grid {
       display: grid;
-      grid-template-columns: 1fr 136px;
+      grid-template-columns: minmax(0, 1fr) 124px;
       gap: 10px;
     }
     .preview-line {
@@ -222,8 +222,13 @@ import { ExpenseStore } from '../../state/expense.store';
     }
     .extra-row {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr;
       gap: 10px;
+    }
+    @media (min-width: 480px) {
+      .extra-row {
+        grid-template-columns: 1fr 1fr;
+      }
     }
     .modal-actions {
       display: flex;

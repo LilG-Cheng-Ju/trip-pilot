@@ -356,10 +356,11 @@ interface TimelineSlot {
   styles: `
     .itinerary-layout {
       display: grid;
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
       min-height: calc(100dvh - 56px);
     }
     .timeline-pane {
+      min-width: 0;
       padding: var(--space-4) var(--space-4) calc(var(--nav-bottom-height) + var(--space-6));
       max-width: 780px;
       width: 100%;
@@ -448,9 +449,15 @@ interface TimelineSlot {
     .day-strip {
       display: flex;
       gap: 8px;
+      max-width: 100%;
       overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
       padding-bottom: var(--space-2);
       margin-bottom: var(--space-3);
+    }
+    .day-strip::-webkit-scrollbar {
+      display: none;
     }
     .day-chip {
       flex-shrink: 0;
@@ -609,6 +616,7 @@ interface TimelineSlot {
     }
     .summary-bar {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
       gap: var(--space-2);
@@ -621,6 +629,7 @@ interface TimelineSlot {
     }
     .summary-controls {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       gap: 8px;
     }

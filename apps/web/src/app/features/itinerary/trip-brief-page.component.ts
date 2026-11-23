@@ -258,10 +258,11 @@ interface TripAttachmentEntry {
     }
     .brief-grid {
       display: grid;
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
       gap: var(--space-4);
     }
     .brief-section {
+      min-width: 0;
       padding: var(--space-4);
       border-radius: var(--radius-md);
       background: var(--color-surface);

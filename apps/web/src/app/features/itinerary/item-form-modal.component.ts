@@ -275,7 +275,7 @@ export interface ItemFormSubmitEvent {
     }
     .two-col {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       gap: var(--space-3);
     }
     .field {
@@ -320,10 +320,12 @@ export interface ItemFormSubmitEvent {
     }
     .place-input-row {
       display: flex;
+      flex-wrap: wrap;
       gap: 6px;
     }
     .place-input-row input {
-      flex: 1;
+      flex: 1 1 160px;
+      min-width: 0;
       background: var(--color-surface);
     }
     .place-hint {

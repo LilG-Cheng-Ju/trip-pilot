@@ -247,11 +247,13 @@ import { AuthStore } from '../../state/auth.store';
     }
     .token-form {
       display: flex;
+      flex-wrap: wrap;
       gap: 8px;
       margin-bottom: var(--space-4);
     }
     .token-form input {
-      flex: 1;
+      flex: 1 1 180px;
+      min-width: 0;
     }
     .created-box {
       padding: var(--space-3);

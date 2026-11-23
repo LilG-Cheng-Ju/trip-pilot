@@ -262,14 +262,21 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
       flex-wrap: wrap;
       align-items: center;
       gap: 8px;
+      max-width: 100%;
     }
     .segmented {
       display: inline-flex;
       gap: 3px;
       padding: 3px;
+      max-width: 100%;
+      overflow-x: auto;
+      scrollbar-width: none;
       border-radius: 10px;
       background: var(--color-surface-muted);
       border: 1px solid var(--color-border);
+    }
+    .segmented::-webkit-scrollbar {
+      display: none;
     }
     .seg-btn {
       padding: 6px 12px;
@@ -280,6 +287,7 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
       font: inherit;
       font-size: 0.8rem;
       font-weight: 700;
+      white-space: nowrap;
       cursor: pointer;
     }
     .seg-btn.active {
@@ -289,15 +297,16 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
     }
     .kpi-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: var(--space-4);
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--space-3);
       margin-bottom: var(--space-4);
     }
     .kpi-card {
+      min-width: 0;
       display: flex;
       flex-direction: column;
-      gap: 6px;
-      padding: var(--space-4) var(--space-5);
+      gap: 5px;
+      padding: var(--space-3) var(--space-4);
       border-radius: var(--radius-md);
       background: var(--color-surface);
       border: 1px solid var(--color-border);
@@ -309,31 +318,33 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
       border-color: var(--color-primary);
     }
     .kpi-label {
-      font-size: 0.74rem;
+      font-size: 0.72rem;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.05em;
       opacity: 0.75;
     }
     .kpi-value {
-      font-size: 1.55rem;
+      font-size: 1.35rem;
       font-weight: 800;
       color: var(--color-primary);
+      overflow-wrap: anywhere;
     }
     .kpi-card.highlight .kpi-value {
       color: var(--color-accent);
     }
     .kpi-sub {
-      font-size: 0.78rem;
+      font-size: 0.75rem;
       opacity: 0.78;
     }
     .insights-grid {
       display: grid;
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
       gap: var(--space-4);
       margin-bottom: var(--space-4);
     }
     .panel {
+      min-width: 0;
       padding: var(--space-4) var(--space-5);
       border-radius: var(--radius-md);
       background: var(--color-surface);
@@ -547,6 +558,16 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
       font-size: 0.84rem;
     }
     @media (min-width: 900px) {
+      .kpi-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: var(--space-4);
+      }
+      .kpi-card {
+        padding: var(--space-4) var(--space-5);
+      }
+      .kpi-value {
+        font-size: 1.55rem;
+      }
       .insights-grid {
         grid-template-columns: 1.15fr 0.85fr;
         align-items: start;

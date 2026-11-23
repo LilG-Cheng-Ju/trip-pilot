@@ -305,8 +305,12 @@ const RATE_STORAGE_PREFIX = 'tripilot.fxRate.';
     }
     .expenses-grid {
       display: grid;
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
       gap: var(--space-5);
+    }
+    .summary-col,
+    .ledger-col {
+      min-width: 0;
     }
     .summary-col {
       display: flex;
@@ -411,9 +415,17 @@ const RATE_STORAGE_PREFIX = 'tripilot.fxRate.';
     }
     .amount-row {
       display: grid;
-      grid-template-columns: 1fr 78px 118px;
+      grid-template-columns: minmax(0, 1fr) 78px 114px;
       gap: 8px;
       align-items: end;
+    }
+    @media (max-width: 420px) {
+      .amount-row {
+        grid-template-columns: minmax(0, 1fr) 88px;
+      }
+      .amount-row > :last-child {
+        grid-column: 1 / -1;
+      }
     }
     .input-currency {
       text-transform: uppercase;
@@ -608,6 +620,7 @@ const RATE_STORAGE_PREFIX = 'tripilot.fxRate.';
       display: flex;
       align-items: center;
       gap: var(--space-3);
+      min-width: 0;
     }
     .exp-cat {
       padding: 4px 10px;
@@ -616,11 +629,13 @@ const RATE_STORAGE_PREFIX = 'tripilot.fxRate.';
       color: #8b652d;
       font-size: 0.7rem;
       font-weight: 700;
+      flex-shrink: 0;
     }
     .exp-title {
       margin: 0;
       font-size: 0.9375rem;
       font-weight: 600;
+      overflow-wrap: anywhere;
     }
     .exp-meta {
       margin: 2px 0 0;

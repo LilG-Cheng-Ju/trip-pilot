@@ -432,6 +432,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       display: inline-flex;
       align-items: center;
       flex-wrap: wrap;
+      max-width: 100%;
       gap: 6px;
       padding: 3px 6px 3px 10px;
       border-radius: 9px;
@@ -581,6 +582,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     }
     .card-head {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
       gap: var(--space-2);
