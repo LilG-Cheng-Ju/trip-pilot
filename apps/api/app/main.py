@@ -11,6 +11,7 @@ import app.models  # noqa: F401
 from app.api.v1 import airports as airports_router
 from app.api.v1 import expenses as expenses_router
 from app.api.v1 import fx as fx_router
+from app.api.v1 import links as links_router
 from app.api.v1 import me as me_router
 from app.api.v1 import places as places_router
 from app.api.v1 import public as public_router
@@ -77,6 +78,7 @@ def create_app() -> FastAPI:
     application.include_router(airports_router.router, prefix="/api/v1")
     application.include_router(places_router.router, prefix="/api/v1")
     application.include_router(fx_router.router, prefix="/api/v1")
+    application.include_router(links_router.router, prefix="/api/v1")
     application.include_router(expenses_router.router, prefix="/api/v1")
     application.include_router(stats_router.router, prefix="/api/v1")
 
