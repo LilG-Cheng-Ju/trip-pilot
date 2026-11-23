@@ -8,6 +8,7 @@ import {
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import {
+  ItemAttachment,
   ItemType,
   ItineraryItem,
   PlaceCandidate,
@@ -195,6 +196,63 @@ export interface ItemFormSubmitEvent {
           <input type="text" [(ngModel)]="notes" name="notes" />
         </label>
 
+        <div class="attachments-box">
+          <div class="att-head">
+            <span class="att-title">
+              <span class="ms-icon sm" aria-hidden="true">attach_file</span>
+              {{ 'item.attachmentsTitle' | t }}
+            </span>
+            <small class="place-hint">{{ 'item.attachmentsHint' | t }}</small>
+          </div>
+
+          @if (attachments().length > 0) {
+            <div class="att-list">
+              @for (att of attachments(); track $index) {
+                <div class="att-row">
+                  <span class="ms-icon sm att-ico" aria-hidden="true">link</span>
+                  <a
+                    [href]="att.url"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="att-link"
+                  >
+                    {{ att.name }}
+                  </a>
+                  <button
+                    type="button"
+                    class="att-remove"
+                    (click)="removeAttachment($index)"
+                    aria-label="Remove attachment"
+                  >
+                    <span class="ms-icon sm">close</span>
+                  </button>
+                </div>
+              }
+            </div>
+          }
+
+          <div class="att-inputs">
+            <input
+              type="text"
+              [(ngModel)]="attachmentName"
+              name="attachmentName"
+              [placeholder]="'item.attachmentNamePlaceholder' | t"
+            />
+            <div class="place-input-row">
+              <input
+                type="url"
+                [(ngModel)]="attachmentUrl"
+                name="attachmentUrl"
+                [placeholder]="'item.attachmentUrlPlaceholder' | t"
+                (keydown.enter)="$event.preventDefault(); addAttachment()"
+              />
+              <button type="button" class="pill-btn" (click)="addAttachment()">
+                + {{ 'item.attachmentAdd' | t }}
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div class="actions">
           <button type="button" class="pill-btn" (click)="closed.emit()">
             {{ 'common.cancel' | t }}
@@ -351,6 +409,82 @@ export interface ItemFormSubmitEvent {
       gap: 8px;
       margin-top: 4px;
     }
+    .attachments-box {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: var(--space-3);
+      border-radius: var(--radius-sm);
+      background: var(--color-bg);
+      border: 1px solid var(--color-border);
+    }
+    .att-head {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .att-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--color-primary);
+    }
+    .att-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .att-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 8px;
+      border-radius: var(--radius-sm);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      font-size: 0.8rem;
+    }
+    .att-ico {
+      color: var(--color-accent);
+      flex-shrink: 0;
+    }
+    .att-link {
+      flex: 1;
+      min-width: 0;
+      color: var(--color-primary);
+      text-decoration: none;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .att-link:hover {
+      text-decoration: underline;
+    }
+    .att-remove {
+      display: inline-flex;
+      border: none;
+      background: transparent;
+      color: var(--color-text-muted);
+      cursor: pointer;
+      padding: 2px;
+    }
+    .att-inputs {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .att-inputs input {
+      padding: 8px 10px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      background: var(--color-surface);
+      color: var(--color-text-primary);
+      font: inherit;
+      font-size: 0.8125rem;
+    }
   `,
 })
 export class ItemFormModalComponent {
@@ -369,6 +503,7 @@ export class ItemFormModalComponent {
   protected readonly placeSearchError = signal(false);
   protected readonly placeCandidates = signal<PlaceCandidate[]>([]);
   protected readonly pinnedPlace = signal<PlaceCandidate | null>(null);
+  protected readonly attachments = signal<ItemAttachment[]>([]);
 
   protected itemType: ItemType = 'SPOT';
   protected itemTitle = '';
@@ -385,6 +520,8 @@ export class ItemFormModalComponent {
   protected transitMin: number | null = 15;
   protected freeCancel = '';
   protected localName = '';
+  protected attachmentName = '';
+  protected attachmentUrl = '';
 
   constructor() {
     effect(() => {
@@ -396,6 +533,8 @@ export class ItemFormModalComponent {
       this.placeSearchError.set(false);
       this.placeCandidates.set([]);
       this.placeQuery = '';
+      this.attachmentName = '';
+      this.attachmentUrl = '';
 
       if (edit) {
         this.itemType = edit.type;
@@ -413,6 +552,25 @@ export class ItemFormModalComponent {
         this.transitMin = d['duration_minutes'] ? Number(d['duration_minutes']) : 15;
         this.freeCancel = String(d['free_cancellation_deadline'] ?? '');
         this.localName = String(d['local_name'] ?? '');
+        const rawAttachments = d['attachments'];
+        if (Array.isArray(rawAttachments)) {
+          this.attachments.set(
+            rawAttachments
+              .filter(
+                (entry): entry is ItemAttachment =>
+                  typeof entry === 'object' &&
+                  entry !== null &&
+                  typeof (entry as ItemAttachment).url === 'string' &&
+                  (entry as ItemAttachment).url.trim().length > 0,
+              )
+              .map((entry) => ({
+                name: entry.name?.trim() || this.deriveAttachmentName(entry.url),
+                url: entry.url.trim(),
+              })),
+          );
+        } else {
+          this.attachments.set([]);
+        }
 
         if (edit.latitude !== null && edit.longitude !== null) {
           this.pinnedPlace.set({
@@ -442,6 +600,7 @@ export class ItemFormModalComponent {
         this.freeCancel = '';
         this.localName = '';
         this.pinnedPlace.set(null);
+        this.attachments.set([]);
       }
     });
   }
@@ -495,6 +654,52 @@ export class ItemFormModalComponent {
     }
   }
 
+  protected addAttachment(): void {
+    const rawUrl = this.attachmentUrl.trim();
+    if (!rawUrl || (!rawUrl.startsWith('http://') && !rawUrl.startsWith('https://'))) {
+      return;
+    }
+    const label = this.attachmentName.trim() || this.deriveAttachmentName(rawUrl);
+    this.attachments.update((list) => [...list, { name: label, url: rawUrl }]);
+    this.attachmentName = '';
+    this.attachmentUrl = '';
+  }
+
+  protected removeAttachment(index: number): void {
+    this.attachments.update((list) => list.filter((_, i) => i !== index));
+  }
+
+  private deriveAttachmentName(rawUrl: string): string {
+    try {
+      const parsed = new URL(rawUrl);
+      const segments = parsed.pathname.split('/').filter(Boolean);
+      const last = segments.length > 0 ? decodeURIComponent(segments[segments.length - 1]) : '';
+      const generic = new Set(['view', 'edit', 'open', 'uc', 'd', 'preview', 'share', 'download']);
+      if (last && !generic.has(last.toLowerCase()) && last.includes('.')) {
+        return last;
+      }
+      const host = parsed.hostname.toLowerCase();
+      if (host.includes('drive.google.com') || host.includes('docs.google.com')) {
+        return 'Google Drive';
+      }
+      if (host.includes('dropbox.com')) {
+        return 'Dropbox';
+      }
+      if (host.includes('onedrive.live.com') || host.includes('1drv.ms')) {
+        return 'OneDrive';
+      }
+      if (host.includes('icloud.com')) {
+        return 'iCloud';
+      }
+      if (host.includes('notion.so') || host.includes('notion.site')) {
+        return 'Notion';
+      }
+      return parsed.hostname.replace(/^www\./, '');
+    } catch {
+      return 'Attachment';
+    }
+  }
+
   protected submit(): void {
     if (!this.itemTitle.trim()) {
       this.titleError.set(true);
@@ -518,6 +723,9 @@ export class ItemFormModalComponent {
     }
     if (this.localName.trim()) {
       details['local_name'] = this.localName.trim();
+    }
+    if (this.attachments().length > 0) {
+      details['attachments'] = this.attachments();
     }
 
     const pinned = this.pinnedPlace();

@@ -5,8 +5,10 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ItineraryItem } from '../../core/models/tripilot.models';
 import { AppModalComponent } from '../../shared/modal.component';
+import { ExpenseStore } from '../../state/expense.store';
 import { ItineraryStore } from '../../state/itinerary.store';
 import { TripStore } from '../../state/trip.store';
+import { QuickExpenseModalComponent } from '../expenses/quick-expense-modal.component';
 import {
   ItemFormModalComponent,
   ItemFormSubmitEvent,
@@ -35,6 +37,7 @@ interface TimelineSlot {
     ItemFormModalComponent,
     ItineraryCardComponent,
     ItineraryMapComponent,
+    QuickExpenseModalComponent,
   ],
   template: `
     @if (store.trip(); as trip) {
@@ -226,12 +229,15 @@ interface TimelineSlot {
 
                         <app-itinerary-card
                           [item]="slot.activeItem"
+                          [tripId]="trip.id"
                           [pinOrder]="pinOrderById().get(slot.activeItem.id) ?? null"
                           [selected]="store.selectedItemId() === slot.activeItem.id"
+                          [expenseSummary]="expenseStore.expensesByItemId()[slot.activeItem.id] ?? null"
                           (cardClicked)="store.selectItem($event)"
                           (moveUp)="store.moveItem($event, -1)"
                           (moveDown)="store.moveItem($event, 1)"
                           (addAlternative)="openAlternativeModal($event)"
+                          (logExpense)="openQuickExpenseModal($event)"
                           (edited)="openEditItemModal($event)"
                           (deleted)="store.deleteItem($event)"
                         />
@@ -266,6 +272,17 @@ interface TimelineSlot {
         [alternativeFor]="alternativeTarget()"
         (closed)="showItemModal.set(false)"
         (saved)="handleItemSaved($event)"
+      />
+
+      <!-- 1-Tap Quick Expense Modal -->
+      <app-quick-expense-modal
+        [open]="showQuickExpenseModal()"
+        [tripId]="trip.id"
+        [tripDayId]="store.selectedDay()?.id ?? null"
+        [item]="quickExpenseItem()"
+        [defaultCurrency]="trip.default_currency"
+        [homeCurrency]="expenseStore.summary()?.home_currency ?? 'TWD'"
+        (closed)="showQuickExpenseModal.set(false)"
       />
 
       <!-- Modal: Create Plan B Option -->
@@ -784,12 +801,16 @@ interface TimelineSlot {
 })
 export class ItineraryPageComponent implements OnInit {
   protected readonly store = inject(ItineraryStore);
+  protected readonly expenseStore = inject(ExpenseStore);
   private readonly tripStore = inject(TripStore);
   private readonly route = inject(ActivatedRoute);
 
   protected readonly showItemModal = signal(false);
   protected readonly editingItem = signal<ItineraryItem | null>(null);
   protected readonly alternativeTarget = signal<ItineraryItem | null>(null);
+
+  protected readonly showQuickExpenseModal = signal(false);
+  protected readonly quickExpenseItem = signal<ItineraryItem | null>(null);
 
   protected readonly showCloneModal = signal(false);
   protected readonly showShareModal = signal(false);
@@ -906,7 +927,13 @@ export class ItineraryPageComponent implements OnInit {
     if (tripId) {
       this.tripStore.setLastSelectedTripId(tripId);
       void this.store.loadTrip(tripId);
+      void this.expenseStore.loadExpenses(tripId);
     }
+  }
+
+  protected openQuickExpenseModal(item: ItineraryItem): void {
+    this.quickExpenseItem.set(item);
+    this.showQuickExpenseModal.set(true);
   }
 
   protected openAddItemModal(): void {
