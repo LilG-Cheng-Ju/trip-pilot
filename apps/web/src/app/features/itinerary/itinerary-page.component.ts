@@ -295,6 +295,81 @@ interface TimelineSlot {
               [selectedPinId]="store.selectedItemId()"
               (pinSelected)="store.selectItem($event)"
             />
+
+            @if (selectedMapItem(); as spot) {
+              <div class="map-mini-card" (click)="$event.stopPropagation()">
+                <div class="mini-head">
+                  <div class="mini-title-row">
+                    @if (pinOrderById().get(spot.id); as num) {
+                      <span class="mini-pin tabular-nums">{{ num }}</span>
+                    } @else if (spot.type === 'STAY') {
+                      <span class="mini-pin stay">
+                        <span class="ms-icon sm" aria-hidden="true">hotel</span>
+                      </span>
+                    }
+                    <strong class="mini-title">{{ spot.title }}</strong>
+                  </div>
+                  <button
+                    type="button"
+                    class="mini-close"
+                    aria-label="Close preview"
+                    (click)="store.selectItem(null)"
+                  >
+                    <span class="ms-icon sm" aria-hidden="true">close</span>
+                  </button>
+                </div>
+
+                @if (spot.start_time || spot.address) {
+                  <p class="mini-meta tabular-nums">
+                    @if (spot.start_time) {
+                      <span>
+                        {{ spot.start_time }}@if (spot.end_time) { – {{ spot.end_time }} }
+                      </span>
+                    }
+                    @if (spot.start_time && spot.address) { · }
+                    @if (spot.address) {
+                      <span>{{ spot.address }}</span>
+                    }
+                  </p>
+                }
+
+                <div class="mini-actions">
+                  @if (itemMapsUrl(spot); as url) {
+                    <a
+                      class="mini-btn primary"
+                      [href]="url"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <span class="ms-icon sm" aria-hidden="true">near_me</span>
+                      <span>{{ 'common.navigate' | t }}</span>
+                    </a>
+                  }
+                  @if (itemLocalName(spot); as localName) {
+                    <button
+                      type="button"
+                      class="mini-btn"
+                      (click)="copyMiniLocalName(localName)"
+                    >
+                      <span class="ms-icon sm" aria-hidden="true">
+                        {{ copiedMiniLocal() ? 'check' : 'content_copy' }}
+                      </span>
+                      <span class="mini-truncate">
+                        {{ copiedMiniLocal() ? ('common.copied' | t) : localName }}
+                      </span>
+                    </button>
+                  }
+                  <button
+                    type="button"
+                    class="mini-btn accent"
+                    (click)="openQuickExpenseModal(spot)"
+                  >
+                    <span class="ms-icon sm" aria-hidden="true">payments</span>
+                    <span>{{ 'item.spendShort' | t }}</span>
+                  </button>
+                </div>
+              </div>
+            }
           </div>
         </div>
       }
@@ -583,9 +658,120 @@ interface TimelineSlot {
       cursor: pointer;
     }
     .sheet-map-body {
+      position: relative;
       flex: 1;
       min-height: 0;
       padding: 8px;
+    }
+    .map-mini-card {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      bottom: 16px;
+      z-index: 12;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.22);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .mini-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .mini-title-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-width: 0;
+    }
+    .mini-pin {
+      display: inline-grid;
+      place-items: center;
+      width: 22px;
+      height: 22px;
+      border-radius: var(--radius-pill);
+      background: var(--color-primary);
+      color: #ffffff;
+      font-size: 0.72rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .mini-pin.stay {
+      background: var(--color-accent);
+    }
+    .mini-title {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: var(--color-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .mini-close {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      padding: 0;
+      border: none;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--color-text-muted);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .mini-meta {
+      margin: 0;
+      font-size: 0.76rem;
+      color: var(--color-text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .mini-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 2px;
+    }
+    .mini-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      height: 30px;
+      padding: 0 10px;
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      background: var(--color-bg);
+      color: var(--color-primary);
+      text-decoration: none;
+      font: inherit;
+      font-size: 0.76rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .mini-btn.primary {
+      background: var(--color-primary);
+      border-color: var(--color-primary);
+      color: #ffffff;
+    }
+    .mini-btn.accent {
+      border-color: rgba(200, 155, 91, 0.55);
+      background: var(--color-accent-soft);
+      color: #8b652d;
+    }
+    .mini-truncate {
+      max-width: 130px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .cold-start-box {
       max-width: 420px;
@@ -984,6 +1170,7 @@ export class ItineraryPageComponent implements OnInit {
   protected readonly showCloneModal = signal(false);
   protected readonly showShareModal = signal(false);
   protected readonly copiedToken = signal<string | null>(null);
+  protected readonly copiedMiniLocal = signal(false);
   protected readonly cloneLabelError = signal(false);
 
   protected cloneLabel = 'Plan B · 雨天備案';
@@ -1091,6 +1278,19 @@ export class ItineraryPageComponent implements OnInit {
     return map;
   });
 
+  protected readonly selectedMapItem = computed<ItineraryItem | null>(() => {
+    const selectedId = this.store.selectedItemId();
+    if (!selectedId) {
+      return null;
+    }
+    const fromSlots = this.timelineSlots().find((s) => s.activeItem.id === selectedId)?.activeItem;
+    if (fromSlots) {
+      return fromSlots;
+    }
+    const stay = this.store.basecampStay();
+    return stay && stay.id === selectedId ? stay : null;
+  });
+
   ngOnInit(): void {
     const tripId = this.route.snapshot.paramMap.get('tripId');
     if (tripId) {
@@ -1101,6 +1301,32 @@ export class ItineraryPageComponent implements OnInit {
   }
 
   private readonly dayStrip = viewChild<ElementRef<HTMLDivElement>>('dayStrip');
+
+  protected itemMapsUrl(item: ItineraryItem): string | null {
+    if (item.google_maps_url) return item.google_maps_url;
+    if (item.latitude !== null && item.longitude !== null) {
+      return `https://www.google.com/maps/search/?api=1&query=${item.latitude},${item.longitude}`;
+    }
+    if (item.address) {
+      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.address)}`;
+    }
+    return null;
+  }
+
+  protected itemLocalName(item: ItineraryItem): string | null {
+    const val = item.details?.['local_name'];
+    return val === undefined || val === null || val === '' ? null : String(val);
+  }
+
+  protected async copyMiniLocalName(text: string): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(text);
+      this.copiedMiniLocal.set(true);
+      setTimeout(() => this.copiedMiniLocal.set(false), 1600);
+    } catch {
+      // Ignore clipboard failures in restricted contexts.
+    }
+  }
 
   protected openQuickExpenseModal(item: ItineraryItem): void {
     this.quickExpenseItem.set(item);

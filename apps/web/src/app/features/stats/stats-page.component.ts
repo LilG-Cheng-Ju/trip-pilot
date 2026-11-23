@@ -56,9 +56,10 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
         </div>
       </header>
 
-      @if (store.loading()) {
+      @if (store.loading() && !store.stats()) {
         <p class="empty-box">{{ 'common.loading' | t }}</p>
       } @else if (store.stats(); as s) {
+        <div class="dashboard-body" [class.refreshing]="store.loading()">
         <!-- 4 Core KPI Cards -->
         <section class="kpi-grid">
           <div class="kpi-card highlight">
@@ -234,6 +235,7 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
             </div>
           }
         </section>
+        </div>
       }
     </div>
   `,
@@ -294,6 +296,13 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
       background: var(--color-surface);
       color: var(--color-primary);
       box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+    }
+    .dashboard-body {
+      transition: opacity 160ms ease;
+    }
+    .dashboard-body.refreshing {
+      opacity: 0.55;
+      pointer-events: none;
     }
     .kpi-grid {
       display: grid;
@@ -558,7 +567,14 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
       font-size: 0.84rem;
     }
     @media (min-width: 900px) {
-      .kpi-grid {
+      .dashboard-body {
+      transition: opacity 160ms ease;
+    }
+    .dashboard-body.refreshing {
+      opacity: 0.55;
+      pointer-events: none;
+    }
+    .kpi-grid {
         grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: var(--space-4);
       }
