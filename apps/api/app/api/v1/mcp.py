@@ -288,7 +288,7 @@ async def _dispatch_tool(
         ]
 
     if name == "get_trip":
-        trip = await trip_svc.get_trip_detail(user_id, str(args["trip_id"]))
+        trip = await trip_svc.get_trip_detail(str(args["trip_id"]), user_id)
         return {
             "id": trip.id,
             "title": trip.title,
@@ -348,7 +348,7 @@ async def _dispatch_tool(
 
     if name == "update_day_title":
         day = await trip_svc.update_day(
-            user_id, str(args["day_id"]), TripDayUpdate(title=args.get("title"))
+            str(args["day_id"]), user_id, TripDayUpdate(title=args.get("title"))
         )
         return {"id": day.id, "day_index": day.day_index, "title": day.title}
 
@@ -356,7 +356,7 @@ async def _dispatch_tool(
         option_id = str(args["option_id"])
         item_fields = {k: v for k, v in args.items() if k != "option_id"}
         item = await trip_svc.add_item(
-            user_id, option_id, ItineraryItemCreate(**item_fields)
+            option_id, user_id, ItineraryItemCreate(**item_fields)
         )
         return {"id": item.id, "title": item.title, "type": item.type}
 
@@ -364,16 +364,16 @@ async def _dispatch_tool(
         item_id = str(args["item_id"])
         patch_fields = {k: v for k, v in args.items() if k != "item_id"}
         item = await trip_svc.update_item(
-            user_id, item_id, ItineraryItemUpdate(**patch_fields)
+            item_id, user_id, ItineraryItemUpdate(**patch_fields)
         )
         return {"id": item.id, "title": item.title, "details": item.details}
 
     if name == "delete_itinerary_item":
-        await trip_svc.delete_item(user_id, str(args["item_id"]))
+        await trip_svc.delete_item(str(args["item_id"]), user_id)
         return {"deleted": True, "item_id": str(args["item_id"])}
 
     if name == "select_choice_item":
-        opt = await trip_svc.select_choice_item(user_id, str(args["item_id"]))
+        opt = await trip_svc.select_choice_item(str(args["item_id"]), user_id)
         return {
             "option_id": opt.id,
             "cached_ground_distance_km": opt.cached_ground_distance_km,
@@ -381,8 +381,8 @@ async def _dispatch_tool(
 
     if name == "clone_day_option":
         opt = await trip_svc.clone_day_option(
-            user_id,
             str(args["option_id"]),
+            user_id,
             DayOptionCloneRequest(label=str(args["label"])),
         )
         return {"id": opt.id, "label": opt.label}
@@ -390,7 +390,7 @@ async def _dispatch_tool(
     if name == "search_places":
         provider = get_place_search_provider()
         results = await provider.search(
-            str(args["query"]), lang=str(args.get("lang", "zh-TW"))
+            str(args["query"]), language=str(args.get("lang", "zh-TW"))
         )
         return [r.model_dump() for r in results]
 
