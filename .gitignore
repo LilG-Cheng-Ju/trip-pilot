@@ -7,9 +7,19 @@ Thumbs.db
 
 # Environment & Secrets
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 apps/api/config/firebase-service-account.json
+*firebase-adminsdk*.json
+service-account*.json
+
+# Cloud Runtime & Firebase Deploy Config (keep local, never commit prod IDs)
+apps/web/public/runtime-config.js
+.firebaserc
+apps/web/.firebaserc
+.firebase/
+apps/web/.firebase/
+firebase-debug.log
 
 # Python / Backend
 __pycache__/
