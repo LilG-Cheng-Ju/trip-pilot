@@ -4,36 +4,14 @@ import { FormsModule } from '@angular/forms';
 import { TripilotApiService } from '../../core/api/tripilot-api.service';
 import { COMMON_CURRENCIES, CurrencyOption } from '../../core/config/currencies';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { ExpenseCategory, ItemType, ItineraryItem } from '../../core/models/tripilot.models';
+import { ExpenseCategory, ItineraryItem } from '../../core/models/tripilot.models';
+import {
+  EXPENSE_CATEGORIES,
+  expenseCategoryKey,
+  mapItemTypeToExpenseCategory,
+} from '../../core/utils/travel-format.utils';
 import { AppModalComponent } from '../../shared/modal.component';
 import { ExpenseStore } from '../../state/expense.store';
-
-const CATEGORIES: ExpenseCategory[] = [
-  'FOOD',
-  'TRANSIT',
-  'LODGING',
-  'FLIGHT',
-  'ACTIVITY',
-  'SHOPPING',
-  'OTHER',
-];
-
-function mapItemTypeToCategory(type: ItemType): ExpenseCategory {
-  switch (type) {
-    case 'FLIGHT':
-      return 'FLIGHT';
-    case 'STAY':
-      return 'LODGING';
-    case 'RESERVED_TRANSIT':
-    case 'LOCAL_TRANSIT':
-      return 'TRANSIT';
-    case 'FOOD':
-      return 'FOOD';
-    case 'SPOT':
-    default:
-      return 'ACTIVITY';
-  }
-}
 
 /** Low-friction modal for logging an expense directly from an itinerary card. */
 @Component({
@@ -293,7 +271,8 @@ export class QuickExpenseModalComponent {
   private readonly api = inject(TripilotApiService);
   private readonly expenseStore = inject(ExpenseStore);
 
-  protected readonly categories = CATEGORIES;
+  protected readonly categories = EXPENSE_CATEGORIES;
+  protected readonly categoryKey = expenseCategoryKey;
   protected readonly submitting = signal(false);
   protected readonly fetchingRate = signal(false);
 
@@ -325,24 +304,11 @@ export class QuickExpenseModalComponent {
       this.title = stop ? stop.title : '';
       this.amount = null;
       this.currency = (this.defaultCurrency() || 'JPY').toUpperCase();
-      this.category = stop ? mapItemTypeToCategory(stop.type) : 'FOOD';
+      this.category = stop ? mapItemTypeToExpenseCategory(stop.type) : 'FOOD';
       this.paymentMethod = '';
       this.notes = '';
       void this.fetchLiveRate();
     });
-  }
-
-  protected categoryKey(
-    cat: ExpenseCategory,
-  ):
-    | 'expenses.cat.FLIGHT'
-    | 'expenses.cat.LODGING'
-    | 'expenses.cat.TRANSIT'
-    | 'expenses.cat.FOOD'
-    | 'expenses.cat.ACTIVITY'
-    | 'expenses.cat.SHOPPING'
-    | 'expenses.cat.OTHER' {
-    return `expenses.cat.${cat}`;
   }
 
   protected previewHomeAmount(): string | null {

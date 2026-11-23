@@ -6,20 +6,11 @@ import { TripilotApiService } from '../../core/api/tripilot-api.service';
 import { COMMON_CURRENCIES, CurrencyOption } from '../../core/config/currencies';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ExpenseCategory } from '../../core/models/tripilot.models';
+import { EXPENSE_CATEGORIES, expenseCategoryKey } from '../../core/utils/travel-format.utils';
 import { ExpenseStore } from '../../state/expense.store';
 import { ItineraryStore } from '../../state/itinerary.store';
 
 const RATE_STORAGE_PREFIX = 'tripilot.fxRate.';
-
-const CATEGORIES: ExpenseCategory[] = [
-  'FOOD',
-  'TRANSIT',
-  'LODGING',
-  'FLIGHT',
-  'ACTIVITY',
-  'SHOPPING',
-  'OTHER',
-];
 
 /** Low-friction per-trip expense ledger with instant currency conversion. */
 @Component({
@@ -685,7 +676,8 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
   protected readonly submitting = signal(false);
   protected readonly fetchingRate = signal(false);
   protected readonly rateSource = signal<string | null>(null);
-  protected readonly categories = CATEGORIES;
+  protected readonly categories = EXPENSE_CATEGORIES;
+  protected readonly categoryKey = expenseCategoryKey;
 
   protected title = '';
   protected amount: number | null = null;
@@ -801,19 +793,6 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
       queryParams: { itemId: null },
       queryParamsHandling: 'merge',
     });
-  }
-
-  protected categoryKey(
-    cat: ExpenseCategory,
-  ):
-    | 'expenses.cat.FLIGHT'
-    | 'expenses.cat.LODGING'
-    | 'expenses.cat.TRANSIT'
-    | 'expenses.cat.FOOD'
-    | 'expenses.cat.ACTIVITY'
-    | 'expenses.cat.SHOPPING'
-    | 'expenses.cat.OTHER' {
-    return `expenses.cat.${cat}`;
   }
 
   protected previewHomeAmount(): string | null {

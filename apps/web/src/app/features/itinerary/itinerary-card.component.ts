@@ -12,6 +12,7 @@ import { RouterLink } from '@angular/router';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ItemAttachment, ItineraryItem } from '../../core/models/tripilot.models';
+import { extractItemAttachments } from '../../core/utils/travel-format.utils';
 import { ItemExpenseSummary } from '../../state/expense.store';
 
 /** Renders split-transit and venue itinerary cards with synced map pins, attachments, and 1-tap expense logging. */
@@ -920,19 +921,9 @@ export class ItineraryCardComponent {
   protected readonly copiedLocal = signal(false);
   protected readonly menuOpen = signal(false);
 
-  protected readonly attachments = computed<ItemAttachment[]>(() => {
-    const raw = this.item().details?.['attachments'];
-    if (!Array.isArray(raw)) {
-      return [];
-    }
-    return raw.filter(
-      (entry): entry is ItemAttachment =>
-        typeof entry === 'object' &&
-        entry !== null &&
-        typeof (entry as ItemAttachment).url === 'string' &&
-        (entry as ItemAttachment).url.trim().length > 0,
-    );
-  });
+  protected readonly attachments = computed<ItemAttachment[]>(() =>
+    extractItemAttachments(this.item().details),
+  );
 
   protected hasDetailChips(): boolean {
     return Boolean(
