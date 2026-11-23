@@ -119,6 +119,7 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
       );
       this.map.on('load', () => {
         this.styleLoaded = true;
+        this.map?.resize();
         this.renderPinsAndRoute(
           this.pins(),
           this.routePath(),

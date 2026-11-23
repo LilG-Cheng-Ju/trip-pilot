@@ -60,14 +60,14 @@ interface TimelineSlot {
             </button>
             <button
               type="button"
-              class="util-icon-btn desktop-only"
-              [class.active]="store.desktopMapVisible()"
-              [title]="store.desktopMapVisible() ? ('itinerary.map.hide' | t) : ('itinerary.map.show' | t)"
-              [attr.aria-label]="store.desktopMapVisible() ? ('itinerary.map.hide' | t) : ('itinerary.map.show' | t)"
-              (click)="store.toggleDesktopMap()"
+              class="util-icon-btn"
+              [class.active]="isMapVisible()"
+              [title]="isMapVisible() ? ('itinerary.map.hide' | t) : ('itinerary.map.show' | t)"
+              [attr.aria-label]="isMapVisible() ? ('itinerary.map.hide' | t) : ('itinerary.map.show' | t)"
+              (click)="toggleMap()"
             >
               <span class="ms-icon sm" aria-hidden="true">
-                {{ store.desktopMapVisible() ? 'map' : 'visibility_off' }}
+                {{ isMapVisible() ? 'map' : 'visibility_off' }}
               </span>
             </button>
           </app-trip-subnav>
@@ -956,6 +956,21 @@ export class ItineraryPageComponent implements OnInit {
   protected openQuickExpenseModal(item: ItineraryItem): void {
     this.quickExpenseItem.set(item);
     this.showQuickExpenseModal.set(true);
+  }
+
+  protected isMapVisible(): boolean {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      return this.store.mobileView() === 'map';
+    }
+    return this.store.desktopMapVisible();
+  }
+
+  protected toggleMap(): void {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      this.store.setMobileView(this.store.mobileView() === 'map' ? 'list' : 'map');
+      return;
+    }
+    this.store.toggleDesktopMap();
   }
 
   protected openAddItemModal(): void {
