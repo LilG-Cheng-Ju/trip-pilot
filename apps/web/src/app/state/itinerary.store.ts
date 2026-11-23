@@ -249,14 +249,36 @@ export const ItineraryStore = signalStore(
       if (!option || !trip) {
         return;
       }
-      const ids = option.items.map((i) => i.id);
-      const currentIndex = ids.indexOf(item.id);
+      // Group items by slot (choice_group_id) so moving skips hidden alternatives.
+      const slots: { key: string; ids: string[] }[] = [];
+      const seenGroups = new Set<string>();
+      for (const entry of option.items) {
+        if (!entry.choice_group_id) {
+          slots.push({ key: entry.id, ids: [entry.id] });
+          continue;
+        }
+        if (seenGroups.has(entry.choice_group_id)) {
+          continue;
+        }
+        seenGroups.add(entry.choice_group_id);
+        const groupIds = option.items
+          .filter((i) => i.choice_group_id === entry.choice_group_id)
+          .map((i) => i.id);
+        slots.push({ key: entry.choice_group_id, ids: groupIds });
+      }
+
+      const targetKey = item.choice_group_id ?? item.id;
+      const currentIndex = slots.findIndex((s) => s.key === targetKey);
       const targetIndex = currentIndex + direction;
-      if (targetIndex < 0 || targetIndex >= ids.length) {
+      if (currentIndex < 0 || targetIndex < 0 || targetIndex >= slots.length) {
         return;
       }
-      [ids[currentIndex], ids[targetIndex]] = [ids[targetIndex], ids[currentIndex]];
-      await api.reorderItems(option.id, ids);
+      [slots[currentIndex], slots[targetIndex]] = [
+        slots[targetIndex],
+        slots[currentIndex],
+      ];
+      const reorderedIds = slots.flatMap((s) => s.ids);
+      await api.reorderItems(option.id, reorderedIds);
       await this.loadTrip(trip.id);
     },
 

@@ -70,6 +70,8 @@ async def get_travel_stats(
                 continue
             total_ground_km += active_opt.cached_ground_distance_km
             for item in active_opt.items:
+                if not item.is_selected:
+                    continue
                 if item.type == ItemType.FLIGHT.value:
                     dist = item.details.get("distance_km")
                     if isinstance(dist, (int, float)):

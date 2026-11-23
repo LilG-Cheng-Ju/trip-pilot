@@ -155,3 +155,57 @@ async def test_append_day_and_slot_level_choice_groups(
         items_by_id = {i["id"]: i for i in switched["items"]}
         assert items_by_id[lunch1["id"]]["is_selected"] is False
         assert items_by_id[lunch2["id"]]["is_selected"] is True
+
+        # Cloning Plan A into Plan B remaps choice_group_id and preserves is_selected.
+        cloned = (
+            await api_client.post(
+                f"/api/v1/options/{plan_a_id}/clone",
+                headers=dev_headers,
+                json={"label": "Plan B"},
+            )
+        ).json()
+        cloned_items = cloned["items"]
+        assert len(cloned_items) == 2
+        assert cloned_items[0]["choice_group_id"] == cloned_items[1]["choice_group_id"]
+        assert cloned_items[0]["choice_group_id"] != lunch2["choice_group_id"]
+        assert sorted(i["is_selected"] for i in cloned_items) == [False, True]
+
+        # Deleting the active choice automatically promotes the remaining sibling.
+        del_resp = await api_client.delete(
+            f"/api/v1/items/{lunch2['id']}", headers=dev_headers
+        )
+        assert del_resp.status_code == 204
+        refreshed_trip = (
+            await api_client.get(f"/api/v1/trips/{trip['id']}", headers=dev_headers)
+        ).json()
+        remaining = refreshed_trip["days"][0]["options"][0]["items"]
+        assert len(remaining) == 1
+        assert remaining[0]["id"] == lunch1["id"]
+        assert remaining[0]["is_selected"] is True
+
+        # Adding an unselected flight alternative must not double-count flight distance.
+        f1 = (
+            await api_client.post(
+                f"/api/v1/options/{plan_a_id}/items",
+                headers=dev_headers,
+                json={
+                    "type": "FLIGHT",
+                    "title": "Flight A",
+                    "details": {"origin_iata": "TSA", "dest_iata": "HND"},
+                },
+            )
+        ).json()
+        await api_client.post(
+            f"/api/v1/options/{plan_a_id}/items",
+            headers=dev_headers,
+            json={
+                "type": "FLIGHT",
+                "title": "Flight B Alt",
+                "alternative_for_item_id": f1["id"],
+                "details": {"origin_iata": "TPE", "dest_iata": "NRT"},
+            },
+        )
+        stats = (
+            await api_client.get("/api/v1/stats?year=2026", headers=dev_headers)
+        ).json()
+        assert 2080.0 <= stats["total_flight_distance_km"] <= 2120.0

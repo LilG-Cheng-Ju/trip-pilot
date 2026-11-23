@@ -1,5 +1,6 @@
 """Pluggable ground routing provider (OSRM + Haversine fallback) and route caching."""
 
+import asyncio
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -65,11 +66,17 @@ class HaversineRoutingProvider:
 
 
 class OsrmRoutingProvider:
-    """OSRM HTTP routing provider with graceful Haversine fallback."""
+    """OSRM HTTP routing provider with shared client and Haversine fallback."""
 
-    def __init__(self, base_url: str | None = None, timeout_sec: float = 3.0) -> None:
+    def __init__(
+        self,
+        base_url: str | None = None,
+        timeout_sec: float = 3.0,
+        client: httpx.AsyncClient | None = None,
+    ) -> None:
         self.base_url = (base_url or get_settings().osrm_base_url).rstrip("/")
         self.timeout_sec = timeout_sec
+        self._client = client
 
     async def compute_leg(
         self,
@@ -91,11 +98,17 @@ class OsrmRoutingProvider:
             f"{lng1},{lat1};{lng2},{lat2}"
         )
         try:
-            async with httpx.AsyncClient(timeout=self.timeout_sec) as client:
-                response = await client.get(
+            if self._client is not None:
+                response = await self._client.get(
                     url,
                     params={"overview": "simplified", "geometries": "polyline"},
                 )
+            else:
+                async with httpx.AsyncClient(timeout=self.timeout_sec) as client:
+                    response = await client.get(
+                        url,
+                        params={"overview": "simplified", "geometries": "polyline"},
+                    )
             if response.status_code == 200:
                 data = response.json()
                 routes = data.get("routes") or []
@@ -127,9 +140,7 @@ async def recalculate_option_routes(
     items: list[ItineraryItem],
     provider: RoutingProvider | None = None,
 ) -> tuple[float, bool]:
-    """Recompute and cache RouteSegment rows for consecutive geolocated stops."""
-    routing = provider or OsrmRoutingProvider()
-
+    """Recompute and cache RouteSegment rows concurrently for geolocated stops."""
     await db.execute(
         delete(RouteSegment).where(RouteSegment.day_option_id == option.id)
     )
@@ -143,19 +154,46 @@ async def recalculate_option_routes(
         and item.longitude is not None
     ]
 
+    pairs = list(zip(geolocated, geolocated[1:], strict=False))
+    if not pairs:
+        option.cached_ground_distance_km = 0.0
+        option.cached_distance_is_approx = False
+        return 0.0, False
+
+    if provider is not None:
+        legs = await asyncio.gather(
+            *[
+                provider.compute_leg(
+                    prev_item.latitude,  # type: ignore[arg-type]
+                    prev_item.longitude,  # type: ignore[arg-type]
+                    next_item.latitude,  # type: ignore[arg-type]
+                    next_item.longitude,  # type: ignore[arg-type]
+                    RouteProfile.DRIVING,
+                )
+                for prev_item, next_item in pairs
+            ]
+        )
+    else:
+        # Share a single connection pool across all legs in the day option.
+        async with httpx.AsyncClient(timeout=3.0) as shared_client:
+            osrm = OsrmRoutingProvider(client=shared_client)
+            legs = await asyncio.gather(
+                *[
+                    osrm.compute_leg(
+                        prev_item.latitude,  # type: ignore[arg-type]
+                        prev_item.longitude,  # type: ignore[arg-type]
+                        next_item.latitude,  # type: ignore[arg-type]
+                        next_item.longitude,  # type: ignore[arg-type]
+                        RouteProfile.DRIVING,
+                    )
+                    for prev_item, next_item in pairs
+                ]
+            )
+
     total_km = 0.0
     any_approx = False
 
-    for prev_item, next_item in zip(geolocated, geolocated[1:], strict=False):
-        assert prev_item.latitude is not None and prev_item.longitude is not None
-        assert next_item.latitude is not None and next_item.longitude is not None
-        leg = await routing.compute_leg(
-            prev_item.latitude,
-            prev_item.longitude,
-            next_item.latitude,
-            next_item.longitude,
-            RouteProfile.DRIVING,
-        )
+    for (prev_item, next_item), leg in zip(pairs, legs, strict=True):
         total_km += leg.distance_km
         any_approx = any_approx or leg.is_approx
         db.add(

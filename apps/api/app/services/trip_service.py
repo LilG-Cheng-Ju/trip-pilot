@@ -217,7 +217,14 @@ class TripService:
         self.db.add(cloned)
         await self.db.flush()
 
+        # Remap choice_group_id per group so Plan B alternatives stay independent.
+        group_remap: dict[str, str] = {}
         for item in source.items:
+            cloned_group_id: str | None = None
+            if item.choice_group_id:
+                cloned_group_id = group_remap.setdefault(
+                    item.choice_group_id, str(uuid.uuid4())
+                )
             self.db.add(
                 ItineraryItem(
                     day_option_id=cloned.id,
@@ -233,6 +240,8 @@ class TripService:
                     google_maps_url=item.google_maps_url,
                     notes=item.notes,
                     details=dict(item.details),
+                    choice_group_id=cloned_group_id,
+                    is_selected=item.is_selected,
                 )
             )
         await self.db.commit()
@@ -423,13 +432,29 @@ class TripService:
                 status_code=status.HTTP_404_NOT_FOUND, detail="Itinerary item not found"
             )
         option_id = item.day_option_id
+        deleted_group_id = item.choice_group_id
+        was_selected = item.is_selected
         had_coords = item.latitude is not None and item.longitude is not None
+
         await self.db.delete(item)
         await self.db.flush()
-        if had_coords:
-            option = await self.repo.get_option_for_user(option_id, user_id)
-            if option is not None:
-                remaining = [i for i in option.items if i.id != item_id]
+
+        option = await self.repo.get_option_for_user(option_id, user_id)
+        if option is not None:
+            remaining = [i for i in option.items if i.id != item_id]
+            promoted_has_coords = False
+            # Promote a sibling when the active choice in a slot is deleted.
+            if deleted_group_id and was_selected:
+                siblings = [
+                    i for i in remaining if i.choice_group_id == deleted_group_id
+                ]
+                if siblings and not any(s.is_selected for s in siblings):
+                    siblings[0].is_selected = True
+                    promoted_has_coords = (
+                        siblings[0].latitude is not None
+                        and siblings[0].longitude is not None
+                    )
+            if had_coords or promoted_has_coords:
                 await recalculate_option_routes(
                     self.db, option, remaining, self.routing_provider
                 )
@@ -451,9 +476,13 @@ class TripService:
             )
         for index, item_id in enumerate(item_ids):
             items_by_id[item_id].sort_order = index
+        await self.db.flush()
+        await recalculate_option_routes(
+            self.db, option, option.items, self.routing_provider
+        )
         await self.db.commit()
         # Expire cached relationship order so SQLAlchemy reloads by updated sort_order.
-        self.db.expire(option, ["items"])
+        self.db.expire(option, ["items", "route_segments"])
         loaded = await self.repo.get_option_for_user(option_id, user_id)
         assert loaded is not None
         return loaded
