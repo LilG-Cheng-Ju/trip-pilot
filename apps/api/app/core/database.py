@@ -45,6 +45,9 @@ def create_engine_from_settings() -> AsyncEngine:
     connect_args: dict[str, object] = {}
     if settings.database_url.startswith("sqlite"):
         connect_args["check_same_thread"] = False
+    elif "asyncpg" in settings.database_url:
+        # Required for Supabase Transaction Pooler (port 6543 / PgBouncer).
+        connect_args["statement_cache_size"] = 0
 
     return create_async_engine(
         settings.database_url,

@@ -15,9 +15,14 @@ Tripilot is designed for a zero-to-low-cost cloud stack:
    ```sql
    CREATE SCHEMA IF NOT EXISTS tripilot;
    ```
-3. Copy your async PostgreSQL connection string (Transaction/Session Pooler):
+3. Copy your async PostgreSQL connection string (Transaction Pooler on port `6543` is supported out of the box with `statement_cache_size=0`):
    ```text
-   postgresql+asyncpg://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
+   postgresql+asyncpg://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres
+   ```
+4. Apply the initial Alembic schema migration:
+   ```bash
+   cd apps/api
+   DATABASE_URL="postgresql+asyncpg://..." DB_SCHEMA=tripilot alembic upgrade head
    ```
 
 ---

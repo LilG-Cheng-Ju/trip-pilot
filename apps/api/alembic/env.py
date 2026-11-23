@@ -51,11 +51,16 @@ def _do_run_migrations(connection: Connection) -> None:
 async def run_async_migrations() -> None:
     """Run migrations using an async SQLAlchemy engine."""
     section = config.get_section(config.config_ini_section, {})
-    section["sqlalchemy.url"] = _get_database_url()
+    db_url = _get_database_url()
+    section["sqlalchemy.url"] = db_url
+    connect_args: dict[str, object] = {}
+    if "asyncpg" in db_url:
+        connect_args["statement_cache_size"] = 0
     connectable = async_engine_from_config(
         section,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args=connect_args,
     )
     async with connectable.connect() as connection:
         await connection.run_sync(_do_run_migrations)
