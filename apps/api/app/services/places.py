@@ -3,7 +3,7 @@
 import re
 from dataclasses import dataclass
 from typing import Protocol
-from urllib.parse import unquote
+from urllib.parse import unquote, urljoin, urlparse
 
 import httpx
 
@@ -21,6 +21,19 @@ GOOGLE_PLACES_FIELD_MASK = (
 _AT_COORDS_RE = re.compile(r"@(-?\d+\.\d+),(-?\d+\.\d+)")
 _DATA_COORDS_RE = re.compile(r"!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)")
 _PLACE_NAME_RE = re.compile(r"/maps/place/([^/@?]+)")
+_GOOGLE_HOST_RE = re.compile(r"^(www\.|maps\.)?google\.[a-z]{2,3}(\.[a-z]{2})?$")
+_ALLOWED_SHORT_HOSTS: frozenset[str] = frozenset({"maps.app.goo.gl", "goo.gl"})
+
+
+def is_allowed_google_maps_url(url: str) -> bool:
+    """Strictly allowlist Google Maps hostnames to prevent SSRF."""
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"}:
+        return False
+    host = (parsed.hostname or "").lower()
+    if not host:
+        return False
+    return host in _ALLOWED_SHORT_HOSTS or bool(_GOOGLE_HOST_RE.match(host))
 
 
 @dataclass(frozen=True)
@@ -168,23 +181,37 @@ def parse_google_maps_url(url: str) -> PlaceCandidate | None:
 
 
 async def resolve_google_maps_url(
-    url: str, timeout_sec: float = 5.0
+    url: str, timeout_sec: float = 5.0, max_redirects: int = 5
 ) -> PlaceCandidate | None:
-    """Resolve short (maps.app.goo.gl) or full Google Maps links into coordinates."""
+    """Resolve short (maps.app.goo.gl) or full Google Maps links safely."""
     cleaned = url.strip()
+    if not is_allowed_google_maps_url(cleaned):
+        return None
+
     parsed = parse_google_maps_url(cleaned)
     if parsed is not None:
         return parsed
 
-    if not cleaned.startswith(("https://", "http://")):
-        return None
-
+    # Follow redirects manually so every hop is validated against the allowlist.
+    current_url = cleaned
     try:
         async with httpx.AsyncClient(
-            timeout=timeout_sec, follow_redirects=True
+            timeout=timeout_sec, follow_redirects=False
         ) as client:
-            response = await client.get(cleaned)
-        final_url = str(response.url)
-        return parse_google_maps_url(final_url)
+            for _ in range(max_redirects):
+                if not is_allowed_google_maps_url(current_url):
+                    return None
+                response = await client.get(current_url)
+                if response.is_redirect and "location" in response.headers:
+                    next_url = urljoin(current_url, response.headers["location"])
+                    if not is_allowed_google_maps_url(next_url):
+                        return None
+                    resolved = parse_google_maps_url(next_url)
+                    if resolved is not None:
+                        return resolved
+                    current_url = next_url
+                    continue
+                return parse_google_maps_url(str(response.url))
     except Exception:
         return None
+    return None

@@ -1,5 +1,6 @@
 """Pluggable Auth Strategy Chain supporting PAT, DEV bypass, and Firebase Auth."""
 
+import asyncio
 import hashlib
 import secrets
 from collections.abc import Callable
@@ -146,8 +147,8 @@ async def _verify_firebase(
     db: AsyncSession, raw_token: str, settings: Settings
 ) -> AuthContext:
     try:
-        _ensure_firebase_initialized(settings)
-        decoded = firebase_auth.verify_id_token(raw_token)
+        await asyncio.to_thread(_ensure_firebase_initialized, settings)
+        decoded = await asyncio.to_thread(firebase_auth.verify_id_token, raw_token)
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

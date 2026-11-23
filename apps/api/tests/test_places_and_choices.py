@@ -23,8 +23,25 @@ def test_parse_google_maps_url_extracts_coords_and_name() -> None:
 
 @pytest.mark.asyncio
 async def test_places_search_and_resolve_url_endpoints(
-    api_client: AsyncClient,
+    api_client: AsyncClient, dev_headers: dict[str, str]
 ) -> None:
+    # Unauthenticated calls must be rejected.
+    assert (await api_client.get("/api/v1/places/search?q=Imahan")).status_code == 401
+    assert (
+        await api_client.post(
+            "/api/v1/places/resolve-url",
+            json={"url": "https://maps.app.goo.gl/test"},
+        )
+    ).status_code == 401
+
+    # SSRF attempts against internal/metadata hosts must be blocked.
+    ssrf_resp = await api_client.post(
+        "/api/v1/places/resolve-url",
+        headers=dev_headers,
+        json={"url": "http://169.254.169.254/computeMetadata/v1/"},
+    )
+    assert ssrf_resp.status_code == 422
+
     fake_candidate = PlaceCandidate(
         name="Asakusa Imahan",
         address="Tokyo, Taito City",
@@ -44,12 +61,15 @@ async def test_places_search_and_resolve_url_endpoints(
     with patch(
         "app.api.v1.places.get_place_search_provider", return_value=_FakeProvider()
     ):
-        resp = await api_client.get("/api/v1/places/search?q=Imahan")
+        resp = await api_client.get(
+            "/api/v1/places/search?q=Imahan", headers=dev_headers
+        )
     assert resp.status_code == 200
     assert resp.json()[0]["name"] == "Asakusa Imahan"
 
     resolve_resp = await api_client.post(
         "/api/v1/places/resolve-url",
+        headers=dev_headers,
         json={
             "url": "https://www.google.com/maps/place/Tokyo+Tower/@35.65858,139.74543,17z"
         },
