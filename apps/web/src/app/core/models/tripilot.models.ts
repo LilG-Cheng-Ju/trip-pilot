@@ -201,3 +201,16 @@ export interface AirportEntry {
   longitude: number;
   timezone: string;
 }
+
+export interface FxRateResponse {
+  from_currency: string;
+  to_currency: string;
+  rate: number;
+  source: string;
+  cached: boolean;
+}
+
+export interface ItemAttachment {
+  name: string;
+  url: string;
+}

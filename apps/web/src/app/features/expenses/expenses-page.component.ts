@@ -1,7 +1,8 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
+import { TripilotApiService } from '../../core/api/tripilot-api.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ExpenseCategory } from '../../core/models/tripilot.models';
 import { ExpenseStore } from '../../state/expense.store';
@@ -82,7 +83,7 @@ const CATEGORIES: ExpenseCategory[] = [
                 name="currency"
                 (ngModelChange)="onCurrencyChange($event)"
               />
-              <label class="rate-box">
+              <div class="rate-box">
                 <span>{{ 'expenses.rateLabel' | t }}</span>
                 <input
                   type="number"
@@ -92,14 +93,34 @@ const CATEGORIES: ExpenseCategory[] = [
                   [(ngModel)]="exchangeRate"
                   name="exchangeRate"
                 />
-              </label>
+                <button
+                  type="button"
+                  class="fx-btn"
+                  [disabled]="fetchingRate()"
+                  [title]="'fx.refresh' | t"
+                  (click)="fetchLiveRate()"
+                >
+                  <span class="ms-icon sm" [class.spin]="fetchingRate()" aria-hidden="true">
+                    sync
+                  </span>
+                </button>
+              </div>
             </div>
 
-            @if (previewHomeAmount() !== null) {
-              <p class="preview-line tabular-nums">
-                ≈ {{ expenseStore.summary()?.home_currency || 'TWD' }} {{ previewHomeAmount() }}
-              </p>
-            }
+            <div class="preview-row tabular-nums">
+              @if (previewHomeAmount() !== null) {
+                <span class="preview-line">
+                  ≈ {{ expenseStore.summary()?.home_currency || 'TWD' }} {{ previewHomeAmount() }}
+                </span>
+              }
+              @if (fetchingRate()) {
+                <span class="fx-hint">{{ 'fx.loading' | t }}</span>
+              } @else if (rateSource()) {
+                <span class="fx-hint">
+                  {{ (rateSource() === 'fallback' ? 'fx.fallbackHint' : 'fx.liveHint') | t }}
+                </span>
+              }
+            </div>
 
             <div class="cat-chips">
               @for (cat of categories; track cat) {
@@ -165,6 +186,16 @@ const CATEGORIES: ExpenseCategory[] = [
         </div>
 
         <section class="ledger-col">
+          @if (filteredItemTitle(); as itemTitle) {
+            <div class="filter-banner">
+              <span class="ms-icon sm" aria-hidden="true">filter_alt</span>
+              <span>{{ 'expenses.filterByItem' | t: { title: itemTitle } }}</span>
+              <button type="button" class="clear-filter-btn" (click)="clearItemFilter()">
+                {{ 'expenses.clearFilter' | t }}
+              </button>
+            </div>
+          }
+
           @if (expenseStore.loading()) {
             <p class="empty-box">{{ 'common.loading' | t }}</p>
           } @else if (expenseStore.filteredItems().length === 0) {
@@ -310,7 +341,7 @@ const CATEGORIES: ExpenseCategory[] = [
     }
     .amount-row {
       display: grid;
-      grid-template-columns: 1fr 72px 104px;
+      grid-template-columns: 1fr 68px 132px;
       gap: 8px;
     }
     .input-currency {
@@ -322,7 +353,7 @@ const CATEGORIES: ExpenseCategory[] = [
       display: flex;
       align-items: center;
       gap: 4px;
-      padding: 0 8px;
+      padding: 0 6px 0 8px;
       border: 1px solid var(--color-border);
       border-radius: var(--radius-sm);
       background: var(--color-bg);
@@ -331,6 +362,7 @@ const CATEGORIES: ExpenseCategory[] = [
     }
     .rate-box input {
       width: 100%;
+      min-width: 0;
       border: none;
       background: transparent;
       color: var(--color-text-primary);
@@ -338,11 +370,72 @@ const CATEGORIES: ExpenseCategory[] = [
       font-size: 0.8125rem;
       outline: none;
     }
+    .fx-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      padding: 0;
+      border: none;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--color-primary);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .fx-btn:hover {
+      background: rgba(27, 42, 74, 0.08);
+    }
+    .spin {
+      animation: fx-spin 900ms linear infinite;
+    }
+    @keyframes fx-spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+    .preview-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: -4px;
+      min-height: 18px;
+    }
     .preview-line {
-      margin: -4px 0 0;
       font-size: 0.8125rem;
       font-weight: 600;
       color: var(--color-primary);
+    }
+    .fx-hint {
+      margin-left: auto;
+      font-size: 0.72rem;
+      color: var(--color-text-muted);
+    }
+    .filter-banner {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 12px;
+      margin-bottom: 12px;
+      border-radius: var(--radius-md);
+      background: var(--color-accent-soft);
+      border: 1px solid rgba(200, 155, 91, 0.45);
+      color: var(--color-primary);
+      font-size: 0.84rem;
+      font-weight: 600;
+    }
+    .clear-filter-btn {
+      margin-left: auto;
+      padding: 4px 10px;
+      border: 1px solid var(--color-primary);
+      border-radius: var(--radius-pill);
+      background: #ffffff;
+      color: var(--color-primary);
+      font: inherit;
+      font-size: 0.74rem;
+      font-weight: 700;
+      cursor: pointer;
     }
     .cat-chips {
       display: flex;
@@ -500,14 +593,18 @@ const CATEGORIES: ExpenseCategory[] = [
     }
   `,
 })
-export class ExpensesPageComponent implements OnInit {
+export class ExpensesPageComponent implements OnInit, OnDestroy {
   protected readonly expenseStore = inject(ExpenseStore);
   protected readonly itineraryStore = inject(ItineraryStore);
+  private readonly api = inject(TripilotApiService);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   protected readonly tripId = signal('');
   protected readonly showMore = signal(false);
   protected readonly submitting = signal(false);
+  protected readonly fetchingRate = signal(false);
+  protected readonly rateSource = signal<string | null>(null);
   protected readonly categories = CATEGORIES;
 
   protected title = '';
@@ -517,6 +614,25 @@ export class ExpensesPageComponent implements OnInit {
   protected category: ExpenseCategory = 'FOOD';
   protected paymentMethod = '';
   protected notes = '';
+
+  protected readonly filteredItemTitle = computed(() => {
+    const itemId = this.expenseStore.selectedItemId();
+    if (!itemId) {
+      return null;
+    }
+    const trip = this.itineraryStore.trip();
+    if (trip) {
+      for (const day of trip.days) {
+        for (const opt of day.options) {
+          const found = opt.items.find((it) => it.id === itemId);
+          if (found) {
+            return found.title;
+          }
+        }
+      }
+    }
+    return itemId;
+  });
 
   protected readonly categoryEntries = computed(() => {
     const summary = this.expenseStore.summary();
@@ -533,7 +649,9 @@ export class ExpensesPageComponent implements OnInit {
 
   async ngOnInit(): Promise<void> {
     const id = this.route.snapshot.paramMap.get('tripId') ?? '';
+    const itemId = this.route.snapshot.queryParamMap.get('itemId');
     this.tripId.set(id);
+    this.expenseStore.setItemFilter(itemId);
     if (!id) return;
 
     await Promise.all([
@@ -547,7 +665,21 @@ export class ExpensesPageComponent implements OnInit {
     if (tripCurrency) {
       this.currency = tripCurrency;
       this.loadSavedRate(tripCurrency);
+      await this.fetchLiveRate(tripCurrency);
     }
+  }
+
+  ngOnDestroy(): void {
+    this.expenseStore.setItemFilter(null);
+  }
+
+  protected clearItemFilter(): void {
+    this.expenseStore.setItemFilter(null);
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { itemId: null },
+      queryParamsHandling: 'merge',
+    });
   }
 
   protected categoryKey(
@@ -572,6 +704,31 @@ export class ExpensesPageComponent implements OnInit {
     const upper = code.trim().toUpperCase();
     if (upper.length === 3) {
       this.loadSavedRate(upper);
+      void this.fetchLiveRate(upper);
+    }
+  }
+
+  protected async fetchLiveRate(overrideCode?: string): Promise<void> {
+    const src = (overrideCode || this.currency || 'JPY').trim().toUpperCase();
+    const dst = (this.expenseStore.summary()?.home_currency || 'TWD').trim().toUpperCase();
+    if (src.length !== 3 || dst.length !== 3) {
+      return;
+    }
+    if (src === dst) {
+      this.exchangeRate = 1;
+      this.rateSource.set('identity');
+      return;
+    }
+    this.fetchingRate.set(true);
+    try {
+      const res = await this.api.getExchangeRate(src, dst);
+      this.exchangeRate = res.rate;
+      this.rateSource.set(res.source);
+      this.saveRate(src, res.rate);
+    } catch {
+      this.rateSource.set(null);
+    } finally {
+      this.fetchingRate.set(false);
     }
   }
 
@@ -589,6 +746,7 @@ export class ExpensesPageComponent implements OnInit {
     this.submitting.set(true);
     try {
       await this.expenseStore.addExpense(this.tripId(), {
+        itinerary_item_id: this.expenseStore.selectedItemId(),
         title: this.title.trim(),
         category: this.category,
         amount_original: this.amount,

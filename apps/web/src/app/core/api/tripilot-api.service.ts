@@ -10,6 +10,7 @@ import {
   DayOption,
   ExpenseCategory,
   ExpenseItem,
+  FxRateResponse,
   ItemType,
   ItineraryItem,
   PlaceCandidate,
@@ -244,6 +245,15 @@ export class TripilotApiService {
   deleteExpense(expenseId: string): Promise<void> {
     return firstValueFrom(
       this.http.delete<void>(`${this.baseUrl}/expenses/${expenseId}`),
+    );
+  }
+
+  getExchangeRate(from: string, to: string): Promise<FxRateResponse> {
+    const params = new HttpParams()
+      .set('from', from.trim().toUpperCase())
+      .set('to', to.trim().toUpperCase());
+    return firstValueFrom(
+      this.http.get<FxRateResponse>(`${this.baseUrl}/fx/rate`, { params }),
     );
   }
 
