@@ -7,7 +7,17 @@ from datetime import UTC, datetime, timedelta
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import DayOption, ItemType, ItineraryItem, Trip, TripDay, TripShare
+from app.core.constants import MAX_TRIP_DATE_SPAN_DAYS
+from app.models import (
+    DayOption,
+    ItemType,
+    ItineraryItem,
+    RouteSegment,
+    Trip,
+    TripDay,
+    TripShare,
+    User,
+)
 from app.repositories.trip_repository import TripRepository
 from app.schemas.trip import (
     DayOptionCloneRequest,
@@ -30,6 +40,17 @@ from app.services.airport_service import compute_flight_distance_km, get_airport
 from app.services.routing import RoutingProvider, recalculate_option_routes
 
 
+def _require_found[T](entity: T | None, detail: str) -> T:
+    """Return a loaded entity or raise an explicit HTTP 404 instead of asserting."""
+    if entity is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
+    return entity
+
+
+def _norm_iata(value: object) -> str | None:
+    return value.strip().upper() if isinstance(value, str) and value.strip() else None
+
+
 def _resolve_flight_airport_coords(
     details: dict, home_country: str = "TW"
 ) -> tuple[float | None, float | None]:
@@ -48,7 +69,9 @@ def _resolve_flight_airport_coords(
     return (chosen.latitude, chosen.longitude) if chosen else (None, None)
 
 
-def _enrich_flight_details(item_type: str, details: dict) -> dict:
+def _enrich_flight_details(
+    item_type: str, details: dict, *, recompute_distance: bool = False
+) -> dict:
     """Auto-populate Great-Circle flight distance when origin/dest IATA are given."""
     enriched = dict(details)
     if item_type != ItemType.FLIGHT.value:
@@ -58,12 +81,20 @@ def _enrich_flight_details(item_type: str, details: dict) -> dict:
     if isinstance(origin, str) and isinstance(dest, str):
         enriched["origin_iata"] = origin.strip().upper()
         enriched["dest_iata"] = dest.strip().upper()
-        if "distance_km" not in enriched or enriched["distance_km"] is None:
+        if (
+            recompute_distance
+            or "distance_km" not in enriched
+            or enriched["distance_km"] is None
+        ):
             dist = compute_flight_distance_km(
                 enriched["origin_iata"], enriched["dest_iata"]
             )
             if dist is not None:
                 enriched["distance_km"] = dist
+            elif recompute_distance:
+                enriched.pop("distance_km", None)
+    elif recompute_distance:
+        enriched.pop("distance_km", None)
     return enriched
 
 
@@ -76,6 +107,12 @@ class TripService:
         self.db = db
         self.repo = TripRepository(db)
         self.routing_provider = routing_provider
+
+    async def _user_home_country(self, user_id: str) -> str:
+        user = await self.db.get(User, user_id)
+        if user and user.home_country_code:
+            return user.home_country_code.upper()
+        return "TW"
 
     async def list_trips(
         self, user_id: str, status_filter: str | None = None
@@ -119,9 +156,9 @@ class TripService:
             trip_day.active_option_id = plan_a.id
 
         await self.db.commit()
-        created = await self.repo.get_detail(trip.id, user_id)
-        assert created is not None
-        return created
+        return _require_found(
+            await self.repo.get_detail(trip.id, user_id), "Trip not found"
+        )
 
     async def get_trip_detail(self, trip_id: str, user_id: str) -> Trip:
         trip = await self.repo.get_detail(trip_id, user_id)
@@ -154,6 +191,16 @@ class TripService:
         next_date = (
             trip.days[-1].date + timedelta(days=1) if trip.days else trip.start_date
         )
+        if (
+            len(trip.days) > MAX_TRIP_DATE_SPAN_DAYS
+            or (next_date - trip.start_date).days > MAX_TRIP_DATE_SPAN_DAYS
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Trip duration cannot exceed {MAX_TRIP_DATE_SPAN_DAYS + 1} days"
+                ),
+            )
         new_day = TripDay(
             trip_id=trip.id,
             day_index=next_index,
@@ -171,9 +218,10 @@ class TripService:
             trip.end_date = next_date
 
         await self.db.commit()
-        loaded = await self.repo.get_day_for_user(new_day.id, user_id)
-        assert loaded is not None
-        return loaded
+        return _require_found(
+            await self.repo.get_day_for_user(new_day.id, user_id),
+            "Trip day not found",
+        )
 
     async def add_day_option(
         self, day_id: str, user_id: str, payload: DayOptionCreate
@@ -192,9 +240,10 @@ class TripService:
         )
         self.db.add(option)
         await self.db.commit()
-        loaded = await self.repo.get_option_for_user(option.id, user_id)
-        assert loaded is not None
-        return loaded
+        return _require_found(
+            await self.repo.get_option_for_user(option.id, user_id),
+            "Day option not found",
+        )
 
     async def clone_day_option(
         self, option_id: str, user_id: str, payload: DayOptionCloneRequest
@@ -204,8 +253,10 @@ class TripService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Day option not found"
             )
-        day = await self.repo.get_day_for_user(source.trip_day_id, user_id)
-        assert day is not None
+        day = _require_found(
+            await self.repo.get_day_for_user(source.trip_day_id, user_id),
+            "Trip day not found",
+        )
 
         cloned = DayOption(
             trip_day_id=day.id,
@@ -218,16 +269,20 @@ class TripService:
         self.db.add(cloned)
         await self.db.flush()
 
-        # Remap choice_group_id per group so Plan B alternatives stay independent.
+        # Remap choice_group_id and item IDs so cloned plans stay independent.
         group_remap: dict[str, str] = {}
+        item_id_remap: dict[str, str] = {}
         for item in source.items:
             cloned_group_id: str | None = None
             if item.choice_group_id:
                 cloned_group_id = group_remap.setdefault(
                     item.choice_group_id, str(uuid.uuid4())
                 )
+            new_item_id = str(uuid.uuid4())
+            item_id_remap[item.id] = new_item_id
             self.db.add(
                 ItineraryItem(
+                    id=new_item_id,
                     day_option_id=cloned.id,
                     type=item.type,
                     sort_order=item.sort_order,
@@ -245,10 +300,28 @@ class TripService:
                     is_selected=item.is_selected,
                 )
             )
+        await self.db.flush()
+        for seg in source.route_segments:
+            new_from_id = item_id_remap.get(seg.from_item_id)
+            new_to_id = item_id_remap.get(seg.to_item_id)
+            if new_from_id and new_to_id:
+                self.db.add(
+                    RouteSegment(
+                        day_option_id=cloned.id,
+                        from_item_id=new_from_id,
+                        to_item_id=new_to_id,
+                        profile=seg.profile,
+                        distance_km=seg.distance_km,
+                        duration_min=seg.duration_min,
+                        geometry_polyline=seg.geometry_polyline,
+                        is_approx=seg.is_approx,
+                    )
+                )
         await self.db.commit()
-        loaded = await self.repo.get_option_for_user(cloned.id, user_id)
-        assert loaded is not None
-        return loaded
+        return _require_found(
+            await self.repo.get_option_for_user(cloned.id, user_id),
+            "Day option not found",
+        )
 
     async def update_day_option(
         self, option_id: str, user_id: str, payload: DayOptionUpdate
@@ -264,9 +337,10 @@ class TripService:
         if "summary_notes" in updates:
             option.summary_notes = updates["summary_notes"]
         await self.db.commit()
-        loaded = await self.repo.get_option_for_user(option.id, user_id)
-        assert loaded is not None
-        return loaded
+        return _require_found(
+            await self.repo.get_option_for_user(option.id, user_id),
+            "Day option not found",
+        )
 
     async def delete_day_option(self, option_id: str, user_id: str) -> TripDay:
         option = await self.repo.get_option_for_user(option_id, user_id)
@@ -274,8 +348,10 @@ class TripService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Day option not found"
             )
-        day = await self.repo.get_day_for_user(option.trip_day_id, user_id)
-        assert day is not None
+        day = _require_found(
+            await self.repo.get_day_for_user(option.trip_day_id, user_id),
+            "Trip day not found",
+        )
         if len(day.options) <= 1:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -290,9 +366,9 @@ class TripService:
             opt.sort_order = idx
         await self.db.commit()
         self.db.expire(day, ["options"])
-        loaded = await self.repo.get_day_for_user(day.id, user_id)
-        assert loaded is not None
-        return loaded
+        return _require_found(
+            await self.repo.get_day_for_user(day.id, user_id), "Trip day not found"
+        )
 
     async def set_active_option(
         self, day_id: str, user_id: str, option_id: str
@@ -309,9 +385,9 @@ class TripService:
             )
         day.active_option_id = option_id
         await self.db.commit()
-        loaded = await self.repo.get_day_for_user(day_id, user_id)
-        assert loaded is not None
-        return loaded
+        return _require_found(
+            await self.repo.get_day_for_user(day_id, user_id), "Trip day not found"
+        )
 
     async def update_day(
         self, day_id: str, user_id: str, payload: TripDayUpdate
@@ -324,9 +400,9 @@ class TripService:
         for field, value in payload.model_dump(exclude_unset=True).items():
             setattr(day, field, value)
         await self.db.commit()
-        loaded = await self.repo.get_day_for_user(day_id, user_id)
-        assert loaded is not None
-        return loaded
+        return _require_found(
+            await self.repo.get_day_for_user(day_id, user_id), "Trip day not found"
+        )
 
     async def add_item(
         self, option_id: str, user_id: str, payload: ItineraryItemCreate
@@ -363,7 +439,10 @@ class TripService:
         lat = payload.latitude
         lng = payload.longitude
         if payload.type.value == ItemType.FLIGHT.value and (lat is None or lng is None):
-            lat, lng = _resolve_flight_airport_coords(enriched_details)
+            home_country = await self._user_home_country(user_id)
+            lat, lng = _resolve_flight_airport_coords(
+                enriched_details, home_country=home_country
+            )
 
         item = ItineraryItem(
             day_option_id=option.id,
@@ -403,8 +482,10 @@ class TripService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Itinerary item not found"
             )
-        option = await self.repo.get_option_for_user(item.day_option_id, user_id)
-        assert option is not None
+        option = _require_found(
+            await self.repo.get_option_for_user(item.day_option_id, user_id),
+            "Day option not found",
+        )
 
         if item.choice_group_id:
             for sibling in option.items:
@@ -418,9 +499,10 @@ class TripService:
         )
         await self.db.commit()
         self.db.expire(option, ["items", "route_segments"])
-        loaded = await self.repo.get_option_for_user(option.id, user_id)
-        assert loaded is not None
-        return loaded
+        return _require_found(
+            await self.repo.get_option_for_user(option.id, user_id),
+            "Day option not found",
+        )
 
     async def recalculate_option_route(
         self, option_id: str, user_id: str
@@ -435,9 +517,10 @@ class TripService:
         )
         await self.db.commit()
         self.db.expire(option, ["route_segments"])
-        loaded = await self.repo.get_option_for_user(option_id, user_id)
-        assert loaded is not None
-        return loaded
+        return _require_found(
+            await self.repo.get_option_for_user(option_id, user_id),
+            "Day option not found",
+        )
 
     async def update_item(
         self, item_id: str, user_id: str, payload: ItineraryItemUpdate
@@ -452,14 +535,38 @@ class TripService:
             updates["type"] = updates["type"].value
         next_type = updates.get("type", item.type)
         if "details" in updates and updates["details"] is not None:
-            updates["details"] = _enrich_flight_details(next_type, updates["details"])
+            new_details = updates["details"]
+            iata_changed = next_type == ItemType.FLIGHT.value and (
+                next_type != item.type
+                or _norm_iata(new_details.get("origin_iata"))
+                != _norm_iata(item.details.get("origin_iata"))
+                or _norm_iata(new_details.get("dest_iata"))
+                != _norm_iata(item.details.get("dest_iata"))
+            )
+            updates["details"] = _enrich_flight_details(
+                next_type, new_details, recompute_distance=iata_changed
+            )
+            if (
+                iata_changed
+                and "latitude" not in updates
+                and "longitude" not in updates
+            ):
+                home_country = await self._user_home_country(user_id)
+                lat, lng = _resolve_flight_airport_coords(
+                    updates["details"], home_country=home_country
+                )
+                updates["latitude"] = lat
+                updates["longitude"] = lng
 
-        coords_changed = "latitude" in updates or "longitude" in updates
+        needs_route_recalc = any(
+            field in updates
+            for field in ("latitude", "longitude", "type", "sort_order", "is_selected")
+        )
         for field, value in updates.items():
             setattr(item, field, value)
 
         await self.db.flush()
-        if coords_changed:
+        if needs_route_recalc:
             option = await self.repo.get_option_for_user(item.day_option_id, user_id)
             if option is not None:
                 await recalculate_option_routes(
@@ -528,9 +635,10 @@ class TripService:
         await self.db.commit()
         # Expire cached relationship order so SQLAlchemy reloads by updated sort_order.
         self.db.expire(option, ["items", "route_segments"])
-        loaded = await self.repo.get_option_for_user(option_id, user_id)
-        assert loaded is not None
-        return loaded
+        return _require_found(
+            await self.repo.get_option_for_user(option_id, user_id),
+            "Day option not found",
+        )
 
     async def create_share(
         self, trip_id: str, user_id: str, payload: TripShareCreate
@@ -592,26 +700,32 @@ class TripService:
                 if policy.include_backup_options
                 else [opt for opt in day.options if opt.id == day.active_option_id]
             )
-            sanitized_options = [
-                DayOptionResponse(
-                    id=opt.id,
-                    trip_day_id=opt.trip_day_id,
-                    label=opt.label,
-                    sort_order=opt.sort_order,
-                    summary_notes=opt.summary_notes if policy.include_notes else None,
-                    cached_ground_distance_km=opt.cached_ground_distance_km,
-                    cached_distance_is_approx=opt.cached_distance_is_approx,
-                    items=[
-                        sanitize_item_for_share(
-                            ItineraryItemResponse.model_validate(item), policy
-                        )
-                        for item in opt.items
-                        if policy.include_backup_options or item.is_selected
-                    ],
-                    route_segments=[],
+            sanitized_options: list[DayOptionResponse] = []
+            for opt in visible_options:
+                visible_items = [
+                    sanitize_item_for_share(
+                        ItineraryItemResponse.model_validate(item), policy
+                    )
+                    for item in opt.items
+                    if policy.include_backup_options or item.is_selected
+                ]
+                sanitized_options.append(
+                    DayOptionResponse(
+                        id=opt.id,
+                        trip_day_id=opt.trip_day_id,
+                        label=opt.label,
+                        sort_order=opt.sort_order,
+                        summary_notes=(
+                            opt.summary_notes if policy.include_notes else None
+                        ),
+                        cached_ground_distance_km=opt.cached_ground_distance_km,
+                        cached_distance_is_approx=opt.cached_distance_is_approx,
+                        items=visible_items,
+                        # Omit OSRM polylines; public share maps render
+                        # editorial curves client-side.
+                        route_segments=[],
+                    )
                 )
-                for opt in visible_options
-            ]
             sanitized_days.append(
                 TripDayResponse(
                     id=day.id,

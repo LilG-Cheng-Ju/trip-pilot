@@ -1,76 +1,25 @@
 """Trip expense tracking endpoints (separate from daily itinerary headers)."""
 
-from collections import defaultdict
-from datetime import UTC, datetime
-from decimal import Decimal
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import AuthContext, require_scope
 from app.core.database import get_db
-from app.models import DayOption, Expense, ItineraryItem, Trip, TripDay
 from app.schemas.expense import (
     ExpenseCreate,
     ExpenseResponse,
     ExpenseUpdate,
     TripExpensesSummaryResponse,
 )
+from app.services.expense_service import ExpenseService
 
 router = APIRouter(tags=["expenses"])
 
 ReadExpensesAuth = Annotated[AuthContext, Depends(require_scope("expenses:read"))]
 WriteExpensesAuth = Annotated[AuthContext, Depends(require_scope("expenses:write"))]
 DbSession = Annotated[AsyncSession, Depends(get_db)]
-
-
-async def _ensure_trip_owned(db: AsyncSession, trip_id: str, user_id: str) -> Trip:
-    trip = await db.scalar(
-        select(Trip).where(Trip.id == trip_id, Trip.user_id == user_id)
-    )
-    if trip is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Trip not found"
-        )
-    return trip
-
-
-async def _validate_expense_links(
-    db: AsyncSession,
-    trip_id: str,
-    trip_day_id: str | None,
-    itinerary_item_id: str | None,
-) -> None:
-    """Prevent linking an expense to a day or item belonging to another trip."""
-    if trip_day_id is not None:
-        day_exists = await db.scalar(
-            select(TripDay.id).where(
-                TripDay.id == trip_day_id,
-                TripDay.trip_id == trip_id,
-            )
-        )
-        if day_exists is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="trip_day_id does not belong to this trip",
-            )
-    if itinerary_item_id is not None:
-        item_exists = await db.scalar(
-            select(ItineraryItem.id)
-            .join(DayOption, DayOption.id == ItineraryItem.day_option_id)
-            .join(TripDay, TripDay.id == DayOption.trip_day_id)
-            .where(
-                ItineraryItem.id == itinerary_item_id,
-                TripDay.trip_id == trip_id,
-            )
-        )
-        if item_exists is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="itinerary_item_id does not belong to this trip",
-            )
 
 
 @router.get(
@@ -81,31 +30,7 @@ async def list_trip_expenses(
     auth_ctx: ReadExpensesAuth,
     db: DbSession,
 ) -> TripExpensesSummaryResponse:
-    await _ensure_trip_owned(db, trip_id, auth_ctx.user.id)
-    expenses = list(
-        (
-            await db.scalars(
-                select(Expense)
-                .where(Expense.trip_id == trip_id)
-                .order_by(Expense.paid_at.desc())
-            )
-        ).all()
-    )
-    total_home = Decimal("0.00")
-    by_category: dict[str, Decimal] = defaultdict(lambda: Decimal("0.00"))
-    for exp in expenses:
-        total_home += exp.amount_home
-        by_category[exp.category] += exp.amount_home
-
-    return TripExpensesSummaryResponse(
-        trip_id=trip_id,
-        home_currency=auth_ctx.user.home_currency,
-        total_home_amount=total_home.quantize(Decimal("0.01")),
-        by_category={
-            cat: amt.quantize(Decimal("0.01")) for cat, amt in by_category.items()
-        },
-        items=[ExpenseResponse.model_validate(exp) for exp in expenses],
-    )
+    return await ExpenseService(db).list_trip_expenses(trip_id, auth_ctx.user)
 
 
 @router.post(
@@ -119,36 +44,7 @@ async def create_expense(
     auth_ctx: WriteExpensesAuth,
     db: DbSession,
 ) -> ExpenseResponse:
-    await _ensure_trip_owned(db, trip_id, auth_ctx.user.id)
-    await _validate_expense_links(
-        db, trip_id, payload.trip_day_id, payload.itinerary_item_id
-    )
-    amount_home = (
-        payload.amount_home
-        if payload.amount_home is not None
-        else (payload.amount_original * payload.exchange_rate).quantize(
-            Decimal("0.01")
-        )
-    )
-    expense = Expense(
-        trip_id=trip_id,
-        trip_day_id=payload.trip_day_id,
-        itinerary_item_id=payload.itinerary_item_id,
-        title=payload.title,
-        category=payload.category.value,
-        amount_original=payload.amount_original,
-        currency_original=payload.currency_original,
-        exchange_rate=payload.exchange_rate,
-        amount_home=amount_home,
-        currency_home=auth_ctx.user.home_currency,
-        paid_at=payload.paid_at or datetime.now(UTC),
-        payment_method=payload.payment_method,
-        notes=payload.notes,
-    )
-    db.add(expense)
-    await db.commit()
-    await db.refresh(expense)
-    return ExpenseResponse.model_validate(expense)
+    return await ExpenseService(db).create_expense(trip_id, auth_ctx.user, payload)
 
 
 @router.patch("/expenses/{expense_id}", response_model=ExpenseResponse)
@@ -158,40 +54,9 @@ async def update_expense(
     auth_ctx: WriteExpensesAuth,
     db: DbSession,
 ) -> ExpenseResponse:
-    expense = await db.scalar(
-        select(Expense)
-        .join(Trip, Trip.id == Expense.trip_id)
-        .where(Expense.id == expense_id, Trip.user_id == auth_ctx.user.id)
+    return await ExpenseService(db).update_expense(
+        expense_id, auth_ctx.user, payload
     )
-    if expense is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Expense not found"
-        )
-
-    updates = payload.model_dump(exclude_unset=True)
-    if "trip_day_id" in updates or "itinerary_item_id" in updates:
-        await _validate_expense_links(
-            db,
-            expense.trip_id,
-            updates.get("trip_day_id"),
-            updates.get("itinerary_item_id"),
-        )
-    if "category" in updates and updates["category"] is not None:
-        updates["category"] = updates["category"].value
-    for field, value in updates.items():
-        setattr(expense, field, value)
-
-    if (
-        "amount_home" not in updates
-        and ("amount_original" in updates or "exchange_rate" in updates)
-    ):
-        expense.amount_home = (
-            expense.amount_original * expense.exchange_rate
-        ).quantize(Decimal("0.01"))
-
-    await db.commit()
-    await db.refresh(expense)
-    return ExpenseResponse.model_validate(expense)
 
 
 @router.delete("/expenses/{expense_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -200,14 +65,4 @@ async def delete_expense(
     auth_ctx: WriteExpensesAuth,
     db: DbSession,
 ) -> None:
-    expense = await db.scalar(
-        select(Expense)
-        .join(Trip, Trip.id == Expense.trip_id)
-        .where(Expense.id == expense_id, Trip.user_id == auth_ctx.user.id)
-    )
-    if expense is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Expense not found"
-        )
-    await db.delete(expense)
-    await db.commit()
+    await ExpenseService(db).delete_expense(expense_id, auth_ctx.user.id)

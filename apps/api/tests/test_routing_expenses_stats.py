@@ -268,3 +268,79 @@ async def test_expense_rejects_cross_trip_day_or_item_links(
         },
     )
     assert bad_item.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_flight_uses_user_home_country_and_expenses_normalize_home_currency(
+    api_client: AsyncClient, dev_headers: dict[str, str]
+) -> None:
+    # Configure user as Japan-based with JPY home currency.
+    patch_resp = await api_client.patch(
+        "/api/v1/me",
+        headers=dev_headers,
+        json={"home_country_code": "JP", "home_currency": "TWD"},
+    )
+    assert patch_resp.status_code == 200
+
+    trip = (
+        await api_client.post(
+            "/api/v1/trips",
+            headers=dev_headers,
+            json={
+                "title": "Taipei Trip from Tokyo",
+                "country_codes": ["TW"],
+                "start_date": "2026-11-24",
+                "end_date": "2026-11-24",
+                "default_currency": "TWD",
+            },
+        )
+    ).json()
+    opt_id = trip["days"][0]["active_option_id"]
+
+    # Flight HND -> TSA for a JP resident should pin TSA (~25.07N, ~121.55E).
+    flight_resp = await api_client.post(
+        f"/api/v1/options/{opt_id}/items",
+        headers=dev_headers,
+        json={
+            "type": "FLIGHT",
+            "title": "JL97 HND -> TSA",
+            "details": {"origin_iata": "HND", "dest_iata": "TSA"},
+        },
+    )
+    assert flight_resp.status_code == 201
+    flight = flight_resp.json()
+    assert 24.5 <= flight["latitude"] <= 25.5
+    assert 121.0 <= flight["longitude"] <= 122.0
+
+    # Log 1000 JPY while home_currency is TWD (rate 0.2 -> 200 TWD).
+    await api_client.post(
+        f"/api/v1/trips/{trip['id']}/expenses",
+        headers=dev_headers,
+        json={
+            "title": "Airport Ramen",
+            "category": "FOOD",
+            "amount_original": "1000.00",
+            "currency_original": "JPY",
+            "exchange_rate": "0.2",
+        },
+    )
+
+    # Switch home currency to JPY; summaries should normalize to 1000.00 JPY.
+    await api_client.patch(
+        "/api/v1/me",
+        headers=dev_headers,
+        json={"home_currency": "JPY"},
+    )
+    exp_summary = (
+        await api_client.get(
+            f"/api/v1/trips/{trip['id']}/expenses", headers=dev_headers
+        )
+    ).json()
+    assert exp_summary["home_currency"] == "JPY"
+    assert exp_summary["total_home_amount"] == "1000.00"
+
+    stats = (
+        await api_client.get("/api/v1/stats?year=2026", headers=dev_headers)
+    ).json()
+    assert stats["home_currency"] == "JPY"
+    assert stats["total_spend_home"] == "1000.00"

@@ -1,7 +1,11 @@
 """Integration tests for Trips, DayOptions (Plan A/B), Items, and Share privacy."""
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from httpx import AsyncClient
+
+from app.services.routing import RouteLegResult
 
 
 @pytest.mark.asyncio
@@ -70,7 +74,38 @@ async def test_trip_days_plan_a_b_and_items_lifecycle(
     reordered_ids = [item["id"] for item in reorder_resp.json()["items"]]
     assert reordered_ids == [transit_id, stay_id]
 
-    # Clone Plan A into Plan B · Rainy and switch active option.
+    # Clone Plan A into Plan B · Rainy with geolocated spots preserves route_segments.
+    mock_leg = RouteLegResult(
+        distance_km=3.2,
+        duration_min=9,
+        geometry_polyline="_p~iF~ps|U_ulLnnqC_mqNvxq`@",
+        is_approx=False,
+    )
+    with patch(
+        "app.services.routing.OsrmRoutingProvider.compute_leg",
+        new=AsyncMock(return_value=mock_leg),
+    ):
+        await api_client.post(
+            f"/api/v1/options/{plan_a_id}/items",
+            headers=dev_headers,
+            json={
+                "type": "SPOT",
+                "title": "Atami Castle",
+                "latitude": 35.087,
+                "longitude": 139.077,
+            },
+        )
+        await api_client.post(
+            f"/api/v1/options/{plan_a_id}/items",
+            headers=dev_headers,
+            json={
+                "type": "FOOD",
+                "title": "Seafood Don",
+                "latitude": 35.095,
+                "longitude": 139.072,
+            },
+        )
+
     clone_resp = await api_client.post(
         f"/api/v1/options/{plan_a_id}/clone",
         headers=dev_headers,
@@ -78,7 +113,12 @@ async def test_trip_days_plan_a_b_and_items_lifecycle(
     )
     assert clone_resp.status_code == 201
     plan_b_id = clone_resp.json()["id"]
-    assert len(clone_resp.json()["items"]) == 2
+    assert len(clone_resp.json()["items"]) == 4
+    assert len(clone_resp.json()["route_segments"]) == 1
+    assert (
+        clone_resp.json()["route_segments"][0]["geometry_polyline"]
+        == "_p~iF~ps|U_ulLnnqC_mqNvxq`@"
+    )
 
     switch_resp = await api_client.patch(
         f"/api/v1/days/{day1['id']}/active-option",
@@ -87,6 +127,19 @@ async def test_trip_days_plan_a_b_and_items_lifecycle(
     )
     assert switch_resp.status_code == 200
     assert switch_resp.json()["active_option_id"] == plan_b_id
+
+    # Public share omits heavy OSRM polylines (editorial curves render client-side).
+    share_resp = await api_client.post(
+        f"/api/v1/trips/{trip['id']}/shares",
+        headers=dev_headers,
+        json={"label": "Public Route"},
+    )
+    assert share_resp.status_code == 201
+    pub_trip = (
+        await api_client.get(f"/api/v1/public/trips/{share_resp.json()['token']}")
+    ).json()
+    pub_segments = pub_trip["days"][0]["options"][0]["route_segments"]
+    assert pub_segments == []
 
 
 @pytest.mark.asyncio
