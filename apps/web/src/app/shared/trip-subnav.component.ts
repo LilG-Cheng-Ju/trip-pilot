@@ -12,7 +12,7 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
       <div class="header-top">
         <div class="header-left">
           <a routerLink="/trips" class="back-btn" [attr.aria-label]="'common.back' | t">
-            <span class="ms-icon">arrow_back</span>
+            <span class="ms-icon sm" aria-hidden="true">arrow_back</span>
           </a>
           <div class="title-block">
             <h2 class="trip-name">{{ title() }}</h2>
@@ -60,32 +60,38 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
     .trip-header {
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      margin-bottom: var(--space-3);
+      gap: 6px;
+      margin-bottom: 7px;
     }
     .header-top {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: var(--space-3);
+      gap: var(--space-2);
     }
     .header-left {
       display: flex;
       align-items: center;
-      gap: var(--space-3);
+      gap: 8px;
       min-width: 0;
     }
     .back-btn {
+      position: relative;
       display: grid;
       place-items: center;
-      width: 34px;
-      height: 34px;
+      width: 30px;
+      height: 30px;
       border-radius: var(--radius-pill);
       background: var(--color-surface);
       border: 1px solid var(--color-border);
       color: var(--color-primary);
       text-decoration: none;
       flex-shrink: 0;
+    }
+    .back-btn::after {
+      content: '';
+      position: absolute;
+      inset: -5px;
     }
     .back-btn:hover {
       border-color: var(--color-primary);
@@ -95,7 +101,8 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
     }
     .trip-name {
       margin: 0;
-      font-size: 1.1875rem;
+      font-size: 1.02rem;
+      line-height: 1.22;
       font-weight: 600;
       color: var(--color-primary);
       white-space: nowrap;
@@ -103,8 +110,9 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
       text-overflow: ellipsis;
     }
     .trip-range {
-      margin: 2px 0 0;
-      font-size: 0.78rem;
+      margin: 1px 0 0;
+      font-size: 0.72rem;
+      line-height: 1.2;
       color: var(--color-text-muted);
     }
     .header-utilities {
@@ -116,9 +124,9 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
     .workspace-tabs {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 4px;
-      padding: 4px;
-      border-radius: 11px;
+      gap: 3px;
+      padding: 3px;
+      border-radius: 9px;
       background: var(--color-surface-muted);
       border: 1px solid var(--color-border);
     }
@@ -126,13 +134,13 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 6px;
-      height: 34px;
-      padding: 0 10px;
-      border-radius: 8px;
+      gap: 4px;
+      height: 28px;
+      padding: 0 8px;
+      border-radius: 7px;
       color: var(--color-text-secondary);
       text-decoration: none;
-      font-size: 0.82rem;
+      font-size: 0.77rem;
       font-weight: 600;
       transition: background-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
     }
@@ -143,6 +151,41 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
       background: var(--color-surface);
       color: var(--color-primary);
       box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+    }
+    @media (min-width: 768px) {
+      .trip-header {
+        gap: 10px;
+        margin-bottom: var(--space-3);
+      }
+      .header-top {
+        gap: var(--space-3);
+      }
+      .header-left {
+        gap: var(--space-3);
+      }
+      .back-btn {
+        width: 34px;
+        height: 34px;
+      }
+      .trip-name {
+        font-size: 1.1875rem;
+      }
+      .trip-range {
+        margin: 2px 0 0;
+        font-size: 0.78rem;
+      }
+      .workspace-tabs {
+        gap: 4px;
+        padding: 4px;
+        border-radius: 11px;
+      }
+      .ws-tab {
+        gap: 6px;
+        height: 34px;
+        padding: 0 10px;
+        border-radius: 8px;
+        font-size: 0.82rem;
+      }
     }
   `,
 })

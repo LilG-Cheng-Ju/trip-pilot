@@ -131,7 +131,7 @@ export const MESSAGES_ZH_TW: Record<TranslationKey, string> = {
   'share.includeNotes': '顯示個人備註',
   'share.includeBackups': '顯示 Plan B 備案',
   'share.revoke': '撤銷',
-  'share.publicBadge': '唯讀分享行程',
+  'share.publicBadge': '唯讀分享',
   'share.errInvalid': '無效的分享連結。',
   'share.errNotFound': '找不到此分享連結，可能已過期或已撤銷。',
   'expenses.title': '旅程花費帳本',

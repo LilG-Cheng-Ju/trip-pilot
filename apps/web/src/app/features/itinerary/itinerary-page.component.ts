@@ -105,7 +105,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
                     [attr.aria-selected]="store.selectedDay()?.id === day.id"
                     class="day-chip tabular-nums"
                     [class.active]="store.selectedDay()?.id === day.id"
-                    (click)="store.selectDay(day.day_index)"
+                    (click)="selectDay(day.day_index, $event)"
                   >
                     <span class="day-num">Day {{ day.day_index }}</span>
                     <span class="day-date">{{ day.date.slice(5) }}</span>
@@ -568,7 +568,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
     .itinerary-layout {
       display: grid;
       grid-template-columns: minmax(0, 1fr);
-      min-height: calc(100dvh - 56px);
+      min-height: calc(100dvh - var(--topbar-height));
     }
     .timeline-pane {
       min-width: 0;
@@ -580,16 +580,16 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
     }
     .sticky-trip-top {
       position: sticky;
-      top: 54px;
+      top: var(--topbar-height);
       z-index: 20;
-      background: rgba(247, 244, 239, 0.92);
+      background: rgba(247, 244, 239, 0.94);
       backdrop-filter: blur(12px);
-      padding: var(--space-3) var(--space-4) var(--space-2);
+      padding: 8px var(--space-3) 7px;
       border-bottom: 1px solid var(--color-border);
       flex-shrink: 0;
     }
     .timeline-scroll {
-      padding: var(--space-3) var(--space-4) calc(var(--nav-bottom-height) + 76px);
+      padding: 10px var(--space-3) calc(var(--nav-bottom-height) + 64px);
     }
     .desktop-map-pane {
       display: none;
@@ -619,78 +619,45 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       }
     }
     .util-icon-btn {
+      position: relative;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 34px;
-      height: 34px;
+      width: 30px;
+      height: 30px;
       padding: 0;
       border: 1px solid var(--color-border);
-      border-radius: 9px;
+      border-radius: 8px;
       background: var(--color-surface);
       color: var(--color-primary);
       cursor: pointer;
+    }
+    .util-icon-btn::after {
+      content: '';
+      position: absolute;
+      inset: -5px;
     }
     .util-icon-btn:hover,
     .util-icon-btn.active {
       border-color: var(--color-primary);
       background: var(--color-primary-tint);
     }
-    .day-strip-wrap {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      max-width: 100%;
-    }
-    .day-scroll-btn {
-      display: none;
-      align-items: center;
-      justify-content: center;
-      width: 26px;
-      height: 44px;
-      padding: 0;
-      border: 1px solid var(--color-border);
-      border-radius: 8px;
-      background: var(--color-surface);
-      color: var(--color-text-secondary);
-      cursor: pointer;
-      flex-shrink: 0;
-    }
-    .day-scroll-btn:hover {
-      border-color: var(--color-primary);
-      color: var(--color-primary);
-    }
-    .day-strip {
-      display: flex;
-      flex: 1;
-      min-width: 0;
-      gap: 8px;
-      max-width: 100%;
-      overflow-x: auto;
-      scroll-behavior: smooth;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
-      padding: 2px 0;
-    }
-    .day-strip::-webkit-scrollbar {
-      display: none;
-    }
     .mobile-map-fab {
       position: fixed;
       left: 50%;
       transform: translateX(-50%);
-      bottom: calc(var(--nav-bottom-height) + env(safe-area-inset-bottom) + 12px);
+      bottom: calc(var(--nav-bottom-height) + env(safe-area-inset-bottom) + 10px);
       z-index: 35;
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 10px 20px;
+      padding: 8px 16px;
       border: none;
       border-radius: var(--radius-pill);
       background: var(--color-primary);
       color: var(--color-text-on-primary);
       font: inherit;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       font-weight: 600;
       box-shadow: 0 8px 24px rgba(27, 42, 74, 0.32);
       cursor: pointer;
@@ -738,42 +705,18 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       margin: 0;
       font-size: 0.85rem;
     }
-    .day-chip {
-      flex-shrink: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-width: 72px;
-      padding: 8px 14px;
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-md);
-      background: var(--color-surface);
-      color: var(--color-text-secondary);
-      font: inherit;
-      cursor: pointer;
-    }
-    .day-chip.active {
-      background: var(--color-primary);
-      border-color: var(--color-primary);
-      color: var(--color-text-on-primary);
-    }
-    .day-num {
-      font-weight: 600;
-      font-size: 0.875rem;
-    }
-    .day-date {
-      font-size: 0.7rem;
-      opacity: 0.8;
-    }
     .day-add-btn {
       flex-shrink: 0;
-      padding: 8px 14px;
+      align-self: stretch;
+      display: inline-flex;
+      align-items: center;
+      padding: 0 11px;
       border: 1px dashed var(--color-border);
-      border-radius: var(--radius-md);
+      border-radius: 10px;
       background: transparent;
       color: var(--color-text-secondary);
       font: inherit;
-      font-size: 0.8125rem;
+      font-size: 0.76rem;
       font-weight: 600;
       cursor: pointer;
     }
@@ -781,8 +724,8 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 6px 12px;
-      margin-bottom: var(--space-3);
+      padding: 5px 10px;
+      margin-bottom: 8px;
       border-radius: var(--radius-sm);
       background: var(--color-surface);
       border: 1px solid var(--color-border);
@@ -800,7 +743,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       background: transparent;
       color: var(--color-primary);
       font: inherit;
-      font-size: 0.875rem;
+      font-size: 0.82rem;
       font-weight: 600;
       outline: none;
     }
@@ -912,13 +855,13 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       color: var(--color-text-muted);
     }
     .clone-btn {
-      padding: 6px 12px;
+      padding: 5px 10px;
       border: 1px dashed var(--color-accent);
       border-radius: var(--radius-pill);
       background: var(--color-accent-soft);
       color: var(--color-accent-ink);
       font: inherit;
-      font-size: 0.75rem;
+      font-size: 0.73rem;
       font-weight: 600;
       cursor: pointer;
     }
@@ -940,13 +883,13 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      padding: 7px 14px;
+      padding: 6px 12px;
       border: none;
       border-radius: var(--radius-pill);
       background: var(--color-primary);
       color: var(--color-text-on-primary);
       font: inherit;
-      font-size: 0.8125rem;
+      font-size: 0.78rem;
       font-weight: 600;
       cursor: pointer;
     }
@@ -956,10 +899,10 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       align-items: center;
       justify-content: space-between;
       gap: var(--space-2);
-      margin-bottom: var(--space-4);
+      margin-bottom: 10px;
     }
     .summary-text {
-      font-size: 0.8125rem;
+      font-size: 0.77rem;
       font-weight: 600;
       color: var(--color-text-secondary);
     }
@@ -1066,8 +1009,43 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       gap: 6px;
     }
     @media (min-width: 768px) {
-      .day-scroll-btn {
-        display: inline-flex;
+      .sticky-trip-top {
+        padding: var(--space-3) var(--space-4) var(--space-2);
+      }
+      .timeline-scroll {
+        padding: var(--space-3) var(--space-4) calc(var(--nav-bottom-height) + 72px);
+      }
+      .util-icon-btn {
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
+      }
+      .day-add-btn {
+        padding: 0 14px;
+        border-radius: var(--radius-md);
+        font-size: 0.8125rem;
+      }
+      .day-theme-bar {
+        padding: 6px 12px;
+        margin-bottom: var(--space-3);
+      }
+      .day-theme-input {
+        font-size: 0.875rem;
+      }
+      .summary-bar {
+        margin-bottom: var(--space-4);
+      }
+      .summary-text {
+        font-size: 0.8125rem;
+      }
+      .btn-accent,
+      .add-item-btn {
+        padding: 7px 14px;
+        font-size: 0.8125rem;
+      }
+      .clone-btn {
+        padding: 6px 12px;
+        font-size: 0.75rem;
       }
     }
     @media (min-width: 1024px) {
@@ -1077,11 +1055,11 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       }
       .itinerary-layout {
         grid-template-columns: minmax(440px, 46%) 1fr;
-        height: calc(100dvh - 56px);
+        height: calc(100dvh - var(--topbar-height));
       }
       .timeline-pane {
         max-width: none;
-        height: calc(100dvh - 56px);
+        height: calc(100dvh - var(--topbar-height));
         overflow: hidden;
       }
       .sticky-trip-top {
@@ -1097,9 +1075,9 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       .desktop-map-pane {
         display: block;
         padding: var(--space-4) var(--space-4) var(--space-4) 0;
-        height: calc(100dvh - 56px);
+        height: calc(100dvh - var(--topbar-height));
         position: sticky;
-        top: 56px;
+        top: var(--topbar-height);
       }
     }
   `,
@@ -1235,6 +1213,15 @@ export class ItineraryPageComponent implements OnInit {
     if (el) {
       el.scrollBy({ left: deltaPx, behavior: 'smooth' });
     }
+  }
+
+  protected selectDay(dayIndex: number, event?: Event): void {
+    this.store.selectDay(dayIndex);
+    (event?.currentTarget as HTMLElement | null)?.scrollIntoView({
+      behavior: 'smooth',
+      inline: 'nearest',
+      block: 'nearest',
+    });
   }
 
   protected onDayStripWheel(event: WheelEvent): void {

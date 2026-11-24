@@ -61,7 +61,8 @@
   --space-4: 16px;
   --space-5: 20px;
   --space-6: 24px;
-  --nav-bottom-height: 60px;
+  --topbar-height: 48px;
+  --nav-bottom-height: 54px;
 
   /* Centralized Typography Roles */
   --font-display: 'Newsreader', 'Noto Serif TC', Georgia, serif;
@@ -74,4 +75,11 @@
   --text-card-body: 0.79rem;
   --text-card-meta: 0.78rem;
   --text-badge: 0.71rem;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --topbar-height: 54px;
+    --nav-bottom-height: 60px;
+  }
 }

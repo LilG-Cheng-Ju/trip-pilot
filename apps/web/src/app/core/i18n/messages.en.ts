@@ -129,7 +129,7 @@ export const MESSAGES_EN = {
   'share.includeNotes': 'Include private notes',
   'share.includeBackups': 'Include Plan B backup options',
   'share.revoke': 'Revoke',
-  'share.publicBadge': 'Read-Only Shared View',
+  'share.publicBadge': 'Read-only',
   'share.errInvalid': 'Invalid share link.',
   'share.errNotFound': 'Share link not found, expired, or revoked.',
   'expenses.title': 'Trip Expenses',

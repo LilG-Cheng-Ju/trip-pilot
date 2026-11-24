@@ -47,16 +47,21 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
         <section class="timeline-pane">
           <div class="sticky-share-top">
             <header class="share-header">
-              <div class="share-head-meta">
-                <span class="badge">{{ 'share.publicBadge' | t }}</span>
-                <span class="dates tabular-nums">
-                  {{ publicTrip.start_date }} — {{ publicTrip.end_date }}
-                </span>
+              <div class="share-title-row">
+                <h1 class="share-title">{{ publicTrip.title }}</h1>
                 <button type="button" class="lang-btn" (click)="i18n.toggleLocale()">
                   {{ i18n.locale() === 'en' ? '繁中' : 'EN' }}
                 </button>
               </div>
-              <h1 class="share-title">{{ publicTrip.title }}</h1>
+              <div class="share-meta-row">
+                <span class="badge">
+                  <span class="ms-icon badge-ico" aria-hidden="true">visibility</span>
+                  <span>{{ 'share.publicBadge' | t }}</span>
+                </span>
+                <span class="dates tabular-nums">
+                  {{ publicTrip.start_date }} — {{ publicTrip.end_date }}
+                </span>
+              </div>
             </header>
 
             <div class="day-strip-wrap">
@@ -254,131 +259,92 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
       flex-shrink: 0;
       min-width: 0;
       max-width: 100%;
-      padding: var(--space-3) var(--space-4) var(--space-2);
+      padding: 8px var(--space-3) 7px;
       background: rgba(247, 244, 239, 0.95);
       backdrop-filter: blur(12px);
       border-bottom: 1px solid var(--color-border);
     }
     .share-header {
-      margin-bottom: var(--space-3);
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      margin-bottom: 7px;
     }
-    .share-head-meta {
+    .share-title-row {
       display: flex;
       align-items: center;
-      flex-wrap: wrap;
+      justify-content: space-between;
       gap: 8px;
-      margin-bottom: 4px;
-    }
-    .badge {
-      display: inline-block;
-      padding: 2px 9px;
-      border-radius: var(--radius-pill);
-      background: var(--color-accent-soft);
-      color: var(--color-accent-ink);
-      font-size: var(--text-badge);
-      font-weight: 600;
-    }
-    .dates {
-      font-size: var(--text-card-meta);
-      color: var(--color-text-muted);
-    }
-    .lang-btn {
-      margin-left: auto;
-      padding: 3px 10px;
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-pill);
-      background: var(--color-surface);
-      color: var(--color-primary);
-      font: inherit;
-      font-size: 0.72rem;
-      font-weight: 600;
-      cursor: pointer;
+      min-width: 0;
     }
     .share-title {
       margin: 0;
-      font-family: var(--font-display);
-      font-size: 1.35rem;
-      font-weight: 600;
-      color: var(--color-primary);
-    }
-    .day-strip-wrap {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      min-width: 0;
-      max-width: 100%;
-    }
-    .day-scroll-btn {
-      display: none;
-      align-items: center;
-      justify-content: center;
-      width: 26px;
-      height: 44px;
-      padding: 0;
-      border: 1px solid var(--color-border);
-      border-radius: 8px;
-      background: var(--color-surface);
-      color: var(--color-text-secondary);
-      cursor: pointer;
-      flex-shrink: 0;
-    }
-    .day-scroll-btn:hover {
-      border-color: var(--color-primary);
-      color: var(--color-primary);
-    }
-    .day-strip {
-      display: flex;
       flex: 1;
       min-width: 0;
-      max-width: 100%;
-      align-items: center;
-      gap: 8px;
-      overflow-x: auto;
-      scroll-behavior: smooth;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
-      padding: 2px 0;
-    }
-    .day-strip::-webkit-scrollbar {
-      display: none;
-    }
-    .day-chip {
-      flex-shrink: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-width: 70px;
-      padding: 7px 13px;
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-md);
-      background: var(--color-surface);
-      color: var(--color-text-secondary);
-      font: inherit;
+      font-family: var(--font-display);
+      font-size: 1.08rem;
+      line-height: 1.22;
+      font-weight: 600;
+      color: var(--color-primary);
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .lang-btn {
+      position: relative;
+      flex-shrink: 0;
+      padding: 2px 9px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-pill);
+      background: var(--color-surface);
+      color: var(--color-primary);
+      font: inherit;
+      font-size: 0.7rem;
+      font-weight: 600;
       cursor: pointer;
     }
-    .day-chip.active {
-      background: var(--color-primary);
-      border-color: var(--color-primary);
-      color: var(--color-text-on-primary);
+    .lang-btn::after {
+      content: '';
+      position: absolute;
+      inset: -6px -4px;
     }
-    .day-num {
+    .share-meta-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-width: 0;
+      white-space: nowrap;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 1px 7px;
+      border-radius: var(--radius-pill);
+      background: var(--color-accent-soft);
+      color: var(--color-accent-ink);
+      font-size: 0.68rem;
       font-weight: 600;
-      font-size: 0.85rem;
+      flex-shrink: 0;
     }
-    .day-date {
-      font-size: 0.7rem;
-      opacity: 0.8;
+    .badge-ico {
+      font-size: 12px;
+    }
+    .dates {
+      font-size: 0.73rem;
+      color: var(--color-text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .timeline-scroll {
-      padding: var(--space-4) var(--space-4) 96px;
+      padding: 10px var(--space-3) 84px;
     }
     .day-theme-bar {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 8px 12px;
-      margin-bottom: var(--space-3);
+      padding: 6px 10px;
+      margin-bottom: 8px;
       border-radius: var(--radius-sm);
       background: var(--color-surface);
       border: 1px solid var(--color-border);
@@ -388,7 +354,7 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
       flex-shrink: 0;
     }
     .day-theme-text {
-      font-size: 0.875rem;
+      font-size: 0.82rem;
       font-weight: 600;
       color: var(--color-primary);
     }
@@ -427,8 +393,8 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
       background: var(--color-accent);
     }
     .share-summary {
-      margin: 0 0 var(--space-3);
-      font-size: 0.78rem;
+      margin: 0 0 8px;
+      font-size: 0.76rem;
       font-weight: 500;
       color: var(--color-text-muted);
     }
@@ -494,18 +460,18 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
       position: fixed;
       left: 50%;
       transform: translateX(-50%);
-      bottom: calc(env(safe-area-inset-bottom) + 18px);
+      bottom: calc(env(safe-area-inset-bottom) + 14px);
       z-index: 35;
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 10px 20px;
+      padding: 8px 16px;
       border: none;
       border-radius: var(--radius-pill);
       background: var(--color-primary);
       color: var(--color-text-on-primary);
       font: inherit;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       font-weight: 600;
       box-shadow: 0 8px 24px rgba(20, 29, 46, 0.3);
       cursor: pointer;
@@ -514,8 +480,30 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
       color: var(--color-accent);
     }
     @media (min-width: 768px) {
-      .day-scroll-btn {
-        display: inline-flex;
+      .sticky-share-top {
+        padding: var(--space-3) var(--space-4) var(--space-2);
+      }
+      .share-header {
+        gap: 4px;
+        margin-bottom: var(--space-3);
+      }
+      .share-title {
+        font-size: 1.32rem;
+        white-space: normal;
+      }
+      .timeline-scroll {
+        padding: var(--space-4) var(--space-4) 96px;
+      }
+      .day-theme-bar {
+        padding: 8px 12px;
+        margin-bottom: var(--space-3);
+      }
+      .day-theme-text {
+        font-size: 0.875rem;
+      }
+      .share-summary {
+        margin: 0 0 var(--space-3);
+        font-size: 0.78rem;
       }
     }
     @media (min-width: 1024px) {
