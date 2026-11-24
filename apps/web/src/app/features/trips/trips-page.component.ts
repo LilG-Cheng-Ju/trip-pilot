@@ -83,21 +83,27 @@ type DateEndMode = 'end' | 'duration' | 'open';
       }
 
       @if (tripStore.loading()) {
-        <p class="empty-card">{{ 'common.loading' | t }}</p>
+        <p class="empty-state">{{ 'common.loading' | t }}</p>
       } @else if (tripStore.filteredTrips().length === 0) {
-        <div class="empty-card">
+        <div class="empty-state">
           <p>{{ 'trips.empty' | t }}</p>
         </div>
       } @else {
         <div class="trip-grid">
           @for (trip of tripStore.filteredTrips(); track trip.id) {
-            <article class="trip-card">
+            <article
+              class="trip-card"
+              tabindex="0"
+              (click)="openTrip(trip)"
+              (keydown.enter)="onCardEnter($event, trip)"
+            >
               <div class="card-top">
-                <div class="badges">
-                  @for (code of trip.country_codes; track code) {
-                    <span class="country-badge">{{ countryLabel(code) }}</span>
+                <div class="card-meta-line">
+                  @if (countrySummary(trip); as countries) {
+                    <span>{{ countries }}</span>
+                    <span class="meta-sep" aria-hidden="true">·</span>
                   }
-                  <span class="days-badge tabular-nums">
+                  <span class="tabular-nums">
                     {{ 'trips.daysCount' | t: { count: dayCount(trip) } }}
                   </span>
                 </div>
@@ -117,7 +123,8 @@ type DateEndMode = 'end' | 'duration' | 'open';
               <a
                 class="card-link"
                 [routerLink]="['/trips', trip.id]"
-                (click)="tripStore.setLastSelectedTripId(trip.id)"
+                tabindex="-1"
+                (click)="$event.stopPropagation(); tripStore.setLastSelectedTripId(trip.id)"
               >
                 <h3 class="trip-title">{{ trip.title }}</h3>
                 @if (trip.destination_summary) {
@@ -126,20 +133,28 @@ type DateEndMode = 'end' | 'duration' | 'open';
                 <p class="trip-dates tabular-nums">{{ trip.start_date }} — {{ trip.end_date }}</p>
               </a>
 
-              <div class="card-actions">
-                <a class="action-pill primary" [routerLink]="['/trips', trip.id]">
-                  <span class="ms-icon sm" aria-hidden="true">map</span>
-                  <span>{{ 'nav.itinerary' | t }}</span>
+              <div class="card-actions" (click)="$event.stopPropagation()">
+                <a
+                  class="card-ghost-action"
+                  [routerLink]="['/trips', trip.id, 'brief']"
+                  (click)="$event.stopPropagation(); tripStore.setLastSelectedTripId(trip.id)"
+                >
+                  <span class="ms-icon sm" aria-hidden="true">summarize</span>
+                  <span>{{ 'trip.tab.brief' | t }}</span>
                 </a>
-                <a class="action-pill" [routerLink]="['/trips', trip.id, 'expenses']">
+                <a
+                  class="card-ghost-action"
+                  [routerLink]="['/trips', trip.id, 'expenses']"
+                  (click)="$event.stopPropagation(); tripStore.setLastSelectedTripId(trip.id)"
+                >
                   <span class="ms-icon sm" aria-hidden="true">payments</span>
                   <span>{{ 'common.expenses' | t }}</span>
                 </a>
                 @if (trip.status === 'PLANNING' || trip.status === 'ACTIVE') {
                   <button
                     type="button"
-                    class="action-pill"
-                    (click)="tripStore.updateTripStatus(trip.id, 'COMPLETED')"
+                    class="card-ghost-action"
+                    (click)="$event.stopPropagation(); tripStore.updateTripStatus(trip.id, 'COMPLETED')"
                   >
                     <span class="ms-icon sm" aria-hidden="true">check_circle</span>
                     <span>{{ 'trips.action.complete' | t }}</span>
@@ -147,8 +162,8 @@ type DateEndMode = 'end' | 'duration' | 'open';
                 } @else {
                   <button
                     type="button"
-                    class="action-pill alert"
-                    (click)="tripStore.updateTripStatus(trip.id, 'PLANNING')"
+                    class="card-ghost-action alert"
+                    (click)="$event.stopPropagation(); tripStore.updateTripStatus(trip.id, 'PLANNING')"
                   >
                     <span class="ms-icon sm" aria-hidden="true">undo</span>
                     <span>{{ 'trips.action.undoComplete' | t }}</span>
@@ -157,19 +172,19 @@ type DateEndMode = 'end' | 'duration' | 'open';
                 <div class="card-util-actions">
                   <button
                     type="button"
-                    class="card-icon-btn"
+                    class="icon-btn card-icon-btn"
                     [title]="'trips.edit' | t"
                     [attr.aria-label]="'trips.edit' | t"
-                    (click)="openEditModal(trip)"
+                    (click)="$event.stopPropagation(); openEditModal(trip)"
                   >
                     <span class="ms-icon sm" aria-hidden="true">edit</span>
                   </button>
                   <button
                     type="button"
-                    class="card-icon-btn danger"
+                    class="icon-btn icon-btn--danger card-icon-btn"
                     [title]="'common.delete' | t"
                     [attr.aria-label]="'common.delete' | t"
-                    (click)="pendingDeleteTrip.set(trip)"
+                    (click)="$event.stopPropagation(); pendingDeleteTrip.set(trip)"
                   >
                     <span class="ms-icon sm" aria-hidden="true">delete</span>
                   </button>
@@ -451,6 +466,15 @@ type DateEndMode = 'end' | 'duration' | 'open';
       border: 1px solid var(--color-border);
       border-radius: var(--radius-md);
       box-shadow: var(--shadow-card);
+      cursor: pointer;
+      transition: border-color 140ms ease;
+    }
+    .trip-card:hover {
+      border-color: var(--color-border-strong);
+    }
+    .trip-card:focus-visible {
+      outline: 2px solid var(--color-accent);
+      outline-offset: 2px;
     }
     .card-top {
       display: flex;
@@ -458,34 +482,30 @@ type DateEndMode = 'end' | 'duration' | 'open';
       justify-content: space-between;
       gap: var(--space-2);
     }
-    .badges {
+    .card-meta-line {
       display: flex;
       flex-wrap: wrap;
-      gap: 6px;
-    }
-    .country-badge {
-      padding: 2px 8px;
-      border-radius: var(--radius-pill);
-      background: var(--color-primary-tint);
-      color: var(--color-primary);
+      align-items: center;
+      gap: 5px;
+      min-width: 0;
       font-size: var(--text-badge);
       font-weight: 600;
-    }
-    .days-badge {
-      padding: 2px 8px;
-      border-radius: var(--radius-pill);
-      background: var(--color-surface-muted);
       color: var(--color-text-secondary);
-      font-size: var(--text-badge);
-      font-weight: 500;
+      letter-spacing: 0.02em;
+    }
+    .meta-sep {
+      color: var(--color-text-muted);
+      font-weight: 600;
+      user-select: none;
     }
     .countdown-badge {
       padding: 2px 9px;
       border-radius: var(--radius-pill);
-      background: var(--color-accent-soft);
+      background: var(--color-accent-tint);
       color: var(--color-accent-ink);
       font-size: var(--text-badge);
       font-weight: 600;
+      flex-shrink: 0;
     }
     .card-link {
       display: flex;
@@ -519,76 +539,48 @@ type DateEndMode = 'end' | 'duration' | 'open';
       display: flex;
       flex-wrap: wrap;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
       padding-top: var(--space-2);
-      border-top: 1px solid var(--color-border);
+      border-top: 1px solid var(--color-border-soft);
     }
     .card-util-actions {
       display: inline-flex;
       align-items: center;
-      gap: 5px;
+      gap: 2px;
       margin-left: auto;
     }
-    .card-icon-btn {
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 28px;
-      height: 28px;
-      padding: 0;
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-pill);
-      background: var(--color-surface);
-      color: var(--color-text-secondary);
-      cursor: pointer;
-    }
-    .card-icon-btn:hover {
-      border-color: var(--color-primary);
-      color: var(--color-primary);
-    }
-    .card-icon-btn.danger:hover {
-      border-color: var(--color-alert);
-      background: var(--color-alert-soft);
-      color: var(--color-alert);
-    }
-    .action-pill {
+    .card-ghost-action {
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      padding: 7px 12px;
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-pill);
-      background: var(--color-bg);
-      color: var(--color-text-primary);
+      min-height: 32px;
+      padding: 4px 7px;
+      border: none;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--color-text-secondary);
       text-decoration: none;
       font: inherit;
-      font-size: 0.75rem;
+      font-size: 0.78rem;
       font-weight: 600;
       cursor: pointer;
+      transition: background-color 140ms ease, color 140ms ease;
     }
-    .action-pill.primary {
-      border-color: var(--color-primary);
-      background: var(--color-primary);
-      color: var(--color-text-on-primary);
+    .card-ghost-action:first-child {
+      margin-left: -7px;
     }
-    .action-pill.alert {
-      border-color: rgba(217, 107, 82, 0.45);
-      background: var(--color-alert-soft);
+    .card-ghost-action:hover,
+    .card-ghost-action:focus-visible {
+      background: rgba(20, 24, 31, 0.06);
+      color: var(--color-primary);
+    }
+    .card-ghost-action.alert {
       color: var(--color-alert);
     }
-    .action-pill.alert:hover {
-      background: var(--color-alert);
-      border-color: var(--color-alert);
-      color: var(--color-text-on-primary);
-    }
-    .empty-card {
-      padding: var(--space-6);
-      text-align: center;
-      color: var(--color-text-secondary);
-      background: var(--color-surface);
-      border: 1px dashed var(--color-border);
-      border-radius: var(--radius-md);
+    .card-ghost-action.alert:hover,
+    .card-ghost-action.alert:focus-visible {
+      background: var(--color-alert-soft);
+      color: var(--color-alert);
     }
     .field-hint {
       font-size: 0.75rem;
@@ -867,6 +859,23 @@ export class TripsPageComponent implements OnInit {
     const c = findCountry(code);
     if (!c) return code;
     return this.i18n.locale() === 'zh-TW' ? c.nameZh : c.nameEn;
+  }
+
+  protected countrySummary(trip: TripSummary): string {
+    return trip.country_codes.map((code) => this.countryLabel(code)).join(', ');
+  }
+
+  protected openTrip(trip: TripSummary): void {
+    this.tripStore.setLastSelectedTripId(trip.id);
+    void this.router.navigate(['/trips', trip.id]);
+  }
+
+  protected onCardEnter(event: Event, trip: TripSummary): void {
+    if (event.target !== event.currentTarget) {
+      return;
+    }
+    event.preventDefault();
+    this.openTrip(trip);
   }
 
   protected dayCount(trip: TripSummary): number {

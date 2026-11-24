@@ -99,7 +99,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
               }
               <button
                 type="button"
-                class="util-icon-btn"
+                class="icon-btn util-icon-btn"
                 [title]="'common.share' | t"
                 [attr.aria-label]="'common.share' | t"
                 (click)="openShareModal(trip.id)"
@@ -183,7 +183,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
                 @if (trip.days.length > 1) {
                   <button
                     type="button"
-                    class="plan-icon-btn danger"
+                    class="icon-btn icon-btn--danger"
                     [title]="'itinerary.deleteDay' | t"
                     [attr.aria-label]="'itinerary.deleteDay' | t"
                     (click)="pendingDeleteDay.set(day)"
@@ -220,7 +220,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
                     @if (store.selectedOption(); as currentOpt) {
                       <button
                         type="button"
-                        class="plan-icon-btn"
+                        class="icon-btn"
                         [title]="'itinerary.plan.rename' | t"
                         [attr.aria-label]="'itinerary.plan.rename' | t"
                         (click)="openRenameOptionModal(currentOpt.id, currentOpt.label)"
@@ -229,7 +229,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
                       </button>
                       <button
                         type="button"
-                        class="plan-icon-btn danger"
+                        class="icon-btn icon-btn--danger"
                         [title]="'itinerary.plan.delete' | t"
                         [attr.aria-label]="'itinerary.plan.delete' | t"
                         (click)="confirmDeleteOption(day.id, currentOpt.id, currentOpt.label)"
@@ -278,7 +278,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
                 </div>
 
                 @if (timelineSlots().length === 0) {
-                  <div class="empty-day">{{ 'itinerary.emptyDay' | t }}</div>
+                  <div class="empty-state">{{ 'itinerary.emptyDay' | t }}</div>
                 } @else {
                   <div
                     class="timeline-list"
@@ -648,7 +648,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       position: sticky;
       top: var(--topbar-height);
       z-index: 20;
-      background: rgba(247, 244, 239, 0.94);
+      background: var(--color-surface-glass);
       backdrop-filter: blur(12px);
       padding: 8px var(--space-3) 7px;
       border-bottom: 1px solid var(--color-border);
@@ -666,7 +666,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       justify-content: center;
       width: 30px;
       height: 30px;
-      border-radius: 8px;
+      border-radius: var(--radius-sm);
     }
     .status-pill.syncing {
       background: var(--color-primary-tint);
@@ -676,37 +676,13 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       background: var(--color-accent-soft);
       color: var(--color-accent-ink);
     }
-    .spin {
-      animation: tp-spin 1s linear infinite;
-    }
-    @keyframes tp-spin {
-      to {
-        transform: rotate(360deg);
-      }
-    }
     .util-icon-btn {
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 30px;
-      height: 30px;
-      padding: 0;
-      border: 1px solid var(--color-border);
-      border-radius: 8px;
-      background: var(--color-surface);
       color: var(--color-primary);
-      cursor: pointer;
     }
-    .util-icon-btn::after {
-      content: '';
-      position: absolute;
-      inset: -5px;
-    }
-    .util-icon-btn:hover,
-    .util-icon-btn.active {
-      border-color: var(--color-primary);
+    .util-icon-btn:hover:not(:disabled),
+    .util-icon-btn:focus-visible:not(:disabled) {
       background: var(--color-primary-tint);
+      color: var(--color-primary);
     }
     .mobile-map-fab {
       position: fixed;
@@ -784,14 +760,20 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       display: inline-flex;
       align-items: center;
       padding: 0 11px;
-      border: 1px dashed var(--color-border);
-      border-radius: 10px;
-      background: transparent;
+      border: 1px solid var(--color-border-soft);
+      border-radius: var(--radius-sm);
+      background: var(--color-surface-alt);
       color: var(--color-text-secondary);
       font: inherit;
       font-size: 0.76rem;
       font-weight: 600;
       cursor: pointer;
+      transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
+    }
+    .day-add-btn:hover {
+      border-color: var(--color-primary);
+      background: var(--color-surface);
+      color: var(--color-primary);
     }
     .day-theme-bar {
       display: flex;
@@ -837,35 +819,12 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
     .summary-actions {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
     }
-    .plan-icon-btn {
-      position: relative;
-      flex-shrink: 0;
-      width: 28px;
-      height: 28px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-pill);
-      background: var(--color-surface);
-      color: var(--color-text-secondary);
-      cursor: pointer;
-    }
-    .plan-icon-btn::after,
     .choice-add-btn::after {
       content: '';
       position: absolute;
       inset: -5px;
-    }
-    .plan-icon-btn:hover {
-      border-color: var(--color-primary);
-      color: var(--color-primary);
-    }
-    .plan-icon-btn.danger:hover {
-      border-color: var(--color-alert);
-      color: var(--color-alert);
     }
     .plan-mode-seg {
       display: grid;
@@ -878,7 +837,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
     .plan-mode-btn {
       padding: 7px 10px;
       border: none;
-      border-radius: calc(var(--radius-sm) - 2px);
+      border-radius: var(--radius-xs);
       background: transparent;
       color: var(--color-text-secondary);
       font: inherit;
@@ -931,14 +890,19 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
     }
     .clone-btn {
       padding: 5px 10px;
-      border: 1px dashed var(--color-accent);
+      border: 1px solid var(--color-accent-border);
       border-radius: var(--radius-pill);
-      background: var(--color-accent-soft);
+      background: var(--color-accent-tint);
       color: var(--color-accent-ink);
       font: inherit;
       font-size: 0.73rem;
       font-weight: 600;
       cursor: pointer;
+      transition: border-color 140ms ease, background-color 140ms ease;
+    }
+    .clone-btn:hover {
+      border-color: var(--color-accent);
+      background: var(--color-accent-soft);
     }
     .activate-banner {
       display: flex;
@@ -989,15 +953,15 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
     .slot-drag-placeholder {
       min-height: 76px;
       border-radius: var(--radius-md);
-      border: 1.5px dashed var(--color-accent);
-      background: var(--color-accent-soft);
-      opacity: 0.7;
+      border: 1.5px solid var(--color-accent-border);
+      background: var(--color-accent-tint);
+      opacity: 0.85;
     }
     .slot-group.has-choices {
       padding: 8px;
       border-radius: var(--radius-md);
-      background: rgba(200, 155, 91, 0.08);
-      border: 1px solid rgba(200, 155, 91, 0.35);
+      background: var(--color-accent-tint);
+      border: 1px solid var(--color-accent-border);
     }
     .choice-bar {
       display: flex;
@@ -1037,19 +1001,16 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       width: 28px;
       height: 28px;
       flex-shrink: 0;
-      border: 1px dashed var(--color-accent);
+      border: 1px solid var(--color-accent-border);
       border-radius: var(--radius-pill);
-      background: var(--color-surface);
+      background: var(--color-accent-tint);
       color: var(--color-accent-ink);
       cursor: pointer;
+      transition: border-color 140ms ease, background-color 140ms ease;
     }
-    .empty-day {
-      padding: var(--space-6);
-      text-align: center;
-      color: var(--color-text-secondary);
-      background: var(--color-surface);
-      border: 1px dashed var(--color-border);
-      border-radius: var(--radius-md);
+    .choice-add-btn:hover {
+      border-color: var(--color-accent);
+      background: var(--color-accent-soft);
     }
     .add-actions {
       display: flex;
@@ -1096,11 +1057,6 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       }
       .timeline-scroll {
         padding: var(--space-3) var(--space-4) calc(var(--nav-bottom-height) + env(safe-area-inset-bottom, 0px) + 72px);
-      }
-      .util-icon-btn {
-        width: 34px;
-        height: 34px;
-        border-radius: 9px;
       }
       .day-add-btn {
         padding: 0 14px;

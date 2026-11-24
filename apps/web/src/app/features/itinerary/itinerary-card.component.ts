@@ -41,14 +41,21 @@ import { ItemExpenseSummary } from '../../state/expense.store';
             <span class="tabular-nums connector-dur">· {{ detail('duration_minutes') }} min</span>
           }
           @if (mapsUrl()) {
-            <a [href]="mapsUrl()" target="_blank" rel="noopener noreferrer" class="connector-link">
-              <span class="ms-icon sm">open_in_new</span>
+            <a
+              [href]="mapsUrl()"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="icon-btn connector-icon-btn connector-link"
+              [title]="'common.navigate' | t"
+              [attr.aria-label]="'common.navigate' | t"
+            >
+              <span class="ms-icon sm" aria-hidden="true">open_in_new</span>
             </a>
           }
           @if (!readOnly()) {
             <button
               type="button"
-              class="connector-spend-btn"
+              class="icon-btn connector-icon-btn connector-spend-btn"
               (click)="logExpense.emit(item())"
               [title]="'item.logExpense' | t"
               [attr.aria-label]="'item.logExpense' | t"
@@ -58,7 +65,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
             <div class="order-controls connector-order">
               <button
                 type="button"
-                class="order-btn connector-order-btn"
+                class="icon-btn connector-icon-btn order-btn connector-order-btn"
                 [disabled]="!canMoveUp()"
                 (click)="moveUp.emit(item())"
                 [attr.aria-label]="'item.moveUp' | t"
@@ -67,7 +74,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
               </button>
               <button
                 type="button"
-                class="order-btn connector-order-btn"
+                class="icon-btn connector-icon-btn order-btn connector-order-btn"
                 [disabled]="!canMoveDown()"
                 (click)="moveDown.emit(item())"
                 [attr.aria-label]="'item.moveDown' | t"
@@ -78,7 +85,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
             <div class="overflow-anchor">
               <button
                 type="button"
-                class="connector-menu-btn"
+                class="icon-btn connector-icon-btn connector-menu-btn"
                 [title]="'item.moreActions' | t"
                 [attr.aria-label]="'item.moreActions' | t"
                 [attr.aria-expanded]="menuOpen()"
@@ -148,7 +155,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
             <div class="head-actions" (click)="$event.stopPropagation()">
               <button
                 type="button"
-                class="head-action-btn dark accent-dark"
+                class="icon-btn icon-btn--dark accent-dark"
                 [title]="'item.logExpense' | t"
                 [attr.aria-label]="'item.logExpense' | t"
                 (click)="logExpense.emit(item())"
@@ -158,7 +165,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
               <div class="overflow-anchor">
                 <button
                   type="button"
-                  class="head-menu-btn dark"
+                  class="icon-btn icon-btn--dark"
                   [title]="'item.moreActions' | t"
                   [attr.aria-label]="'item.moreActions' | t"
                   [attr.aria-expanded]="menuOpen()"
@@ -259,21 +266,21 @@ import { ItemExpenseSummary } from '../../state/expense.store';
               <div class="order-controls">
                 <button
                   type="button"
-                  class="order-btn dark"
+                  class="icon-btn icon-btn--dark order-btn"
                   [disabled]="!canMoveUp()"
                   (click)="moveUp.emit(item())"
                   [attr.aria-label]="'item.moveUp' | t"
                 >
-                  <span class="ms-icon sm">keyboard_arrow_up</span>
+                  <span class="ms-icon sm" aria-hidden="true">keyboard_arrow_up</span>
                 </button>
                 <button
                   type="button"
-                  class="order-btn dark"
+                  class="icon-btn icon-btn--dark order-btn"
                   [disabled]="!canMoveDown()"
                   (click)="moveDown.emit(item())"
                   [attr.aria-label]="'item.moveDown' | t"
                 >
-                  <span class="ms-icon sm">keyboard_arrow_down</span>
+                  <span class="ms-icon sm" aria-hidden="true">keyboard_arrow_down</span>
                 </button>
               </div>
             }
@@ -294,12 +301,13 @@ import { ItemExpenseSummary } from '../../state/expense.store';
                 {{ pinOrder() }}
               </span>
             }
-            <span class="type-pill">
+            <span class="type-label">
               <span class="type-dot" [attr.data-type]="item().type" aria-hidden="true"></span>
               <span>{{ typeLabel() | t }}</span>
             </span>
             @if (item().start_time) {
-              <span class="time-pill tabular-nums">
+              <span class="meta-sep" aria-hidden="true">·</span>
+              <span class="time-text tabular-nums">
                 {{ item().start_time }}@if (item().end_time) { – {{ item().end_time }} }
               </span>
             }
@@ -308,7 +316,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
           <div class="head-actions" (click)="$event.stopPropagation()">
             @if (mapsUrl()) {
               <a
-                class="head-action-btn"
+                class="icon-btn head-nav-btn"
                 [href]="mapsUrl()"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -322,7 +330,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
             @if (!readOnly()) {
               <button
                 type="button"
-                class="head-action-btn expense-trigger"
+                class="icon-btn expense-trigger"
                 [title]="'item.logExpense' | t"
                 [attr.aria-label]="'item.logExpense' | t"
                 (click)="logExpense.emit(item())"
@@ -333,7 +341,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
               <div class="overflow-anchor">
                 <button
                   type="button"
-                  class="head-menu-btn"
+                  class="icon-btn head-menu-btn"
                   [title]="'item.moreActions' | t"
                   [attr.aria-label]="'item.moreActions' | t"
                   [attr.aria-expanded]="menuOpen()"
@@ -461,21 +469,21 @@ import { ItemExpenseSummary } from '../../state/expense.store';
               <div class="order-controls">
                 <button
                   type="button"
-                  class="order-btn"
+                  class="icon-btn order-btn"
                   [disabled]="!canMoveUp()"
                   (click)="moveUp.emit(item())"
                   [attr.aria-label]="'item.moveUp' | t"
                 >
-                  <span class="ms-icon sm">keyboard_arrow_up</span>
+                  <span class="ms-icon sm" aria-hidden="true">keyboard_arrow_up</span>
                 </button>
                 <button
                   type="button"
-                  class="order-btn"
+                  class="icon-btn order-btn"
                   [disabled]="!canMoveDown()"
                   (click)="moveDown.emit(item())"
                   [attr.aria-label]="'item.moveDown' | t"
                 >
-                  <span class="ms-icon sm">keyboard_arrow_down</span>
+                  <span class="ms-icon sm" aria-hidden="true">keyboard_arrow_down</span>
                 </button>
               </div>
             }
@@ -504,11 +512,11 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       flex-wrap: nowrap;
       max-width: 100%;
       min-width: 0;
-      gap: 6px;
-      padding: 4px 6px 4px 10px;
-      border-radius: 9px;
+      gap: 4px;
+      padding: 3px 6px 3px 10px;
+      border-radius: var(--radius-sm);
       background: var(--color-surface);
-      border: 1px solid var(--color-border);
+      border: 1px solid var(--color-border-soft);
       color: var(--color-text-secondary);
       font-size: 0.76rem;
       font-weight: 600;
@@ -524,69 +532,42 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       white-space: nowrap;
       color: var(--color-text-muted);
     }
+    .connector-icon-btn {
+      min-width: 26px;
+      min-height: 26px;
+      width: 26px;
+      height: 26px;
+      border-radius: var(--radius-xs);
+    }
+    .connector-icon-btn::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+    }
     .connector-link {
-      display: inline-flex;
-      flex-shrink: 0;
       color: var(--color-primary);
-      text-decoration: none;
     }
-    .connector-spend-btn,
-    .connector-menu-btn,
-    .head-action-btn,
-    .head-menu-btn,
-    .order-btn {
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0;
-      border: 1px solid var(--color-border);
-      background: var(--color-bg);
-      cursor: pointer;
-    }
-    .connector-spend-btn,
-    .connector-menu-btn {
-      flex-shrink: 0;
-      height: 22px;
-      border-radius: 6px;
+    .connector-link:hover:not(:disabled),
+    .connector-link:focus-visible:not(:disabled) {
+      background: var(--color-primary-tint);
+      color: var(--color-primary);
     }
     .connector-spend-btn {
-      width: 30px;
-      border-color: rgba(200, 155, 91, 0.55);
-      background: var(--color-accent-soft);
       color: var(--color-accent-ink);
     }
-    .connector-spend-btn:hover,
-    .head-action-btn.expense-trigger:hover {
-      background: var(--color-accent);
-      border-color: var(--color-accent);
-      color: var(--color-text-on-primary);
-    }
-    .connector-menu-btn {
-      width: 22px;
-      color: var(--color-text-secondary);
-    }
-    .connector-menu-btn:hover,
-    .head-menu-btn:hover,
-    .order-btn:hover:not(:disabled) {
-      border-color: var(--color-primary);
-      color: var(--color-primary);
+    .connector-spend-btn:hover:not(:disabled),
+    .connector-spend-btn:focus-visible:not(:disabled),
+    .icon-btn.expense-trigger:hover:not(:disabled),
+    .icon-btn.expense-trigger:focus-visible:not(:disabled) {
+      background: var(--color-accent-tint);
+      color: var(--color-accent-ink);
     }
     .connector-order {
       margin-left: 0;
       flex-shrink: 0;
     }
-    .connector-order-btn {
-      width: 22px;
-      height: 22px;
-      border-radius: 6px;
-    }
-    .connector-order-btn::after {
-      inset: -3px;
-    }
-    .order-btn:disabled {
-      opacity: 0.35;
-      cursor: not-allowed;
+    .order-btn {
+      color: var(--color-text-muted);
     }
     .card {
       border-radius: var(--radius-md);
@@ -655,7 +636,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     .arc-line {
       width: 100%;
       height: 1px;
-      background: rgba(200, 155, 91, 0.55);
+      background: var(--color-accent-border);
     }
     .flight-km {
       color: var(--color-accent);
@@ -691,7 +672,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       align-items: center;
       justify-content: space-between;
       gap: var(--space-2);
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
     .card-meta {
       display: flex;
@@ -715,18 +696,23 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     .pin-badge.selected {
       background: var(--color-accent);
     }
-    .type-pill {
+    .type-label {
       display: inline-flex;
       align-items: center;
       gap: 5px;
-      padding: 2px 8px;
-      border-radius: 6px;
-      background: var(--color-bg);
       color: var(--color-text-secondary);
-      font-size: 0.72rem;
-      font-weight: 500;
+      font-size: var(--text-badge);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
-    .time-pill {
+    .meta-sep {
+      color: var(--color-text-muted);
+      font-size: var(--text-badge);
+      font-weight: 600;
+      user-select: none;
+    }
+    .time-text {
       font-family: var(--font-mono);
       font-size: 0.74rem;
       font-weight: 500;
@@ -735,18 +721,44 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     .head-actions {
       display: inline-flex;
       align-items: center;
-      gap: 5px;
+      gap: 2px;
       flex-shrink: 0;
+    }
+    .head-nav-btn {
+      color: var(--color-primary);
+    }
+    .head-nav-btn:hover:not(:disabled),
+    .head-nav-btn:focus-visible:not(:disabled) {
+      background: var(--color-primary-tint);
+      color: var(--color-primary);
+    }
+    .icon-btn.expense-trigger {
+      color: var(--color-accent-ink);
+    }
+    .icon-btn--dark {
+      color: rgba(248, 250, 252, 0.82);
+    }
+    .icon-btn--dark:hover:not(:disabled),
+    .icon-btn--dark:focus-visible:not(:disabled) {
+      background: rgba(255, 255, 255, 0.14);
+      color: var(--color-text-on-primary);
+    }
+    .icon-btn--dark.accent-dark {
+      color: var(--color-accent-light);
+    }
+    .icon-btn--dark.accent-dark:hover:not(:disabled),
+    .icon-btn--dark.accent-dark:focus-visible:not(:disabled) {
+      background: var(--color-accent-tint);
+      color: var(--color-accent-light);
     }
     .head-expense-pill {
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      height: 28px;
-      padding: 0 8px;
-      border-radius: 7px;
-      border: 1px solid rgba(196, 146, 76, 0.35);
-      background: var(--color-accent-soft);
+      padding: 2px 8px;
+      border-radius: var(--radius-xs);
+      border: 1px solid var(--color-accent-border);
+      background: var(--color-accent-tint);
       color: var(--color-accent-ink);
       text-decoration: none;
       font-family: var(--font-mono);
@@ -754,47 +766,10 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       font-weight: 600;
       white-space: nowrap;
       flex-shrink: 0;
+      transition: border-color 140ms ease, background-color 140ms ease;
     }
     .head-expense-pill:hover {
       border-color: var(--color-accent);
-    }
-    .head-action-btn {
-      width: 36px;
-      height: 28px;
-      border-radius: 7px;
-      color: var(--color-primary);
-      text-decoration: none;
-      transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
-    }
-    .head-action-btn:hover {
-      border-color: var(--color-primary);
-      background: var(--color-primary-tint);
-    }
-    .head-action-btn.expense-trigger {
-      border-color: rgba(200, 155, 91, 0.55);
-      background: var(--color-accent-soft);
-      color: var(--color-accent-ink);
-    }
-    .head-action-btn.dark,
-    .head-menu-btn.dark {
-      border-color: rgba(255, 255, 255, 0.24);
-      background: rgba(255, 255, 255, 0.1);
-      color: var(--color-text-on-primary);
-    }
-    .head-action-btn.accent-dark {
-      border-color: rgba(200, 155, 91, 0.65);
-      background: rgba(200, 155, 91, 0.22);
-      color: var(--color-accent-light);
-    }
-    .head-action-btn.accent-dark:hover {
-      background: var(--color-accent);
-      color: var(--color-text-on-primary);
-    }
-    .head-menu-btn {
-      width: 28px;
-      height: 28px;
-      border-radius: 7px;
-      color: var(--color-text-secondary);
     }
     .overflow-anchor {
       position: relative;
@@ -811,7 +786,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       background: var(--color-surface);
       color: var(--color-text-primary);
       border: 1px solid var(--color-border);
-      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+      box-shadow: var(--shadow-float);
       z-index: 40;
       display: flex;
       flex-direction: column;
@@ -869,21 +844,23 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     .local-copy-chip {
       display: inline-flex;
       align-items: center;
-      gap: 4px;
+      gap: 5px;
       max-width: 100%;
-      margin: 0 0 6px;
-      padding: 3px 8px;
-      border: 1px solid var(--color-border);
-      border-radius: 7px;
-      background: var(--color-bg);
+      margin: 0 0 6px -6px;
+      padding: 3px 6px;
+      border: none;
+      border-radius: var(--radius-xs);
+      background: transparent;
       color: var(--color-text-secondary);
       font: inherit;
-      font-size: 0.72rem;
-      font-weight: 600;
+      font-size: 0.76rem;
+      font-weight: 500;
       cursor: pointer;
+      transition: background-color 140ms ease, color 140ms ease;
     }
-    .local-copy-chip:hover {
-      border-color: var(--color-primary);
+    .local-copy-chip:hover,
+    .local-copy-chip:focus-visible {
+      background: rgba(20, 24, 31, 0.05);
       color: var(--color-primary);
     }
     .chip-truncate {
@@ -907,10 +884,10 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       gap: 8px;
       margin-top: 10px;
       padding-top: 8px;
-      border-top: 1px solid var(--color-border);
+      border-top: 1px solid var(--color-border-soft);
     }
     .card-footer.dark {
-      border-top-color: rgba(255, 255, 255, 0.14);
+      border-top-color: rgba(255, 255, 255, 0.12);
     }
     .footer-pills {
       display: flex;
@@ -922,15 +899,15 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       -webkit-overflow-scrolling: touch;
       scrollbar-width: thin;
       scrollbar-color: rgba(20, 24, 31, 0.22) transparent;
-      padding-bottom: 3px;
-      gap: 6px;
+      padding-bottom: 2px;
+      gap: 10px;
     }
     .footer-pills::-webkit-scrollbar {
       height: 4px;
     }
     .footer-pills::-webkit-scrollbar-thumb {
       background: rgba(20, 24, 31, 0.18);
-      border-radius: 99px;
+      border-radius: var(--radius-pill);
     }
     .footer-pills:hover::-webkit-scrollbar-thumb {
       background: rgba(20, 24, 31, 0.32);
@@ -940,33 +917,27 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      height: 27px;
-      padding: 0 9px;
-      border-radius: 7px;
       text-decoration: none;
-      font-size: 0.73rem;
+      font-size: 0.74rem;
       font-weight: 500;
       white-space: nowrap;
       flex-shrink: 0;
     }
     .meta-chip {
-      border: 1px solid var(--color-border);
-      background: var(--color-bg);
+      padding: 2px 0;
       color: var(--color-text-secondary);
     }
     .meta-chip.alert {
-      border-color: rgba(200, 75, 59, 0.28);
+      padding: 2px 8px;
+      border-radius: var(--radius-xs);
       background: var(--color-alert-soft);
       color: var(--color-alert);
     }
     .meta-chip.dark {
-      border-color: rgba(255, 255, 255, 0.2);
-      background: rgba(255, 255, 255, 0.12);
-      color: #f8fafc;
+      color: rgba(248, 250, 252, 0.8);
     }
     .meta-chip.dark.alert {
-      border-color: rgba(252, 165, 165, 0.45);
-      background: rgba(200, 75, 59, 0.26);
+      background: rgba(200, 75, 59, 0.24);
       color: var(--color-alert-light);
     }
     .footer-pills.dark {
@@ -976,50 +947,36 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       background: rgba(255, 255, 255, 0.26);
     }
     .head-expense-pill.dark {
-      border-color: rgba(212, 175, 55, 0.45);
-      background: rgba(212, 175, 55, 0.16);
+      border-color: var(--color-accent-border);
+      background: var(--color-accent-tint);
       color: var(--color-accent-light);
     }
     .head-expense-pill.dark:hover {
-      background: rgba(212, 175, 55, 0.26);
+      border-color: var(--color-accent);
+      background: rgba(196, 146, 76, 0.22);
     }
     .attachment-chip {
-      border: 1px solid var(--color-border);
-      background: var(--color-bg);
+      padding: 2px 8px;
+      border-radius: var(--radius-xs);
+      background: var(--color-surface-alt);
       color: var(--color-primary);
+      transition: background-color 140ms ease;
     }
     .attachment-chip:hover {
-      border-color: var(--color-primary);
       background: var(--color-primary-tint);
     }
     .attachment-chip.dark {
-      border-color: rgba(255, 255, 255, 0.24);
       background: rgba(255, 255, 255, 0.1);
       color: var(--color-text-on-primary);
+    }
+    .attachment-chip.dark:hover {
+      background: rgba(255, 255, 255, 0.18);
     }
     .order-controls {
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 2px;
       margin-left: auto;
-    }
-    .order-btn {
-      width: 28px;
-      height: 28px;
-      border-radius: 8px;
-      color: var(--color-text-muted);
-    }
-    .head-action-btn::after,
-    .head-menu-btn::after,
-    .order-btn::after {
-      content: '';
-      position: absolute;
-      inset: -5px;
-    }
-    .order-btn.dark {
-      border-color: rgba(255, 255, 255, 0.24);
-      background: rgba(255, 255, 255, 0.08);
-      color: var(--color-text-on-primary);
     }
   `,
 })

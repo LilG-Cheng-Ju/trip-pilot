@@ -340,35 +340,35 @@ export interface ItemFormSubmitEvent {
           </div>
         }
 
-        <!-- Progressive Disclosure: Dashed chips for optional fields -->
+        <!-- Progressive Disclosure: Optional field toggle chips -->
         <div class="optional-chips">
           @if (itemType() !== 'FLIGHT' && itemType() !== 'LOCAL_TRANSIT' && !showAddress()) {
-            <button type="button" class="dashed-chip" (click)="showAddress.set(true)">
+            <button type="button" class="optional-chip" (click)="showAddress.set(true)">
               {{ 'detail.optionalAdd.address' | t }}
             </button>
           }
           @if (supportsBookingFields() && !showBookingRef()) {
-            <button type="button" class="dashed-chip" (click)="showBookingRef.set(true)">
+            <button type="button" class="optional-chip" (click)="showBookingRef.set(true)">
               {{ 'detail.optionalAdd.bookingRef' | t }}
             </button>
           }
           @if (supportsBookingFields() && !showFreeCancel()) {
-            <button type="button" class="dashed-chip" (click)="showFreeCancel.set(true)">
+            <button type="button" class="optional-chip" (click)="showFreeCancel.set(true)">
               {{ 'detail.optionalAdd.freeCancel' | t }}
             </button>
           }
           @if (itemType() !== 'FLIGHT' && itemType() !== 'LOCAL_TRANSIT' && !showLocalName()) {
-            <button type="button" class="dashed-chip" (click)="showLocalName.set(true)">
+            <button type="button" class="optional-chip" (click)="showLocalName.set(true)">
               {{ 'detail.optionalAdd.localName' | t }}
             </button>
           }
           @if (!showNotes()) {
-            <button type="button" class="dashed-chip" (click)="showNotes.set(true)">
+            <button type="button" class="optional-chip" (click)="showNotes.set(true)">
               {{ 'detail.optionalAdd.notes' | t }}
             </button>
           }
           @if (!showAttachments()) {
-            <button type="button" class="dashed-chip" (click)="showAttachments.set(true)">
+            <button type="button" class="optional-chip" (click)="showAttachments.set(true)">
               {{ 'detail.optionalAdd.attachments' | t }}
             </button>
           }
@@ -528,13 +528,13 @@ export interface ItemFormSubmitEvent {
       flex-wrap: wrap;
       gap: 6px;
     }
-    .dashed-chip {
+    .optional-chip {
       display: inline-flex;
       align-items: center;
       padding: 5px 11px;
-      border: 1px dashed var(--color-border);
-      border-radius: 7px;
-      background: transparent;
+      border: 1px solid var(--color-border-soft);
+      border-radius: var(--radius-sm);
+      background: var(--color-surface-alt);
       color: var(--color-text-secondary);
       font: inherit;
       font-size: 0.76rem;
@@ -542,10 +542,11 @@ export interface ItemFormSubmitEvent {
       cursor: pointer;
       transition: border-color 140ms ease, color 140ms ease, background-color 140ms ease;
     }
-    .dashed-chip:hover {
-      border-color: var(--color-primary);
+    .optional-chip:hover,
+    .optional-chip:focus-visible {
+      border-color: var(--color-border-strong);
       color: var(--color-primary);
-      background: var(--color-bg);
+      background: var(--color-surface);
     }
     .btn-primary {
       padding: 8px 18px;

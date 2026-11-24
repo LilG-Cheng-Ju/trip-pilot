@@ -148,7 +148,7 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
               }
 
               @if (timelineSlots().length === 0) {
-                <div class="empty-day">{{ 'itinerary.emptyDay' | t }}</div>
+                <div class="empty-state">{{ 'itinerary.emptyDay' | t }}</div>
               } @else {
                 <div class="timeline">
                   @for (slot of timelineSlots(); track slot.key) {
@@ -231,11 +231,11 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
       }
     } @else if (errorKey(); as errKey) {
       <div class="state-wrap">
-        <p class="empty-day">{{ errKey | t }}</p>
+        <p class="empty-state">{{ errKey | t }}</p>
       </div>
     } @else {
       <div class="state-wrap">
-        <p class="empty-day">{{ 'common.loading' | t }}</p>
+        <p class="empty-state">{{ 'common.loading' | t }}</p>
       </div>
     }
   `,
@@ -261,7 +261,7 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
       min-width: 0;
       max-width: 100%;
       padding: 8px var(--space-3) 7px;
-      background: rgba(247, 244, 239, 0.95);
+      background: var(--color-surface-glass);
       backdrop-filter: blur(12px);
       border-bottom: 1px solid var(--color-border);
     }
@@ -407,8 +407,8 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
     .slot-group.has-choices {
       padding: 8px;
       border-radius: var(--radius-md);
-      background: rgba(200, 155, 91, 0.08);
-      border: 1px solid rgba(200, 155, 91, 0.35);
+      background: var(--color-accent-tint);
+      border: 1px solid var(--color-accent-border);
     }
     .choice-pills {
       display: flex;
@@ -440,14 +440,6 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
       height: 6px;
       border-radius: 50%;
       background: var(--color-accent);
-    }
-    .empty-day {
-      padding: var(--space-6);
-      text-align: center;
-      color: var(--color-text-secondary);
-      background: var(--color-surface);
-      border: 1px dashed var(--color-border);
-      border-radius: var(--radius-md);
     }
     .state-wrap {
       max-width: 720px;

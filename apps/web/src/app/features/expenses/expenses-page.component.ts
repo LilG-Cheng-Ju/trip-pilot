@@ -312,9 +312,9 @@ import { ItineraryStore } from '../../state/itinerary.store';
           }
 
           @if (expenseStore.loading()) {
-            <p class="empty-box">{{ 'common.loading' | t }}</p>
+            <p class="empty-state">{{ 'common.loading' | t }}</p>
           } @else if (expenseStore.filteredItems().length === 0) {
-            <div class="empty-box">{{ 'expenses.empty' | t }}</div>
+            <div class="empty-state">{{ 'expenses.empty' | t }}</div>
           } @else {
             <div class="ledger-list">
               @for (exp of expenseStore.filteredItems(); track exp.id) {
@@ -995,14 +995,6 @@ import { ItineraryStore } from '../../state/itinerary.store';
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       gap: 10px;
-    }
-    .empty-box {
-      padding: var(--space-6);
-      text-align: center;
-      color: var(--color-text-secondary);
-      background: var(--color-surface);
-      border: 1px dashed var(--color-border);
-      border-radius: var(--radius-md);
     }
     @media (min-width: 1024px) {
       .expenses-grid {

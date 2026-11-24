@@ -127,7 +127,7 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
       grid-template-columns: repeat(3, 1fr);
       gap: 3px;
       padding: 3px;
-      border-radius: 9px;
+      border-radius: var(--radius-sm);
       background: var(--color-surface-muted);
       border: 1px solid var(--color-border);
     }
@@ -138,7 +138,7 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
       gap: 4px;
       height: 28px;
       padding: 0 8px;
-      border-radius: 7px;
+      border-radius: var(--radius-xs);
       color: var(--color-text-secondary);
       text-decoration: none;
       font-size: 0.77rem;
@@ -178,13 +178,13 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
       .workspace-tabs {
         gap: 4px;
         padding: 4px;
-        border-radius: 11px;
+        border-radius: var(--radius-md);
       }
       .ws-tab {
         gap: 6px;
         height: 34px;
         padding: 0 10px;
-        border-radius: 8px;
+        border-radius: var(--radius-sm);
         font-size: 0.82rem;
       }
     }

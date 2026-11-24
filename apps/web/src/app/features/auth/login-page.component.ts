@@ -235,7 +235,7 @@ import { readInputValue } from '../../core/utils/form-events.utils';
     }
     .beta-chip {
       padding: 2px 6px;
-      border-radius: 5px;
+      border-radius: var(--radius-xs);
       border: 1px solid rgba(200, 155, 91, 0.65);
       background: rgba(200, 155, 91, 0.2);
       color: var(--color-accent-light);
@@ -332,14 +332,14 @@ import { readInputValue } from '../../core/utils/form-events.utils';
       gap: 4px;
       padding: 3px;
       margin-bottom: var(--space-4);
-      border-radius: 10px;
+      border-radius: var(--radius-sm);
       background: var(--color-surface-muted);
       border: 1px solid var(--color-border);
     }
     .mode-tab {
       padding: 7px 10px;
       border: none;
-      border-radius: 7px;
+      border-radius: var(--radius-xs);
       background: transparent;
       color: var(--color-text-secondary);
       font: inherit;

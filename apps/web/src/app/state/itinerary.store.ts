@@ -1,4 +1,3 @@
-import { moveItemInArray } from '@angular/cdk/drag-drop';
 import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 
@@ -749,7 +748,8 @@ export const ItineraryStore = signalStore(
           recalculatedOptionIds.clear();
 
           const nextSlots = [...slots];
-          moveItemInArray(nextSlots, fromIndex, toIndex);
+          const [movedSlot] = nextSlots.splice(fromIndex, 1);
+          nextSlots.splice(toIndex, 0, movedSlot);
           const reorderedItems = nextSlots.flatMap((s) => s.choices);
           const reorderedIds = reorderedItems.map((c) => c.id);
 

@@ -1,6 +1,6 @@
 import { provideHttpClient } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 
 import { TripilotApiService } from '../../core/api/tripilot-api.service';
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -156,5 +156,54 @@ describe('TripsPageComponent', () => {
     await fixture.whenStable();
 
     expect(deletedTripIds).toEqual(['trip-1']);
+  });
+
+  it('renders de-boxed metadata, Brief/Expenses links without duplicate Itinerary pill, and opens trip on card click/Enter', async () => {
+    const fixture = TestBed.createComponent(TripsPageComponent);
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const card = host.querySelector('.trip-card') as HTMLElement;
+    expect(card).toBeTruthy();
+    expect(card.querySelector('.card-meta-line')?.textContent).toContain('Japan');
+    expect(card.querySelector('.card-meta-line')?.textContent).toContain('5 days');
+    expect(card.querySelector('.country-badge')).toBeNull();
+    expect(card.querySelector('.days-badge')).toBeNull();
+
+    const ghostLinks = Array.from(card.querySelectorAll('.card-actions a.card-ghost-action')).map(
+      (el) => ({
+        text: el.textContent?.trim(),
+        href: el.getAttribute('href'),
+      }),
+    );
+    expect(ghostLinks).toEqual([
+      { text: expect.stringContaining('Brief'), href: '/trips/trip-1/brief' },
+      { text: expect.stringContaining('Expenses'), href: '/trips/trip-1/expenses' },
+    ]);
+
+    const router = TestBed.inject(Router);
+    const navCalls: unknown[] = [];
+    const origNavigate = router.navigate.bind(router);
+    router.navigate = (commands: unknown[]) => {
+      navCalls.push(commands);
+      return Promise.resolve(true);
+    };
+
+    try {
+      card.click();
+      card.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      expect(navCalls).toEqual([['/trips', 'trip-1'], ['/trips', 'trip-1']]);
+
+      // Clicking action icon buttons inside the card must not bubble to card navigation.
+      navCalls.length = 0;
+      const editBtn = card.querySelector('.card-icon-btn[aria-label="Edit Trip"]') as HTMLButtonElement;
+      editBtn.click();
+      expect(navCalls).toEqual([]);
+    } finally {
+      router.navigate = origNavigate;
+    }
   });
 });
