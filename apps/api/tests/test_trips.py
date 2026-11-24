@@ -234,7 +234,9 @@ async def test_public_share_enforces_visibility_policy(
 
 
 @pytest.mark.asyncio
-async def test_day_option_rename_and_delete_guard(api_client, dev_headers):
+async def test_day_option_rename_and_delete_guard(
+    api_client: AsyncClient, dev_headers: dict[str, str]
+) -> None:
     trip_resp = await api_client.post(
         "/api/v1/trips",
         headers=dev_headers,

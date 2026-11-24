@@ -3,11 +3,12 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from sqlalchemy.orm.strategy_options import _AbstractLoad
 
 from app.models import DayOption, ItineraryItem, Trip, TripDay, TripShare
 
 
-def _trip_detail_options():
+def _trip_detail_options() -> _AbstractLoad:
     return selectinload(Trip.days).selectinload(TripDay.options).options(
         selectinload(DayOption.items),
         selectinload(DayOption.route_segments),

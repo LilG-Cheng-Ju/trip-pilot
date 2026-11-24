@@ -2,11 +2,13 @@
 
 from typing import Annotated
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 from app.core.auth import AuthContext, require_scope
 from app.core.constants import PLACES_DEFAULT_LIMIT, PLACES_MAX_LIMIT
+from app.core.http_client import UpstreamUnavailableError
 from app.services.places import (
     PlaceCandidate,
     get_place_search_provider,
@@ -52,6 +54,16 @@ async def search_places(
     provider = get_place_search_provider()
     try:
         candidates = await provider.search(q.strip(), language=lang, limit=limit)
+    except UpstreamUnavailableError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Place search provider temporarily unavailable",
+        ) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Place search provider unavailable",
+        ) from exc
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

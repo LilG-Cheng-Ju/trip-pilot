@@ -4,7 +4,7 @@ import time
 from typing import Protocol
 
 from app.core.constants import FX_CACHE_TTL_SECONDS, FX_HTTP_TIMEOUT_SEC
-from app.core.http_client import get_shared_http_client
+from app.core.http_client import request_with_resilience
 
 OPEN_ER_API_URL = "https://open.er-api.com/v6/latest/{base}"
 DEFAULT_TTL_SECONDS = FX_CACHE_TTL_SECONDS
@@ -64,9 +64,11 @@ class OpenErApiProvider:
                 return _round_rate(rate), "open_er_api", True
 
         try:
-            client = get_shared_http_client()
-            response = await client.get(
-                OPEN_ER_API_URL.format(base=src), timeout=self.timeout_sec
+            response = await request_with_resilience(
+                "open_er_api",
+                "GET",
+                OPEN_ER_API_URL.format(base=src),
+                timeout=self.timeout_sec,
             )
             if response.status_code == 200:
                 data = response.json()

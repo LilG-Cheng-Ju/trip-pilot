@@ -12,7 +12,7 @@ from app.core.constants import (
     PLACES_MAX_LIMIT,
     PLACES_MAX_REDIRECTS,
 )
-from app.core.http_client import get_shared_http_client
+from app.core.http_client import get_shared_http_client, request_with_resilience
 
 GOOGLE_PLACES_TEXT_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText"
 PHOTON_SEARCH_URL = "https://photon.komoot.io/api/"
@@ -83,8 +83,9 @@ class GooglePlacesProvider:
             "languageCode": language,
             "pageSize": min(limit, PLACES_MAX_LIMIT),
         }
-        client = get_shared_http_client()
-        response = await client.post(
+        response = await request_with_resilience(
+            "google_places",
+            "POST",
             GOOGLE_PLACES_TEXT_SEARCH_URL,
             headers=headers,
             json=body,
@@ -124,8 +125,9 @@ class PhotonOsmProvider:
         self, query: str, language: str = "zh-TW", limit: int = PLACES_DEFAULT_LIMIT
     ) -> list[PlaceCandidate]:
         del language
-        client = get_shared_http_client()
-        response = await client.get(
+        response = await request_with_resilience(
+            "photon_osm",
+            "GET",
             PHOTON_SEARCH_URL,
             params={"q": query, "limit": limit},
             timeout=self.timeout_sec,

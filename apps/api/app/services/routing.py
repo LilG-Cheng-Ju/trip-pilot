@@ -15,7 +15,7 @@ from app.core.constants import (
     ROUTING_HTTP_TIMEOUT_SEC,
     SECONDS_PER_MINUTE,
 )
-from app.core.http_client import get_shared_http_client
+from app.core.http_client import get_shared_http_client, request_with_resilience
 from app.models import DayOption, ItemType, ItineraryItem, RouteProfile, RouteSegment
 from app.services.airport_service import haversine_km, infer_flight_airport_role
 
@@ -106,19 +106,16 @@ class OsrmRoutingProvider:
             f"{self.base_url}/route/v1/{osrm_profile}/"
             f"{lng1},{lat1};{lng2},{lat2}"
         )
+        client = self._client or get_shared_http_client()
         try:
-            if self._client is not None:
-                response = await self._client.get(
-                    url,
-                    params={"overview": "simplified", "geometries": "polyline"},
-                    timeout=self.timeout_sec,
-                )
-            else:
-                async with httpx.AsyncClient(timeout=self.timeout_sec) as client:
-                    response = await client.get(
-                        url,
-                        params={"overview": "simplified", "geometries": "polyline"},
-                    )
+            response = await request_with_resilience(
+                "osrm",
+                "GET",
+                url,
+                client=client,
+                params={"overview": "simplified", "geometries": "polyline"},
+                timeout=self.timeout_sec,
+            )
             if response.status_code == 200:
                 data = response.json()
                 routes = data.get("routes") or []

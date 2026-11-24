@@ -1,31 +1,41 @@
-# Multi-stage Dockerfile supporting both hot-reload development and slim production.
+# Multi-stage uv Dockerfile supporting hot-reload development and slim production.
 FROM python:3.12-slim AS builder
+
+COPY --from=ghcr.io/astral-sh/uv:0.6 /uv /uvx /bin/
 
 WORKDIR /build
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PROJECT_ENVIRONMENT=/opt/venv \
+    PATH="/opt/venv/bin:$PATH"
 
-RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
+COPY pyproject.toml uv.lock ./
+# Install dependencies before copying app source to maximize Docker layer caching.
+RUN uv sync --frozen --no-dev --no-install-project
 
-COPY pyproject.toml ./
-# Install runtime-only dependencies into the isolated virtualenv for slim prod builds.
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir .
+COPY app ./app
+RUN uv sync --frozen --no-dev --no-editable
 
 
 FROM python:3.12-slim AS dev
+
+COPY --from=ghcr.io/astral-sh/uv:0.6 /uv /uvx /bin/
 
 WORKDIR /tmp/build
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PROJECT_ENVIRONMENT=/opt/venv \
     PATH="/opt/venv/bin:$PATH"
 
 COPY --from=builder /opt/venv /opt/venv
-COPY pyproject.toml ./
-RUN pip install --no-cache-dir ".[dev]" && rm -rf /tmp/build
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --extra dev --no-install-project && rm -rf /tmp/build
 
 WORKDIR /app
 

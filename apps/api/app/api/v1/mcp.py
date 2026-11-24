@@ -653,7 +653,7 @@ async def _dispatch_tool(
         rate_val = args.get("exchange_rate")
         if rate_val is None:
             rate_val, _, _ = await get_fx_provider().get_rate(src_cur, home_cur)
-        payload = ExpenseCreate(
+        expense_payload = ExpenseCreate(
             title=str(args["title"]),
             category=args["category"],
             amount_original=Decimal(str(args["amount_original"])),
@@ -665,7 +665,7 @@ async def _dispatch_tool(
             notes=args.get("notes"),
         )
         created = await ExpenseService(db).create_expense(
-            trip_id, auth_ctx.user, payload
+            trip_id, auth_ctx.user, expense_payload
         )
         return {
             "id": created.id,

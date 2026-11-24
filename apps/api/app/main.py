@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
-import app.models  # noqa: F401
+from app import models as _models  # noqa: F401
 from app.api.v1 import airports as airports_router
 from app.api.v1 import expenses as expenses_router
 from app.api.v1 import fx as fx_router

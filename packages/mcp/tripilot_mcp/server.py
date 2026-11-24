@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 
 from tripilot_mcp.client import TripilotClient
 
-mcp = FastMCP("tripilot")
+mcp = MCPServer("tripilot")
 
 
 def _build_item_payload(

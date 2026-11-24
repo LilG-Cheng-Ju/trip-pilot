@@ -1,13 +1,12 @@
 """Smoke tests for the system health endpoint."""
 
-from fastapi.testclient import TestClient
+import pytest
+from httpx import AsyncClient
 
-from app.main import create_app
 
-
-def test_healthz_returns_ok() -> None:
-    client = TestClient(create_app())
-    response = client.get("/healthz")
+@pytest.mark.asyncio
+async def test_healthz_returns_ok(api_client: AsyncClient) -> None:
+    response = await api_client.get("/healthz")
 
     assert response.status_code == 200
     payload = response.json()
