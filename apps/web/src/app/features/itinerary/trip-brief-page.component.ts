@@ -1,5 +1,5 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { COPY_FEEDBACK_DURATION_MS, MS_PER_DAY } from '../../core/constants/app-limits';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -37,7 +37,7 @@ interface TripAttachmentEntry {
 /** At-a-glance trip summary: accommodations & hotel changes, flights, reserved transit, and attachments vault. */
 @Component({
   selector: 'app-trip-brief-page',
-  imports: [TranslatePipe, TripSubnavComponent],
+  imports: [RouterLink, TranslatePipe, TripSubnavComponent],
   template: `
     <div class="page">
       @if (store.trip(); as trip) {
@@ -259,8 +259,19 @@ interface TripAttachmentEntry {
             }
           </section>
         </div>
-      } @else {
+      } @else if (store.loading()) {
         <p class="empty-hint">{{ 'common.loading' | t }}</p>
+      } @else {
+        <div class="brief-error" role="alert">
+          <span class="ms-icon lg" aria-hidden="true">error_outline</span>
+          <p>{{ store.error() || ('itinerary.errLoad' | t) }}</p>
+          <div class="brief-error-actions">
+            <button type="button" class="btn-primary" (click)="retryLoad()">
+              {{ 'common.retry' | t }}
+            </button>
+            <a routerLink="/trips" class="btn-ghost">{{ 'itinerary.goTrips' | t }}</a>
+          </div>
+        </div>
       }
     </div>
   `,
@@ -322,6 +333,32 @@ interface TripAttachmentEntry {
       background: var(--color-bg);
       color: var(--color-text-muted);
       font-size: 0.82rem;
+    }
+    .brief-error {
+      max-width: 420px;
+      margin: 48px auto;
+      padding: var(--space-6);
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      color: var(--color-text-secondary);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-card);
+    }
+    .brief-error p {
+      margin: 0;
+      font-size: 0.85rem;
+    }
+    .brief-error-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 4px;
     }
     .card-stack {
       display: flex;
@@ -622,6 +659,13 @@ export class TripBriefPageComponent implements OnInit {
   ngOnInit(): void {
     const tripId = this.route.snapshot.paramMap.get('tripId');
     if (tripId && this.store.trip()?.id !== tripId) {
+      void this.store.loadTrip(tripId);
+    }
+  }
+
+  protected retryLoad(): void {
+    const tripId = this.route.snapshot.paramMap.get('tripId');
+    if (tripId) {
       void this.store.loadTrip(tripId);
     }
   }

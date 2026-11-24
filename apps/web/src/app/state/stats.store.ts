@@ -28,6 +28,10 @@ export const StatsStore = signalStore(
     let loadStatsSeq = 0;
 
     return {
+      clearError(): void {
+        patchState(store, { error: null });
+      },
+
       async loadStats(
         year: number | null = store.selectedYear(),
         scope: StatsScope = store.selectedScope(),

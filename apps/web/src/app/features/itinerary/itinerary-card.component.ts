@@ -55,6 +55,24 @@ import { ItemExpenseSummary } from '../../state/expense.store';
             >
               <span class="ms-icon sm" aria-hidden="true">payments</span>
             </button>
+            <button
+              type="button"
+              class="connector-order-btn"
+              [disabled]="!canMoveUp()"
+              (click)="moveUp.emit(item())"
+              [attr.aria-label]="'item.moveUp' | t"
+            >
+              <span class="ms-icon sm" aria-hidden="true">keyboard_arrow_up</span>
+            </button>
+            <button
+              type="button"
+              class="connector-order-btn"
+              [disabled]="!canMoveDown()"
+              (click)="moveDown.emit(item())"
+              [attr.aria-label]="'item.moveDown' | t"
+            >
+              <span class="ms-icon sm" aria-hidden="true">keyboard_arrow_down</span>
+            </button>
             <div class="overflow-anchor">
               <button
                 type="button"
@@ -219,6 +237,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
                 <button
                   type="button"
                   class="order-btn dark"
+                  [disabled]="!canMoveUp()"
                   (click)="moveUp.emit(item())"
                   [attr.aria-label]="'item.moveUp' | t"
                 >
@@ -227,6 +246,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
                 <button
                   type="button"
                   class="order-btn dark"
+                  [disabled]="!canMoveDown()"
                   (click)="moveDown.emit(item())"
                   [attr.aria-label]="'item.moveDown' | t"
                 >
@@ -419,6 +439,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
                 <button
                   type="button"
                   class="order-btn"
+                  [disabled]="!canMoveUp()"
                   (click)="moveUp.emit(item())"
                   [attr.aria-label]="'item.moveUp' | t"
                 >
@@ -427,6 +448,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
                 <button
                   type="button"
                   class="order-btn"
+                  [disabled]="!canMoveDown()"
                   (click)="moveDown.emit(item())"
                   [attr.aria-label]="'item.moveDown' | t"
                 >
@@ -491,7 +513,8 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       border-color: var(--color-accent);
       color: var(--color-text-on-primary);
     }
-    .connector-menu-btn {
+    .connector-menu-btn,
+    .connector-order-btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -504,9 +527,15 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       color: var(--color-text-secondary);
       cursor: pointer;
     }
-    .connector-menu-btn:hover {
+    .connector-menu-btn:hover,
+    .connector-order-btn:hover:not(:disabled) {
       border-color: var(--color-primary);
       color: var(--color-primary);
+    }
+    .connector-order-btn:disabled,
+    .order-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
     }
     .card {
       border-radius: var(--radius-md);
@@ -969,7 +998,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       color: var(--color-text-muted);
       cursor: pointer;
     }
-    .order-btn:hover {
+    .order-btn:hover:not(:disabled) {
       border-color: var(--color-primary);
       color: var(--color-primary);
     }
@@ -995,6 +1024,8 @@ export class ItineraryCardComponent {
   readonly pinOrder = input<number | null>(null);
   readonly selected = input(false);
   readonly readOnly = input(false);
+  readonly canMoveUp = input(true);
+  readonly canMoveDown = input(true);
   readonly expenseSummary = input<ItemExpenseSummary | null>(null);
 
   readonly cardClicked = output<string>();

@@ -2,9 +2,11 @@ import {
   AfterViewInit,
   ChangeDetectionStrategy,
   Component,
+  computed,
   effect,
   ElementRef,
   input,
+  model,
   OnDestroy,
   output,
   untracked,
@@ -13,6 +15,8 @@ import {
 import maplibregl from 'maplibre-gl';
 
 import { COORDINATE_EPSILON } from '../../core/constants/app-limits';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { MapRouteMode } from '../../core/utils/travel-format.utils';
 
 export interface MapPin {
   id: string;
@@ -45,10 +49,35 @@ const STAY_LEG_LAYER_ID = 'stay-leg-layer';
 /** Lazy-rendered MapLibre GL JS map showing numbered daily pins, basecamp stay, and route lines. */
 @Component({
   selector: 'app-itinerary-map',
+  imports: [TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="map-shell">
       <div #mapContainer class="map-canvas"></div>
+      @if (showModeToggle()) {
+        <div
+          class="route-mode-toggle"
+          role="group"
+          [attr.aria-label]="'map.modeAria' | t"
+        >
+          <button
+            type="button"
+            class="route-mode-btn"
+            [class.active]="effectiveMode() === 'schematic'"
+            (click)="routeMode.set('schematic')"
+          >
+            {{ 'map.modeSchematic' | t }}
+          </button>
+          <button
+            type="button"
+            class="route-mode-btn"
+            [class.active]="effectiveMode() === 'road'"
+            (click)="routeMode.set('road')"
+          >
+            {{ 'map.modeRoad' | t }}
+          </button>
+        </div>
+      }
       @if (pins().length === 0 && !stayPin() && !departureStayPin()) {
         <div class="map-empty">
           <span class="ms-icon lg" aria-hidden="true">map</span>
@@ -71,6 +100,40 @@ const STAY_LEG_LAYER_ID = 'stay-leg-layer';
     .map-canvas {
       width: 100%;
       height: 100%;
+    }
+    .route-mode-toggle {
+      position: absolute;
+      top: var(--space-3);
+      left: var(--space-3);
+      z-index: 4;
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      padding: 3px;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--color-border);
+      box-shadow: 0 2px 10px rgba(20, 24, 31, 0.12);
+    }
+    .route-mode-btn {
+      border: 0;
+      background: transparent;
+      color: var(--color-text-secondary);
+      font-size: 0.75rem;
+      font-weight: 600;
+      line-height: 1;
+      padding: 6px 10px;
+      border-radius: 9999px;
+      cursor: pointer;
+      transition: background-color 140ms ease, color 140ms ease;
+    }
+    .route-mode-btn:hover:not(.active) {
+      color: var(--color-text);
+    }
+    .route-mode-btn.active {
+      background: var(--color-primary, #162136);
+      color: #ffffff;
     }
     .map-empty {
       position: absolute;
@@ -96,6 +159,8 @@ const STAY_LEG_LAYER_ID = 'stay-leg-layer';
 export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
   readonly pins = input<MapPin[]>([]);
   readonly routePath = input<[number, number][]>([]);
+  readonly roadRoutePath = input<[number, number][]>([]);
+  readonly routeMode = model<MapRouteMode>('schematic');
   readonly departureStayPin = input<StayMapPin | null>(null);
   readonly stayPin = input<StayMapPin | null>(null);
   readonly connectFromStay = input(true);
@@ -105,6 +170,16 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
 
   readonly pinSelected = output<string>();
 
+  protected readonly showModeToggle = computed(
+    () => this.routePath().length >= 2 && this.roadRoutePath().length >= 2,
+  );
+  protected readonly effectiveMode = computed<MapRouteMode>(() =>
+    this.routeMode() === 'road' && this.roadRoutePath().length >= 2 ? 'road' : 'schematic',
+  );
+  protected readonly activeRoutePath = computed<[number, number][]>(() =>
+    this.effectiveMode() === 'road' ? this.roadRoutePath() : this.routePath(),
+  );
+
   private readonly mapContainer = viewChild<ElementRef<HTMLDivElement>>('mapContainer');
   private map: maplibregl.Map | null = null;
   private markers: maplibregl.Marker[] = [];
@@ -112,17 +187,42 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
   private styleLoaded = false;
 
   constructor() {
-    // Rebuild markers and fit bounds only when route or pin geometry changes.
+    // Rebuild markers and fit bounds only when structural pins or stay geometry change.
     effect(() => {
       const currentPins = this.pins();
-      const path = this.routePath();
       const depStay = this.departureStayPin();
       const stay = this.stayPin();
       const fromStay = this.connectFromStay();
       const toStay = this.connectToStay();
+      this.routePath();
       if (this.map && this.styleLoaded) {
-        this.renderPinsAndRoute(currentPins, path, depStay, stay, fromStay, toStay);
+        this.renderPinsAndRoute(
+          currentPins,
+          untracked(() => this.activeRoutePath()),
+          depStay,
+          stay,
+          fromStay,
+          toStay,
+          untracked(() => this.effectiveMode()),
+        );
         this.updateMarkerSelection(untracked(() => this.selectedPinId()));
+      }
+    });
+
+    // Update route GeoJSON sources in-place when toggling schematic/driving mode.
+    effect(() => {
+      const activePath = this.activeRoutePath();
+      const mode = this.effectiveMode();
+      if (this.map && this.styleLoaded) {
+        this.updateRouteLayers(
+          untracked(() => this.pins()),
+          activePath,
+          untracked(() => this.departureStayPin()),
+          untracked(() => this.stayPin()),
+          untracked(() => this.connectFromStay()),
+          untracked(() => this.connectToStay()),
+          mode,
+        );
       }
     });
 
@@ -153,16 +253,21 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
         new maplibregl.NavigationControl({ showCompass: false }),
         'top-right',
       );
+      this.map.addControl(
+        new maplibregl.AttributionControl({ compact: true }),
+        'bottom-right',
+      );
       this.map.on('load', () => {
         this.styleLoaded = true;
         this.map?.resize();
         this.renderPinsAndRoute(
           this.pins(),
-          this.routePath(),
+          this.activeRoutePath(),
           this.departureStayPin(),
           this.stayPin(),
           this.connectFromStay(),
           this.connectToStay(),
+          this.effectiveMode(),
         );
         this.updateMarkerSelection(this.selectedPinId());
       });
@@ -244,6 +349,129 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  private samePoint(pt: [number, number], target: StayMapPin | null): boolean {
+    return (
+      target !== null &&
+      Math.abs(pt[0] - target.lng) < COORDINATE_EPSILON &&
+      Math.abs(pt[1] - target.lat) < COORDINATE_EPSILON
+    );
+  }
+
+  private hasHotelChange(departureStay: StayMapPin | null, stay: StayMapPin | null): boolean {
+    return (
+      departureStay !== null &&
+      stay !== null &&
+      departureStay.id !== stay.id &&
+      !this.samePoint([departureStay.lng, departureStay.lat], stay)
+    );
+  }
+
+  private updateRouteLayers(
+    pins: MapPin[],
+    routePath: [number, number][],
+    departureStay: StayMapPin | null,
+    stay: StayMapPin | null,
+    fromStay: boolean,
+    toStay: boolean,
+    mode: MapRouteMode,
+  ): void {
+    if (!this.map) {
+      return;
+    }
+
+    const groundPinCoords: [number, number][] = pins
+      .filter((p) => p.type !== 'FLIGHT')
+      .map((p): [number, number] => [p.lng, p.lat]);
+    const stopCoords: [number, number][] =
+      routePath.length > 0 ? routePath : groundPinCoords;
+    const routeCoords: [number, number][] = routePath.length >= 2 ? routePath : [];
+    const lineWidth = mode === 'road' ? 3 : 2.5;
+
+    const routeGeoJson = {
+      type: 'Feature' as const,
+      properties: {},
+      geometry: {
+        type: 'LineString' as const,
+        coordinates: routeCoords,
+      },
+    };
+
+    const existingSource = this.map.getSource(ROUTE_SOURCE_ID) as
+      | maplibregl.GeoJSONSource
+      | undefined;
+    if (existingSource) {
+      existingSource.setData(routeGeoJson);
+      if (this.map.getLayer(ROUTE_LAYER_ID)) {
+        this.map.setPaintProperty(ROUTE_LAYER_ID, 'line-width', lineWidth);
+      }
+    } else {
+      this.map.addSource(ROUTE_SOURCE_ID, {
+        type: 'geojson',
+        data: routeGeoJson,
+      });
+      this.map.addLayer({
+        id: ROUTE_LAYER_ID,
+        type: 'line',
+        source: ROUTE_SOURCE_ID,
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': this.resolveCssToken('--color-primary', '#162136'),
+          'line-width': lineWidth,
+          'line-opacity': 0.78,
+        },
+      });
+    }
+
+    // Subtle champagne-gold dashed connectors: morning leg from departureStay, evening leg to arrivalStay.
+    const stayLegs: [number, number][][] = [];
+    if (stopCoords.length > 0) {
+      if (fromStay && departureStay && !this.samePoint(stopCoords[0], departureStay)) {
+        stayLegs.push([[departureStay.lng, departureStay.lat], stopCoords[0]]);
+      }
+      if (toStay && stay && !this.samePoint(stopCoords[stopCoords.length - 1], stay)) {
+        stayLegs.push([stopCoords[stopCoords.length - 1], [stay.lng, stay.lat]]);
+      }
+    } else if (this.hasHotelChange(departureStay, stay) && departureStay && stay) {
+      stayLegs.push([
+        [departureStay.lng, departureStay.lat],
+        [stay.lng, stay.lat],
+      ]);
+    }
+
+    const stayLegsGeoJson = {
+      type: 'Feature' as const,
+      properties: {},
+      geometry: {
+        type: 'MultiLineString' as const,
+        coordinates: stayLegs,
+      },
+    };
+
+    const existingStaySource = this.map.getSource(STAY_LEG_SOURCE_ID) as
+      | maplibregl.GeoJSONSource
+      | undefined;
+    if (existingStaySource) {
+      existingStaySource.setData(stayLegsGeoJson);
+    } else {
+      this.map.addSource(STAY_LEG_SOURCE_ID, {
+        type: 'geojson',
+        data: stayLegsGeoJson,
+      });
+      this.map.addLayer({
+        id: STAY_LEG_LAYER_ID,
+        type: 'line',
+        source: STAY_LEG_SOURCE_ID,
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': this.resolveCssToken('--color-accent', '#c4924c'),
+          'line-width': 2.5,
+          'line-opacity': 0.85,
+          'line-dasharray': [1.5, 2.5],
+        },
+      });
+    }
+  }
+
   private renderPinsAndRoute(
     pins: MapPin[],
     routePath: [number, number][],
@@ -251,6 +479,7 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
     stay: StayMapPin | null,
     fromStay: boolean,
     toStay: boolean,
+    mode: MapRouteMode,
   ): void {
     if (!this.map) {
       return;
@@ -288,16 +517,7 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
       this.markers.push(stayMarker);
     };
 
-    const samePoint = (pt: [number, number], target: StayMapPin | null): boolean =>
-      target !== null &&
-      Math.abs(pt[0] - target.lng) < COORDINATE_EPSILON &&
-      Math.abs(pt[1] - target.lat) < COORDINATE_EPSILON;
-
-    const isHotelChange =
-      departureStay !== null &&
-      stay !== null &&
-      departureStay.id !== stay.id &&
-      !samePoint([departureStay.lng, departureStay.lat], stay);
+    const isHotelChange = this.hasHotelChange(departureStay, stay);
 
     // On hotel-change days, render both morning departure hotel and tonight's check-in hotel.
     if (isHotelChange && departureStay) {
@@ -355,93 +575,7 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
       this.markers.push(marker);
     }
 
-    const stopCoords: [number, number][] =
-      routePath.length > 0
-        ? routePath
-        : pins.map((p): [number, number] => [p.lng, p.lat]);
-    const routeCoords: [number, number][] = stopCoords.length >= 2 ? stopCoords : [];
-
-    const routeGeoJson = {
-      type: 'Feature' as const,
-      properties: {},
-      geometry: {
-        type: 'LineString' as const,
-        coordinates: routeCoords,
-      },
-    };
-
-    const existingSource = this.map.getSource(ROUTE_SOURCE_ID) as
-      | maplibregl.GeoJSONSource
-      | undefined;
-    if (existingSource) {
-      existingSource.setData(routeGeoJson);
-    } else {
-      this.map.addSource(ROUTE_SOURCE_ID, {
-        type: 'geojson',
-        data: routeGeoJson,
-      });
-      this.map.addLayer({
-        id: ROUTE_LAYER_ID,
-        type: 'line',
-        source: ROUTE_SOURCE_ID,
-        layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: {
-          'line-color': this.resolveCssToken('--color-primary', '#162136'),
-          'line-width': 3,
-          'line-opacity': 0.78,
-        },
-      });
-    }
-
-    // Subtle champagne-gold dashed connectors: morning leg from departureStay, evening leg to arrivalStay.
-    const stayLegs: [number, number][][] = [];
-
-    if (stopCoords.length > 0) {
-      if (fromStay && departureStay && !samePoint(stopCoords[0], departureStay)) {
-        stayLegs.push([[departureStay.lng, departureStay.lat], stopCoords[0]]);
-      }
-      if (toStay && stay && !samePoint(stopCoords[stopCoords.length - 1], stay)) {
-        stayLegs.push([stopCoords[stopCoords.length - 1], [stay.lng, stay.lat]]);
-      }
-    } else if (isHotelChange && departureStay && stay) {
-      stayLegs.push([
-        [departureStay.lng, departureStay.lat],
-        [stay.lng, stay.lat],
-      ]);
-    }
-
-    const stayLegsGeoJson = {
-      type: 'Feature' as const,
-      properties: {},
-      geometry: {
-        type: 'MultiLineString' as const,
-        coordinates: stayLegs,
-      },
-    };
-
-    const existingStaySource = this.map.getSource(STAY_LEG_SOURCE_ID) as
-      | maplibregl.GeoJSONSource
-      | undefined;
-    if (existingStaySource) {
-      existingStaySource.setData(stayLegsGeoJson);
-    } else {
-      this.map.addSource(STAY_LEG_SOURCE_ID, {
-        type: 'geojson',
-        data: stayLegsGeoJson,
-      });
-      this.map.addLayer({
-        id: STAY_LEG_LAYER_ID,
-        type: 'line',
-        source: STAY_LEG_SOURCE_ID,
-        layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: {
-          'line-color': this.resolveCssToken('--color-accent', '#c4924c'),
-          'line-width': 2.5,
-          'line-opacity': 0.85,
-          'line-dasharray': [1.5, 2.5],
-        },
-      });
-    }
+    this.updateRouteLayers(pins, routePath, departureStay, stay, fromStay, toStay, mode);
 
     const allPoints: [number, number][] = [
       ...pins.map((p): [number, number] => [p.lng, p.lat]),

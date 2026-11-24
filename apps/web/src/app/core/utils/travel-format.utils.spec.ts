@@ -7,7 +7,10 @@ import {
   appendCreatedItem,
   buildDayMapPins,
   buildGoogleMapsUrl,
+  buildMapRoutePath,
   buildPinOrderMap,
+  decodePolyline,
+  estimateOfflineFxRate,
   extractItemAttachments,
   groupItemsIntoSlots,
   removeItemWithChoicePromotion,
@@ -137,6 +140,15 @@ describe('travel-format.utils', () => {
     expect(roundFxRate(Number.NaN)).toBe(1);
   });
 
+  it('estimates approximate offline cross-rates and returns null for unknown codes', () => {
+    expect(estimateOfflineFxRate('JPY', 'JPY')).toBe(1);
+    const jpyToTwd = estimateOfflineFxRate('JPY', 'TWD');
+    expect(jpyToTwd).not.toBeNull();
+    expect(jpyToTwd!).toBeGreaterThan(0.15);
+    expect(jpyToTwd!).toBeLessThan(0.3);
+    expect(estimateOfflineFxRate('XXX', 'TWD')).toBeNull();
+  });
+
   it('builds ordered map pins and pinOrder map skipping STAY items', () => {
     const items: ItineraryItem[] = [
       makeItem({ id: 'flt-1', type: 'FLIGHT', title: 'CI130', latitude: 43.0, longitude: 141.3 }),
@@ -169,5 +181,52 @@ describe('travel-format.utils', () => {
     expect(localStorage.getItem('tripilot.swr.trips')).toBeNull();
     expect(localStorage.getItem('tripilot.fxRate.JPY')).toBeNull();
     expect(localStorage.getItem('tripilot.locale')).toBe('zh-TW');
+  });
+
+  it('decodes Google encoded polylines into [lng, lat] coordinates', () => {
+    const coords = decodePolyline('_p~iF~ps|U_ulLnnqC_mqNvxq`@');
+    expect(coords).toHaveLength(3);
+    expect(coords[0][0]).toBeCloseTo(-120.2, 5);
+    expect(coords[0][1]).toBeCloseTo(38.5, 5);
+    expect(coords[2][0]).toBeCloseTo(-126.453, 3);
+    expect(coords[2][1]).toBeCloseTo(43.252, 3);
+    expect(decodePolyline('')).toEqual([]);
+  });
+
+  it('builds map route path using cached OSRM polylines and excludes flights', () => {
+    const items: ItineraryItem[] = [
+      makeItem({ id: 'flt-1', type: 'FLIGHT', latitude: 35.5494, longitude: 139.7798 }),
+      makeItem({ id: 'spot-1', type: 'SPOT', latitude: 38.5, longitude: -120.2 }),
+      makeItem({ id: 'food-1', type: 'FOOD', latitude: 43.252, longitude: -126.453 }),
+      makeItem({ id: 'spot-2', type: 'SPOT', latitude: 44.0, longitude: -127.0 }),
+    ];
+    const segments = [
+      {
+        id: 'seg-1',
+        from_item_id: 'spot-1',
+        to_item_id: 'food-1',
+        profile: 'DRIVING',
+        distance_km: 12.4,
+        duration_min: 20,
+        geometry_polyline: '_p~iF~ps|U_ulLnnqC_mqNvxq`@',
+        is_approx: false,
+      },
+    ];
+
+    const roadPath = buildMapRoutePath(items, segments, 'road');
+    // Uses 3 decoded points from seg-1 (excluding flight), then deduplicates join point before spot-2.
+    expect(roadPath).toHaveLength(4);
+    expect(roadPath[0][0]).toBeCloseTo(-120.2, 5);
+    expect(roadPath[1][0]).toBeCloseTo(-120.95, 5);
+    expect(roadPath[2][0]).toBeCloseTo(-126.453, 3);
+    expect(roadPath[3]).toEqual([-127.0, 44.0]);
+
+    const schematicPath = buildMapRoutePath(items, segments);
+    // Default schematic mode draws smooth editorial Bezier curves independent of OSRM polylines.
+    expect(schematicPath.length).toBeGreaterThan(20);
+    expect(schematicPath[0]).toEqual([-120.2, 38.5]);
+    expect(schematicPath[schematicPath.length - 1]).toEqual([-127.0, 44.0]);
+    const mid = schematicPath[12];
+    expect(mid[1]).not.toBeCloseTo((38.5 + 43.252) / 2, 2);
   });
 });

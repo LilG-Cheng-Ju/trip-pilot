@@ -240,6 +240,17 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
           }
         </section>
         </div>
+      } @else if (store.error(); as err) {
+        <div class="error-banner" role="alert">
+          <span>{{ err }}</span>
+          <button
+            type="button"
+            class="pill-btn"
+            (click)="store.loadStats(store.selectedYear(), store.selectedScope())"
+          >
+            {{ 'common.retry' | t }}
+          </button>
+        </div>
       }
     </div>
   `,

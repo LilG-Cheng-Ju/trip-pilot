@@ -107,6 +107,10 @@ export const ExpenseStore = signalStore(
       };
 
       return {
+        clearError(): void {
+          patchState(store, { error: null });
+        },
+
         setCategoryFilter(selectedCategory: ExpenseCategory | 'ALL'): void {
           patchState(store, { selectedCategory });
         },

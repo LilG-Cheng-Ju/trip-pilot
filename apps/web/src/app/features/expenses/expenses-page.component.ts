@@ -13,6 +13,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ExpenseCategory } from '../../core/models/tripilot.models';
 import {
+  estimateOfflineFxRate,
   EXPENSE_CATEGORIES,
   expenseCategoryKey,
   roundFxRate,
@@ -231,6 +232,20 @@ import { ItineraryStore } from '../../state/itinerary.store';
         </div>
 
         <section class="ledger-col">
+          @if (expenseStore.error(); as err) {
+            <div class="error-banner" role="alert">
+              <span>{{ err }}</span>
+              <button
+                type="button"
+                class="error-dismiss"
+                [attr.aria-label]="'common.close' | t"
+                (click)="expenseStore.clearError()"
+              >
+                <span class="ms-icon sm" aria-hidden="true">close</span>
+              </button>
+            </div>
+          }
+
           @if (filteredItemTitle(); as itemTitle) {
             <div class="filter-banner">
               <span class="ms-icon sm" aria-hidden="true">filter_alt</span>
@@ -906,7 +921,13 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
       this.rateSource.set(res.source);
       this.saveRate(src, rounded);
     } catch {
-      this.rateSource.set(null);
+      const stored = this.cache.getFxRate(src);
+      if (stored !== null) {
+        this.exchangeRate = roundFxRate(stored);
+      } else {
+        this.exchangeRate = estimateOfflineFxRate(src, dst) ?? 1;
+      }
+      this.rateSource.set('fallback');
     } finally {
       this.fetchingRate.set(false);
     }
@@ -935,9 +956,11 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
         payment_method: this.paymentMethod.trim() || null,
         notes: this.notes.trim() || null,
       });
-      this.title = '';
-      this.amount = null;
-      this.notes = '';
+      if (!this.expenseStore.error()) {
+        this.title = '';
+        this.amount = null;
+        this.notes = '';
+      }
     } finally {
       this.submitting.set(false);
     }
@@ -952,6 +975,8 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
     const stored = this.cache.getFxRate(currency);
     if (stored !== null) {
       this.exchangeRate = roundFxRate(stored);
+    } else {
+      this.exchangeRate = estimateOfflineFxRate(currency, home) ?? 1;
     }
   }
 

@@ -14,6 +14,7 @@ import {
 import {
   appendCreatedItem,
   groupItemsIntoSlots,
+  MapRouteMode,
   removeItemWithChoicePromotion,
 } from '../core/utils/travel-format.utils';
 
@@ -25,6 +26,7 @@ interface ItineraryState {
   previewOptionByDay: Record<string, string>;
   selectedItemId: string | null;
   mobileMapOpen: boolean;
+  mapRouteMode: MapRouteMode;
   loading: boolean;
   syncing: boolean;
   usingOfflineCache: boolean;
@@ -38,6 +40,7 @@ const initialState: ItineraryState = {
   previewOptionByDay: {},
   selectedItemId: null,
   mobileMapOpen: false,
+  mapRouteMode: 'schematic',
   loading: false,
   syncing: false,
   usingOfflineCache: false,
@@ -206,6 +209,10 @@ export const ItineraryStore = signalStore(
 
         setMobileMapOpen(mobileMapOpen: boolean): void {
           patchState(store, { mobileMapOpen });
+        },
+
+        setMapRouteMode(mapRouteMode: MapRouteMode): void {
+          patchState(store, { mapRouteMode });
         },
 
         toggleMobileMap(): void {

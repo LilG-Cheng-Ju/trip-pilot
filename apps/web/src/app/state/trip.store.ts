@@ -54,6 +54,10 @@ export const TripStore = signalStore(
       let loadTripsSeq = 0;
 
       return {
+        clearError(): void {
+          patchState(store, { error: null });
+        },
+
         setTab(activeTab: TripListTab): void {
           patchState(store, { activeTab });
         },
@@ -113,22 +117,37 @@ export const TripStore = signalStore(
         },
 
         async createTrip(payload: CreateTripPayload): Promise<string> {
-          const created = await api.createTrip(payload);
-          const nextTrips = [created, ...store.trips()];
-          cache.set('trips', nextTrips);
-          patchState(store, {
-            trips: nextTrips,
-            lastSelectedTripId: created.id,
-            activeTab: 'upcoming',
-          });
-          return created.id;
+          patchState(store, { error: null });
+          try {
+            const created = await api.createTrip(payload);
+            const nextTrips = [created, ...store.trips()];
+            cache.set('trips', nextTrips);
+            patchState(store, {
+              trips: nextTrips,
+              lastSelectedTripId: created.id,
+              activeTab: 'upcoming',
+            });
+            return created.id;
+          } catch (err) {
+            patchState(store, {
+              error: err instanceof Error ? err.message : 'Failed to create trip',
+            });
+            throw err;
+          }
         },
 
         async updateTripStatus(tripId: string, status: TripStatus): Promise<void> {
-          const updated = await api.updateTrip(tripId, { status });
-          const nextTrips = store.trips().map((t) => (t.id === tripId ? updated : t));
-          cache.set('trips', nextTrips);
-          patchState(store, { trips: nextTrips });
+          patchState(store, { error: null });
+          try {
+            const updated = await api.updateTrip(tripId, { status });
+            const nextTrips = store.trips().map((t) => (t.id === tripId ? updated : t));
+            cache.set('trips', nextTrips);
+            patchState(store, { trips: nextTrips });
+          } catch (err) {
+            patchState(store, {
+              error: err instanceof Error ? err.message : 'Failed to update trip',
+            });
+          }
         },
 
         reset(): void {

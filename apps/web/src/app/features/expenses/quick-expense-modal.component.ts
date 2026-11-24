@@ -12,6 +12,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ExpenseCategory, ItineraryItem } from '../../core/models/tripilot.models';
 import {
+  estimateOfflineFxRate,
   EXPENSE_CATEGORIES,
   expenseCategoryKey,
   mapItemTypeToExpenseCategory,
@@ -89,6 +90,21 @@ import { ExpenseStore } from '../../state/expense.store';
             </select>
           </label>
         </div>
+
+        @if (currency !== homeCurrency() && rateNeedsConfirm()) {
+          <label class="field">
+            <span class="field-label">{{ 'expenses.rateLabel' | t }}</span>
+            <input
+              type="number"
+              step="any"
+              min="0.000001"
+              class="input-control tabular-nums"
+              [(ngModel)]="exchangeRate"
+              name="exchangeRate"
+            />
+            <small class="rate-warn">{{ 'fx.manualConfirmHint' | t }}</small>
+          </label>
+        }
 
         @if (previewHomeAmount() !== null && currency !== homeCurrency()) {
           <div class="preview-line tabular-nums">
@@ -209,6 +225,11 @@ import { ExpenseStore } from '../../state/expense.store';
       font-weight: 600;
       color: var(--color-primary);
     }
+    .rate-warn {
+      font-size: 0.74rem;
+      font-weight: 500;
+      color: var(--color-accent-ink);
+    }
     .cat-chips {
       display: flex;
       flex-wrap: wrap;
@@ -292,6 +313,7 @@ export class QuickExpenseModalComponent {
   protected readonly categoryKey = expenseCategoryKey;
   protected readonly submitting = signal(false);
   protected readonly fetchingRate = signal(false);
+  protected readonly rateNeedsConfirm = signal(false);
 
   protected readonly currencyOptions = computed<QuickCurrencyOption[]>(() => {
     const list: QuickCurrencyOption[] = [...COMMON_CURRENCIES];
@@ -357,6 +379,7 @@ export class QuickExpenseModalComponent {
     }
     if (src === dst) {
       this.exchangeRate = 1;
+      this.rateNeedsConfirm.set(false);
       return;
     }
     this.fetchingRate.set(true);
@@ -364,10 +387,17 @@ export class QuickExpenseModalComponent {
       const res = await this.api.getExchangeRate(src, dst);
       const rounded = roundFxRate(res.rate);
       this.exchangeRate = rounded;
+      this.rateNeedsConfirm.set(false);
       this.cache.setFxRate(src, rounded);
     } catch {
       const cached = this.cache.getFxRate(src);
-      this.exchangeRate = cached ? roundFxRate(cached) : 1;
+      if (cached !== null) {
+        this.exchangeRate = roundFxRate(cached);
+        this.rateNeedsConfirm.set(false);
+      } else {
+        this.exchangeRate = estimateOfflineFxRate(src, dst) ?? 1;
+        this.rateNeedsConfirm.set(true);
+      }
     } finally {
       this.fetchingRate.set(false);
     }

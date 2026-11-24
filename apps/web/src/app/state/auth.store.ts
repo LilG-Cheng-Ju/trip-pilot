@@ -25,6 +25,10 @@ export const AuthStore = signalStore(
   { providedIn: 'root' },
   withState(initialState),
   withMethods((store, api = inject(TripilotApiService)) => ({
+    clearError(): void {
+      patchState(store, { error: null });
+    },
+
     async loadProfile(): Promise<void> {
       patchState(store, { loading: true, error: null });
       try {
@@ -41,13 +45,27 @@ export const AuthStore = signalStore(
     async updateProfile(
       payload: Partial<Pick<UserProfile, 'display_name' | 'home_country_code' | 'home_currency'>>,
     ): Promise<void> {
-      const profile = await api.updateMe(payload);
-      patchState(store, { profile });
+      patchState(store, { error: null });
+      try {
+        const profile = await api.updateMe(payload);
+        patchState(store, { profile });
+      } catch (err) {
+        patchState(store, {
+          error: err instanceof Error ? err.message : 'Failed to save preferences',
+        });
+        throw err;
+      }
     },
 
     async loadTokens(): Promise<void> {
-      const tokens = await api.listTokens();
-      patchState(store, { tokens });
+      try {
+        const tokens = await api.listTokens();
+        patchState(store, { tokens });
+      } catch (err) {
+        patchState(store, {
+          error: err instanceof Error ? err.message : 'Failed to load API tokens',
+        });
+      }
     },
 
     async createToken(name: string): Promise<ApiTokenCreated> {
@@ -64,8 +82,16 @@ export const AuthStore = signalStore(
     },
 
     async revokeToken(tokenId: string): Promise<void> {
-      await api.revokeToken(tokenId);
-      await this.loadTokens();
+      patchState(store, { error: null });
+      try {
+        await api.revokeToken(tokenId);
+        await this.loadTokens();
+      } catch (err) {
+        patchState(store, {
+          error: err instanceof Error ? err.message : 'Failed to revoke API token',
+        });
+        throw err;
+      }
     },
 
     reset(): void {

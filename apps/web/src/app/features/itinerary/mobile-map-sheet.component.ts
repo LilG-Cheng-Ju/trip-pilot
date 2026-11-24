@@ -3,7 +3,11 @@ import { ChangeDetectionStrategy, Component, input, output, signal } from '@angu
 import { COPY_FEEDBACK_DURATION_MS } from '../../core/constants/app-limits';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ItineraryItem } from '../../core/models/tripilot.models';
-import { buildGoogleMapsUrl, getItemDetailString } from '../../core/utils/travel-format.utils';
+import {
+  buildGoogleMapsUrl,
+  getItemDetailString,
+  MapRouteMode,
+} from '../../core/utils/travel-format.utils';
 import { ItineraryMapComponent, MapPin, StayMapPin } from './itinerary-map.component';
 
 /** Mobile thumb-zone bottom sheet displaying the interactive map and floating spot preview card. */
@@ -42,6 +46,9 @@ import { ItineraryMapComponent, MapPin, StayMapPin } from './itinerary-map.compo
         <app-itinerary-map
           [pins]="pins()"
           [routePath]="routePath()"
+          [roadRoutePath]="roadRoutePath()"
+          [routeMode]="routeMode()"
+          (routeModeChange)="routeModeChange.emit($event)"
           [departureStayPin]="departureStayPin()"
           [stayPin]="stayPin()"
           [connectFromStay]="connectFromStay()"
@@ -325,6 +332,8 @@ export class MobileMapSheetComponent {
   readonly readOnly = input(false);
   readonly pins = input<MapPin[]>([]);
   readonly routePath = input<[number, number][]>([]);
+  readonly roadRoutePath = input<[number, number][]>([]);
+  readonly routeMode = input<MapRouteMode>('schematic');
   readonly departureStayPin = input<StayMapPin | null>(null);
   readonly stayPin = input<StayMapPin | null>(null);
   readonly connectFromStay = input(true);
@@ -334,6 +343,7 @@ export class MobileMapSheetComponent {
   readonly selectedPinOrder = input<number | null>(null);
 
   readonly pinSelected = output<string>();
+  readonly routeModeChange = output<MapRouteMode>();
   readonly clearSelection = output<void>();
   readonly logExpense = output<ItineraryItem>();
   readonly closed = output<void>();

@@ -647,6 +647,7 @@ export class PublicSharePageComponent implements OnInit {
     return items.length > 0 && items[items.length - 1].type !== 'FLIGHT';
   });
 
+  // Public share stays lightweight: editorial Bezier curves render client-side with zero road geometry payload.
   protected readonly mapRoutePath = computed<[number, number][]>(() =>
     buildMapRoutePath(this.activeItems()),
   );

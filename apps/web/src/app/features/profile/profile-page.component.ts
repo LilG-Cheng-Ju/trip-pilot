@@ -30,6 +30,20 @@ import { AuthStore } from '../../state/auth.store';
         }
       </div>
 
+      @if (authStore.error(); as err) {
+        <div class="error-banner" role="alert">
+          <span>{{ err }}</span>
+          <button
+            type="button"
+            class="error-dismiss"
+            [attr.aria-label]="'common.close' | t"
+            (click)="authStore.clearError()"
+          >
+            <span class="ms-icon sm" aria-hidden="true">close</span>
+          </button>
+        </div>
+      }
+
       <section class="panel">
         <div class="panel-head">
           <h3>{{ 'profile.preferences' | t }}</h3>
@@ -474,16 +488,24 @@ export class ProfilePageComponent implements OnInit {
       return;
     }
     this.pendingRevokeToken.set(null);
-    await this.authStore.revokeToken(target.id);
+    try {
+      await this.authStore.revokeToken(target.id);
+    } catch {
+      // Error state is recorded on AuthStore and shown in the error banner.
+    }
   }
 
   protected async savePreferences(): Promise<void> {
-    await this.authStore.updateProfile({
-      home_country_code: this.homeCountry,
-      home_currency: this.homeCurrency,
-    });
-    this.savedNotice.set(true);
-    setTimeout(() => this.savedNotice.set(false), SAVE_NOTICE_DURATION_MS);
+    try {
+      await this.authStore.updateProfile({
+        home_country_code: this.homeCountry,
+        home_currency: this.homeCurrency,
+      });
+      this.savedNotice.set(true);
+      setTimeout(() => this.savedNotice.set(false), SAVE_NOTICE_DURATION_MS);
+    } catch {
+      // Error state is recorded on AuthStore and shown in the error banner.
+    }
   }
 
   protected async generateToken(): Promise<void> {

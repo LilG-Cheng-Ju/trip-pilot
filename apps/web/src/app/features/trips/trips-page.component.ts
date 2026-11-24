@@ -62,6 +62,20 @@ type DateEndMode = 'end' | 'duration' | 'open';
         }
       </div>
 
+      @if (tripStore.error(); as err) {
+        <div class="error-banner" role="alert">
+          <span>{{ err }}</span>
+          <button
+            type="button"
+            class="error-dismiss"
+            [attr.aria-label]="'common.close' | t"
+            (click)="tripStore.clearError()"
+          >
+            <span class="ms-icon sm" aria-hidden="true">close</span>
+          </button>
+        </div>
+      }
+
       @if (tripStore.loading()) {
         <p class="empty-card">{{ 'common.loading' | t }}</p>
       } @else if (tripStore.filteredTrips().length === 0) {
@@ -669,6 +683,8 @@ export class TripsPageComponent implements OnInit {
       this.title = '';
       this.destination = '';
       await this.router.navigate(['/trips', id]);
+    } catch {
+      // Error state is recorded on TripStore and surfaced in the error banner.
     } finally {
       this.submitting.set(false);
     }

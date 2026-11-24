@@ -4,6 +4,7 @@ import {
   ItemAttachment,
   ItemType,
   ItineraryItem,
+  RouteSegment,
   TripDay,
 } from '../models/tripilot.models';
 
@@ -235,12 +236,50 @@ export interface SimpleStayPin {
   lng: number;
 }
 
+const USD_REFERENCE_RATES: Record<string, number> = {
+  USD: 1,
+  TWD: 32.5,
+  JPY: 154,
+  KRW: 1390,
+  EUR: 0.94,
+  CNY: 7.24,
+  GBP: 0.79,
+  THB: 34.5,
+  SGD: 1.34,
+  HKD: 7.78,
+  CHF: 0.88,
+  AUD: 1.53,
+  CAD: 1.39,
+  VND: 25400,
+  IDR: 15800,
+  MYR: 4.45,
+  PHP: 58,
+};
+
 /** Round FX rates to 4 decimals (or 4 sig figs for micro-currencies like VND/IDR). */
 export function roundFxRate(rate: number): number {
   if (!Number.isFinite(rate) || rate <= 0) {
     return 1;
   }
   return rate >= 0.01 ? Number(rate.toFixed(4)) : Number(rate.toPrecision(4));
+}
+
+/** Estimate an approximate cross-rate when both live FX and cached rates are unavailable. */
+export function estimateOfflineFxRate(fromCurrency: string, toCurrency: string): number | null {
+  const src = fromCurrency.trim().toUpperCase();
+  const dst = toCurrency.trim().toUpperCase();
+  if (!src || !dst) {
+    return null;
+  }
+  if (src === dst) {
+    return 1;
+  }
+  const srcPerUsd = USD_REFERENCE_RATES[src];
+  const dstPerUsd = USD_REFERENCE_RATES[dst];
+  if (!srcPerUsd || !dstPerUsd) {
+    return null;
+  }
+  return roundFxRate(dstPerUsd / srcPerUsd);
 }
 
 /** Convert a geolocated STAY item into a map stay pin payload. */
@@ -294,11 +333,148 @@ export function buildPinOrderMap(
   return map;
 }
 
-/** Extract chronological [lng, lat] coordinates across geolocated items. */
-export function buildMapRoutePath(items: readonly ItineraryItem[]): [number, number][] {
-  return items
-    .filter((item) => item.latitude !== null && item.longitude !== null)
-    .map((item): [number, number] => [item.longitude!, item.latitude!]);
+/** Decode a Google Encoded Polyline (1e-5 precision) into GeoJSON [lng, lat] pairs. */
+export function decodePolyline(encoded: string): [number, number][] {
+  if (!encoded) {
+    return [];
+  }
+  const coords: [number, number][] = [];
+  let index = 0;
+  let lat = 0;
+  let lng = 0;
+
+  while (index < encoded.length) {
+    let shift = 0;
+    let result = 0;
+    let byte: number;
+    do {
+      if (index >= encoded.length) {
+        return [];
+      }
+      byte = encoded.charCodeAt(index++) - 63;
+      if (byte < 0) {
+        return [];
+      }
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20);
+    lat += result & 1 ? ~(result >> 1) : result >> 1;
+
+    shift = 0;
+    result = 0;
+    do {
+      if (index >= encoded.length) {
+        return [];
+      }
+      byte = encoded.charCodeAt(index++) - 63;
+      if (byte < 0) {
+        return [];
+      }
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20);
+    lng += result & 1 ? ~(result >> 1) : result >> 1;
+
+    const latDeg = lat / 1e5;
+    const lngDeg = lng / 1e5;
+    if (!Number.isFinite(latDeg) || !Number.isFinite(lngDeg)) {
+      return [];
+    }
+    coords.push([lngDeg, latDeg]);
+  }
+  return coords;
+}
+
+function appendUniquePoint(coords: [number, number][], point: [number, number]): void {
+  const prev = coords[coords.length - 1];
+  if (prev && prev[0] === point[0] && prev[1] === point[1]) {
+    return;
+  }
+  coords.push(point);
+}
+
+export type MapRouteMode = 'schematic' | 'road';
+
+/** Generate a subtle quadratic Bezier curve between two [lng, lat] points using local cos(lat) scaling. */
+export function buildSchematicCurve(
+  from: [number, number],
+  to: [number, number],
+  steps = 24,
+): [number, number][] {
+  const midLng = (from[0] + to[0]) / 2;
+  const midLat = (from[1] + to[1]) / 2;
+  const cosLat = Math.max(0.2, Math.cos((midLat * Math.PI) / 180));
+  const dx = (to[0] - from[0]) * cosLat;
+  const dy = to[1] - from[1];
+  if (Math.hypot(dx, dy) < 1e-6) {
+    return [from, to];
+  }
+
+  const offset = 0.14;
+  const ctrlLng = midLng + (-dy * offset) / cosLat;
+  const ctrlLat = midLat + dx * offset;
+  const points: [number, number][] = [];
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const omt = 1 - t;
+    points.push([
+      omt * omt * from[0] + 2 * omt * t * ctrlLng + t * t * to[0],
+      omt * omt * from[1] + 2 * omt * t * ctrlLat + t * t * to[1],
+    ]);
+  }
+  return points;
+}
+
+/** Build ground route [lng, lat] coordinates as editorial curves (default) or cached road polylines. */
+export function buildMapRoutePath(
+  items: readonly ItineraryItem[],
+  routeSegments: readonly RouteSegment[] = [],
+  mode: MapRouteMode = 'schematic',
+): [number, number][] {
+  const groundItems = items.filter(
+    (item) =>
+      item.latitude !== null &&
+      item.longitude !== null &&
+      item.type !== 'FLIGHT' &&
+      item.type !== 'LOCAL_TRANSIT',
+  );
+  if (groundItems.length < 2) {
+    return [];
+  }
+
+  const segmentsByPair = new Map<string, RouteSegment>();
+  if (mode === 'road') {
+    for (const seg of routeSegments) {
+      segmentsByPair.set(`${seg.from_item_id}->${seg.to_item_id}`, seg);
+    }
+  }
+
+  const coords: [number, number][] = [];
+  for (let i = 0; i < groundItems.length - 1; i++) {
+    const prev = groundItems[i];
+    const next = groundItems[i + 1];
+    const from: [number, number] = [prev.longitude!, prev.latitude!];
+    const to: [number, number] = [next.longitude!, next.latitude!];
+
+    if (mode === 'schematic') {
+      for (const pt of buildSchematicCurve(from, to)) {
+        appendUniquePoint(coords, pt);
+      }
+      continue;
+    }
+
+    const seg = segmentsByPair.get(`${prev.id}->${next.id}`);
+    const decoded = seg?.geometry_polyline ? decodePolyline(seg.geometry_polyline) : [];
+    if (decoded.length >= 2) {
+      for (const pt of decoded) {
+        appendUniquePoint(coords, pt);
+      }
+    } else {
+      appendUniquePoint(coords, from);
+      appendUniquePoint(coords, to);
+    }
+  }
+  return coords;
 }
 
 /** Format a numeric or string amount cleanly with locale thousand separators. */

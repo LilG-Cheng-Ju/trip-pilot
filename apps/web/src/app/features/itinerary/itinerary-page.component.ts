@@ -1,6 +1,6 @@
 import { Component, computed, ElementRef, inject, OnInit, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import {
   DAY_STRIP_SCROLL_STEP_PX,
@@ -41,6 +41,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
   selector: 'app-itinerary-page',
   imports: [
     FormsModule,
+    RouterLink,
     TranslatePipe,
     AppModalComponent,
     TripSubnavComponent,
@@ -243,7 +244,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
                   <div class="empty-day">{{ 'itinerary.emptyDay' | t }}</div>
                 } @else {
                   <div class="timeline-list">
-                    @for (slot of timelineSlots(); track slot.key) {
+                    @for (slot of timelineSlots(); track slot.key; let first = $first, last = $last) {
                       <div class="slot-group" [class.has-choices]="slot.choices.length > 1">
                         @if (slot.choices.length > 1) {
                           <div class="choice-bar">
@@ -278,6 +279,8 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
                           [tripId]="trip.id"
                           [pinOrder]="pinOrderById().get(slot.activeItem.id) ?? null"
                           [selected]="store.selectedItemId() === slot.activeItem.id"
+                          [canMoveUp]="!first"
+                          [canMoveDown]="!last"
                           [expenseSummary]="expenseStore.expensesByItemId()[slot.activeItem.id] ?? null"
                           (cardClicked)="store.selectItem($event)"
                           (moveUp)="store.moveItem($event, -1)"
@@ -301,6 +304,9 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
           <app-itinerary-map
             [pins]="mapPins()"
             [routePath]="mapRoutePath()"
+            [roadRoutePath]="mapRoadRoutePath()"
+            [routeMode]="store.mapRouteMode()"
+            (routeModeChange)="store.setMapRouteMode($event)"
             [departureStayPin]="departureStayMapPin()"
             [stayPin]="stayMapPin()"
             [connectFromStay]="connectFromStay()"
@@ -329,6 +335,9 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
           [dayLabel]="selectedDayLabel()"
           [pins]="mapPins()"
           [routePath]="mapRoutePath()"
+          [roadRoutePath]="mapRoadRoutePath()"
+          [routeMode]="store.mapRouteMode()"
+          (routeModeChange)="store.setMapRouteMode($event)"
           [departureStayPin]="departureStayMapPin()"
           [stayPin]="stayMapPin()"
           [connectFromStay]="connectFromStay()"
@@ -562,6 +571,17 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
         <span class="ms-icon lg spin" aria-hidden="true">progress_activity</span>
         <p>{{ 'sync.wakingServer' | t }}</p>
       </div>
+    } @else {
+      <div class="cold-start-box" role="alert">
+        <span class="ms-icon lg" aria-hidden="true">error_outline</span>
+        <p>{{ store.error() || ('itinerary.errLoad' | t) }}</p>
+        <div class="cold-start-actions">
+          <button type="button" class="btn-primary" (click)="retryLoad()">
+            {{ 'common.retry' | t }}
+          </button>
+          <a routerLink="/trips" class="btn-ghost">{{ 'itinerary.goTrips' | t }}</a>
+        </div>
+      </div>
     }
   `,
   styles: `
@@ -704,6 +724,13 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
     .cold-start-box p {
       margin: 0;
       font-size: 0.85rem;
+    }
+    .cold-start-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 4px;
     }
     .day-add-btn {
       flex-shrink: 0;
@@ -1152,10 +1179,27 @@ export class ItineraryPageComponent implements OnInit {
     return slots[slots.length - 1].activeItem.type !== 'FLIGHT';
   });
 
-  /** Chronological coordinates across flights, stays, transit stations, and stops. */
+  /** Editorial curved map path connecting chronological ground stops client-side. */
   protected readonly mapRoutePath = computed<[number, number][]>(() =>
-    buildMapRoutePath(this.timelineSlots().map((slot) => slot.activeItem)),
+    buildMapRoutePath(
+      this.timelineSlots().map((slot) => slot.activeItem),
+      [],
+      'schematic',
+    ),
   );
+
+  /** Road route path decoded from cached OSRM polylines when road segments are available. */
+  protected readonly mapRoadRoutePath = computed<[number, number][]>(() => {
+    const segments = this.store.selectedOption()?.route_segments ?? [];
+    if (!segments.some((seg) => Boolean(seg.geometry_polyline))) {
+      return [];
+    }
+    return buildMapRoutePath(
+      this.timelineSlots().map((slot) => slot.activeItem),
+      segments,
+      'road',
+    );
+  });
 
   protected readonly mapPins = computed<MapPin[]>(() =>
     buildDayMapPins(
@@ -1195,6 +1239,14 @@ export class ItineraryPageComponent implements OnInit {
     const tripId = this.route.snapshot.paramMap.get('tripId');
     if (tripId) {
       this.tripStore.setLastSelectedTripId(tripId);
+      void this.store.loadTrip(tripId);
+      void this.expenseStore.loadExpenses(tripId);
+    }
+  }
+
+  protected retryLoad(): void {
+    const tripId = this.route.snapshot.paramMap.get('tripId');
+    if (tripId) {
       void this.store.loadTrip(tripId);
       void this.expenseStore.loadExpenses(tripId);
     }

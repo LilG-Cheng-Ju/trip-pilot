@@ -227,6 +227,29 @@
   margin-top: var(--space-2);
 }
 
+.error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-alert-soft);
+  border: 1px solid rgba(200, 75, 59, 0.35);
+  color: var(--color-alert);
+  font-size: 0.8125rem;
+}
+
+.error-dismiss {
+  display: grid;
+  place-items: center;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
 @keyframes tripilot-spin {
   from {
     transform: rotate(0deg);
