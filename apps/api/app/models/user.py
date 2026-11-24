@@ -1,20 +1,16 @@
 """User and Personal API Token ORM models."""
 
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import JSON, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.database import Base
+from app.core.database import Base, utcnow
 
 if TYPE_CHECKING:
     from app.models.trip import Trip
-
-
-def _utcnow() -> datetime:
-    return datetime.now(UTC)
 
 
 class User(Base):
@@ -38,10 +34,10 @@ class User(Base):
         String(3), nullable=False, default="TWD"
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow
+        DateTime(timezone=True), nullable=False, default=utcnow
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow, onupdate=_utcnow
+        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
     )
 
     api_tokens: Mapped[list["ApiToken"]] = relationship(
@@ -79,7 +75,7 @@ class ApiToken(Base):
         DateTime(timezone=True), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow
+        DateTime(timezone=True), nullable=False, default=utcnow
     )
 
     user: Mapped[User] = relationship(back_populates="api_tokens")

@@ -202,3 +202,69 @@ async def test_ground_routing_cache_expenses_and_annual_stats(
     assert dom_stats["domestic_trips"] == 1
     assert dom_stats["international_trips"] == 0
     assert dom_stats["total_spend_home"] == "0.00"
+
+
+@pytest.mark.asyncio
+async def test_expense_rejects_cross_trip_day_or_item_links(
+    api_client: AsyncClient, dev_headers: dict[str, str]
+) -> None:
+    trip_a = (
+        await api_client.post(
+            "/api/v1/trips",
+            headers=dev_headers,
+            json={
+                "title": "Trip A",
+                "country_codes": ["JP"],
+                "start_date": "2026-10-01",
+                "end_date": "2026-10-01",
+            },
+        )
+    ).json()
+    trip_b = (
+        await api_client.post(
+            "/api/v1/trips",
+            headers=dev_headers,
+            json={
+                "title": "Trip B",
+                "country_codes": ["TW"],
+                "start_date": "2026-10-05",
+                "end_date": "2026-10-05",
+            },
+        )
+    ).json()
+
+    trip_b_day_id = trip_b["days"][0]["id"]
+    trip_b_opt_id = trip_b["days"][0]["active_option_id"]
+    trip_b_item = (
+        await api_client.post(
+            f"/api/v1/options/{trip_b_opt_id}/items",
+            headers=dev_headers,
+            json={"type": "FOOD", "title": "Trip B Lunch"},
+        )
+    ).json()
+
+    bad_day = await api_client.post(
+        f"/api/v1/trips/{trip_a['id']}/expenses",
+        headers=dev_headers,
+        json={
+            "title": "Cross-trip day",
+            "category": "FOOD",
+            "amount_original": "100.00",
+            "currency_original": "JPY",
+            "trip_day_id": trip_b_day_id,
+        },
+    )
+    assert bad_day.status_code == 400
+
+    bad_item = await api_client.post(
+        f"/api/v1/trips/{trip_a['id']}/expenses",
+        headers=dev_headers,
+        json={
+            "title": "Cross-trip item",
+            "category": "FOOD",
+            "amount_original": "100.00",
+            "currency_original": "JPY",
+            "itinerary_item_id": trip_b_item["id"],
+        },
+    )
+    assert bad_item.status_code == 400

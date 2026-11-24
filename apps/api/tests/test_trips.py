@@ -219,3 +219,46 @@ async def test_day_option_rename_and_delete_guard(api_client, dev_headers):
     assert len(updated_day["options"]) == 1
     assert updated_day["options"][0]["id"] == plan_b_id
     assert updated_day["active_option_id"] == plan_b_id
+
+
+@pytest.mark.asyncio
+async def test_item_rejects_non_http_urls_in_maps_and_attachments(
+    api_client: AsyncClient, dev_headers: dict[str, str]
+) -> None:
+    trip = (
+        await api_client.post(
+            "/api/v1/trips",
+            headers=dev_headers,
+            json={
+                "title": "URL Validation Trip",
+                "country_codes": ["JP"],
+                "start_date": "2027-05-01",
+                "end_date": "2027-05-01",
+            },
+        )
+    ).json()
+    plan_a_id = trip["days"][0]["active_option_id"]
+
+    bad_maps = await api_client.post(
+        f"/api/v1/options/{plan_a_id}/items",
+        headers=dev_headers,
+        json={
+            "type": "SPOT",
+            "title": "XSS Spot",
+            "google_maps_url": "javascript:alert(1)",
+        },
+    )
+    assert bad_maps.status_code == 422
+
+    bad_att = await api_client.post(
+        f"/api/v1/options/{plan_a_id}/items",
+        headers=dev_headers,
+        json={
+            "type": "SPOT",
+            "title": "XSS Attachment",
+            "details": {
+                "attachments": [{"name": "evil", "url": "javascript:alert(1)"}]
+            },
+        },
+    )
+    assert bad_att.status_code == 422

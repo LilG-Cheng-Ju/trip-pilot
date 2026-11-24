@@ -1,6 +1,7 @@
 """Async SQLAlchemy engine, session factory, and declarative base."""
 
 from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
 
 from sqlalchemy import MetaData
 from sqlalchemy.ext.asyncio import (
@@ -69,3 +70,8 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """Yield an async database session scoped to a single request."""
     async with AsyncSessionLocal() as session:
         yield session
+
+
+def utcnow() -> datetime:
+    """Return the current timezone-aware UTC timestamp."""
+    return datetime.now(UTC)

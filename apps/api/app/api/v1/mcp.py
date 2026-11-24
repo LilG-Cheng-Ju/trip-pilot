@@ -1,6 +1,8 @@
 """Remote Streamable HTTP MCP server (/mcp) and public English AI guide (/llms.txt)."""
 # ruff: noqa: E501
 
+import json
+from dataclasses import asdict
 from datetime import date
 from decimal import Decimal
 from typing import Annotated, Any
@@ -13,6 +15,7 @@ from app.api.v1.expenses import create_expense as api_create_expense
 from app.api.v1.expenses import list_trip_expenses as api_list_trip_expenses
 from app.api.v1.stats import get_travel_stats
 from app.core.auth import AuthContext, get_auth_context
+from app.core.config import get_settings
 from app.core.database import get_db
 from app.schemas.expense import ExpenseCreate
 from app.schemas.trip import (
@@ -32,6 +35,24 @@ AuthDep = Annotated[AuthContext, Depends(get_auth_context)]
 DbSession = Annotated[AsyncSession, Depends(get_db)]
 
 MCP_PROTOCOL_VERSION = "2025-03-26"
+
+_TOOL_SCOPES: dict[str, str] = {
+    "list_trips": "trips:read",
+    "get_trip": "trips:read",
+    "create_trip": "trips:write",
+    "update_day_title": "trips:write",
+    "add_itinerary_item": "trips:write",
+    "update_itinerary_item": "trips:write",
+    "delete_itinerary_item": "trips:write",
+    "select_choice_item": "trips:write",
+    "clone_day_option": "trips:write",
+    "search_places": "trips:read",
+    "resolve_google_maps_url": "trips:read",
+    "list_expenses": "expenses:read",
+    "add_expense": "expenses:write",
+    "get_fx_rate": "expenses:read",
+    "get_travel_stats": "stats:read",
+}
 
 _TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
@@ -269,6 +290,12 @@ async def _dispatch_tool(
     auth_ctx: AuthContext,
     db: AsyncSession,
 ) -> Any:
+    required_scope = _TOOL_SCOPES.get(name)
+    if required_scope is None:
+        raise KeyError(f"Unknown tool: {name}")
+    if not auth_ctx.has_scope(required_scope):
+        raise PermissionError(f"Missing required scope: {required_scope}")
+
     trip_svc = TripService(db)
     user_id = auth_ctx.user.id
 
@@ -392,11 +419,15 @@ async def _dispatch_tool(
         results = await provider.search(
             str(args["query"]), language=str(args.get("lang", "zh-TW"))
         )
-        return [r.model_dump() for r in results]
+        return [asdict(r) for r in results]
 
     if name == "resolve_google_maps_url":
         resolved = await resolve_google_maps_url(str(args["url"]))
-        return resolved.model_dump()
+        if resolved is None:
+            raise ValueError(
+                "Could not extract coordinates from the provided Google Maps URL"
+            )
+        return asdict(resolved)
 
     if name == "list_expenses":
         summary = await api_list_trip_expenses(str(args["trip_id"]), auth_ctx, db)
@@ -475,7 +506,10 @@ async def mcp_streamable_http(
             {
                 "protocolVersion": MCP_PROTOCOL_VERSION,
                 "capabilities": {"tools": {}},
-                "serverInfo": {"name": "tripilot", "version": "0.4.1"},
+                "serverInfo": {
+                    "name": "tripilot",
+                    "version": get_settings().app_version,
+                },
                 "instructions": (
                     "Tripilot travel planning MCP server. Always geocode STAY/SPOT/FOOD/RESERVED_TRANSIT "
                     "items via search_places, set details.local_name for non-English venues, attach cloud "
@@ -500,8 +534,6 @@ async def mcp_streamable_http(
         if not isinstance(tool_name, str):
             return _jsonrpc_err(req_id, -32602, "Missing tool name")
         try:
-            import json
-
             result = await _dispatch_tool(tool_name, tool_args, auth_ctx, db)
             return _jsonrpc_ok(
                 req_id,
@@ -517,6 +549,8 @@ async def mcp_streamable_http(
             )
         except KeyError as exc:
             return _jsonrpc_err(req_id, -32601, str(exc))
+        except PermissionError as exc:
+            return _jsonrpc_err(req_id, -32003, str(exc))
         except Exception as exc:
             return _jsonrpc_ok(
                 req_id,

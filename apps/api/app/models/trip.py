@@ -1,7 +1,7 @@
 """Trip, DayOption variants, ItineraryItem, RouteSegment, Share, and Expense models."""
 
 import uuid
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
@@ -20,15 +20,11 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.database import Base
+from app.core.database import Base, utcnow
 from app.models.enums import ExpenseCategory, ItemType, RouteProfile, TripStatus
 
 if TYPE_CHECKING:
     from app.models.user import User
-
-
-def _utcnow() -> datetime:
-    return datetime.now(UTC)
 
 
 class Trip(Base):
@@ -56,10 +52,10 @@ class Trip(Base):
     )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow
+        DateTime(timezone=True), nullable=False, default=utcnow
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow, onupdate=_utcnow
+        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
     )
 
     user: Mapped["User"] = relationship(back_populates="trips")
@@ -109,7 +105,7 @@ class TripShare(Base):
         DateTime(timezone=True), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow
+        DateTime(timezone=True), nullable=False, default=utcnow
     )
 
     trip: Mapped[Trip] = relationship(back_populates="shares")
@@ -170,10 +166,10 @@ class DayOption(Base):
         Boolean, nullable=False, default=False
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow
+        DateTime(timezone=True), nullable=False, default=utcnow
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow, onupdate=_utcnow
+        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
     )
 
     trip_day: Mapped[TripDay] = relationship(
@@ -221,10 +217,10 @@ class ItineraryItem(Base):
     )
     is_selected: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow
+        DateTime(timezone=True), nullable=False, default=utcnow
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow, onupdate=_utcnow
+        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
     )
 
     day_option: Mapped[DayOption] = relationship(back_populates="items")
@@ -255,7 +251,7 @@ class RouteSegment(Base):
     geometry_polyline: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_approx: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     computed_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow
+        DateTime(timezone=True), nullable=False, default=utcnow
     )
 
     day_option: Mapped[DayOption] = relationship(back_populates="route_segments")
@@ -290,12 +286,12 @@ class Expense(Base):
     amount_home: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     currency_home: Mapped[str] = mapped_column(String(3), nullable=False)
     paid_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow
+        DateTime(timezone=True), nullable=False, default=utcnow
     )
     payment_method: Mapped[str | None] = mapped_column(String(60), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow
+        DateTime(timezone=True), nullable=False, default=utcnow
     )
 
     trip: Mapped[Trip] = relationship(back_populates="expenses")

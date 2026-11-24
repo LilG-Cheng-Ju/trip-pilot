@@ -5,16 +5,17 @@ import re
 from typing import Annotated
 from urllib.parse import urljoin, urlparse
 
-import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from app.core.auth import AuthContext, get_auth_context
 from app.core.constants import (
+    LINK_HTML_MAX_BYTES,
     LINK_MAX_REDIRECTS,
     LINK_RESOLVE_TIMEOUT_SEC,
     LINK_TITLE_MAX_LENGTH,
 )
+from app.core.http_client import get_shared_http_client
 
 router = APIRouter(prefix="/links", tags=["links"])
 
@@ -107,11 +108,15 @@ async def fetch_cloud_link_title(url: str) -> str | None:
         "Accept": "text/html,application/xhtml+xml",
     }
     try:
-        async with httpx.AsyncClient(
-            timeout=LINK_RESOLVE_TIMEOUT_SEC, follow_redirects=False
-        ) as client:
-            for _ in range(LINK_MAX_REDIRECTS):
-                resp = await client.get(current_url, headers=headers)
+        client = get_shared_http_client()
+        for _ in range(LINK_MAX_REDIRECTS):
+            async with client.stream(
+                "GET",
+                current_url,
+                headers=headers,
+                timeout=LINK_RESOLVE_TIMEOUT_SEC,
+                follow_redirects=False,
+            ) as resp:
                 if resp.status_code in {301, 302, 303, 307, 308}:
                     location = resp.headers.get("location")
                     if not location:
@@ -131,7 +136,18 @@ async def fetch_cloud_link_title(url: str) -> str | None:
                 content_type = resp.headers.get("content-type", "").lower()
                 if "html" not in content_type:
                     return None
-                return _extract_html_title(resp.text[:32768])
+                chunks: list[bytes] = []
+                total_bytes = 0
+                async for chunk in resp.aiter_bytes():
+                    chunks.append(chunk)
+                    total_bytes += len(chunk)
+                    if total_bytes >= LINK_HTML_MAX_BYTES:
+                        break
+                raw_html = b"".join(chunks)[:LINK_HTML_MAX_BYTES]
+                encoding = resp.encoding or "utf-8"
+                return _extract_html_title(
+                    raw_html.decode(encoding, errors="replace")
+                )
     except Exception:
         return None
     return None

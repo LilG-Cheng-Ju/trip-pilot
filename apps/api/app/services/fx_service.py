@@ -3,9 +3,8 @@
 import time
 from typing import Protocol
 
-import httpx
-
 from app.core.constants import FX_CACHE_TTL_SECONDS, FX_HTTP_TIMEOUT_SEC
+from app.core.http_client import get_shared_http_client
 
 OPEN_ER_API_URL = "https://open.er-api.com/v6/latest/{base}"
 DEFAULT_TTL_SECONDS = FX_CACHE_TTL_SECONDS
@@ -58,8 +57,10 @@ class OpenErApiProvider:
                 return round(rate, 6), "open_er_api", True
 
         try:
-            async with httpx.AsyncClient(timeout=self.timeout_sec) as client:
-                response = await client.get(OPEN_ER_API_URL.format(base=src))
+            client = get_shared_http_client()
+            response = await client.get(
+                OPEN_ER_API_URL.format(base=src), timeout=self.timeout_sec
+            )
             if response.status_code == 200:
                 data = response.json()
                 rates = data.get("rates")

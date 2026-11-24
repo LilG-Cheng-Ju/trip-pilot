@@ -1,9 +1,12 @@
 """Tests for the Remote Streamable HTTP MCP endpoint (/mcp) and public /llms.txt."""
 
 import json
+from unittest.mock import patch
 
 import pytest
 from httpx import AsyncClient
+
+from app.services.places import PlaceCandidate
 
 
 @pytest.mark.asyncio
@@ -144,3 +147,121 @@ async def test_remote_mcp_lifecycle_and_tool_calls(
     )
     stats = json.loads(stats_res.json()["result"]["content"][0]["text"])
     assert stats["total_flight_distance_km"] > 8000.0
+
+
+@pytest.mark.asyncio
+async def test_mcp_places_tools_serialize_dataclasses_and_enforce_pat_scopes(
+    api_client: AsyncClient, dev_headers: dict[str, str]
+) -> None:
+    fake_candidate = PlaceCandidate(
+        name="Senso-ji",
+        address="Tokyo, Japan",
+        latitude=35.7147,
+        longitude=139.7966,
+        google_maps_url="https://maps.google.com/?cid=1",
+        provider="google_places",
+    )
+
+    class _FakeProvider:
+        async def search(
+            self, query: str, language: str = "zh-TW", limit: int = 5
+        ) -> list[PlaceCandidate]:
+            del query, language, limit
+            return [fake_candidate]
+
+    with patch(
+        "app.api.v1.mcp.get_place_search_provider", return_value=_FakeProvider()
+    ):
+        places_res = await api_client.post(
+            "/mcp",
+            headers=dev_headers,
+            json={
+                "jsonrpc": "2.0",
+                "id": 10,
+                "method": "tools/call",
+                "params": {"name": "search_places", "arguments": {"query": "Senso-ji"}},
+            },
+        )
+    assert places_res.status_code == 200
+    assert places_res.json()["result"]["isError"] is False
+    parsed_places = json.loads(places_res.json()["result"]["content"][0]["text"])
+    assert parsed_places[0]["name"] == "Senso-ji"
+
+    resolve_res = await api_client.post(
+        "/mcp",
+        headers=dev_headers,
+        json={
+            "jsonrpc": "2.0",
+            "id": 11,
+            "method": "tools/call",
+            "params": {
+                "name": "resolve_google_maps_url",
+                "arguments": {
+                    "url": "https://www.google.com/maps/place/Tokyo+Tower/@35.65858,139.74543,17z"
+                },
+            },
+        },
+    )
+    assert resolve_res.status_code == 200
+    assert resolve_res.json()["result"]["isError"] is False
+    resolved = json.loads(resolve_res.json()["result"]["content"][0]["text"])
+    assert resolved["name"] == "Tokyo Tower"
+
+    # Mint a read-only PAT with only trips:read and verify scope enforcement on /mcp.
+    token_resp = await api_client.post(
+        "/api/v1/tokens",
+        headers=dev_headers,
+        json={"name": "Read Only MCP", "scopes": ["trips:read"]},
+    )
+    assert token_resp.status_code == 201
+    pat_headers = {"Authorization": f"Bearer {token_resp.json()['plaintext_token']}"}
+
+    allowed = await api_client.post(
+        "/mcp",
+        headers=pat_headers,
+        json={
+            "jsonrpc": "2.0",
+            "id": 12,
+            "method": "tools/call",
+            "params": {"name": "list_trips", "arguments": {}},
+        },
+    )
+    assert allowed.status_code == 200
+    assert allowed.json()["result"]["isError"] is False
+
+    for req_id, tool_name, arguments in (
+        (
+            13,
+            "create_trip",
+            {
+                "title": "Blocked",
+                "start_date": "2026-06-01",
+                "end_date": "2026-06-02",
+                "country_codes": ["JP"],
+            },
+        ),
+        (
+            14,
+            "add_expense",
+            {
+                "trip_id": "missing",
+                "title": "Coffee",
+                "category": "FOOD",
+                "amount_original": 500,
+                "currency_original": "JPY",
+            },
+        ),
+        (15, "get_travel_stats", {"year": 2026}),
+    ):
+        denied = await api_client.post(
+            "/mcp",
+            headers=pat_headers,
+            json={
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "method": "tools/call",
+                "params": {"name": tool_name, "arguments": arguments},
+            },
+        )
+        assert denied.status_code == 200
+        assert denied.json()["error"]["code"] == -32003

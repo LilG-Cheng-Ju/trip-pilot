@@ -5,8 +5,6 @@ from dataclasses import dataclass
 from typing import Protocol
 from urllib.parse import unquote, urljoin, urlparse
 
-import httpx
-
 from app.core.config import get_settings
 from app.core.constants import (
     PLACES_DEFAULT_LIMIT,
@@ -14,6 +12,7 @@ from app.core.constants import (
     PLACES_MAX_LIMIT,
     PLACES_MAX_REDIRECTS,
 )
+from app.core.http_client import get_shared_http_client
 
 GOOGLE_PLACES_TEXT_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText"
 PHOTON_SEARCH_URL = "https://photon.komoot.io/api/"
@@ -84,12 +83,15 @@ class GooglePlacesProvider:
             "languageCode": language,
             "pageSize": min(limit, PLACES_MAX_LIMIT),
         }
-        async with httpx.AsyncClient(timeout=self.timeout_sec) as client:
-            response = await client.post(
-                GOOGLE_PLACES_TEXT_SEARCH_URL, headers=headers, json=body
-            )
-            response.raise_for_status()
-            data = response.json()
+        client = get_shared_http_client()
+        response = await client.post(
+            GOOGLE_PLACES_TEXT_SEARCH_URL,
+            headers=headers,
+            json=body,
+            timeout=self.timeout_sec,
+        )
+        response.raise_for_status()
+        data = response.json()
 
         results: list[PlaceCandidate] = []
         for place in data.get("places") or []:
@@ -122,12 +124,14 @@ class PhotonOsmProvider:
         self, query: str, language: str = "zh-TW", limit: int = PLACES_DEFAULT_LIMIT
     ) -> list[PlaceCandidate]:
         del language
-        async with httpx.AsyncClient(timeout=self.timeout_sec) as client:
-            response = await client.get(
-                PHOTON_SEARCH_URL, params={"q": query, "limit": limit}
-            )
-            response.raise_for_status()
-            data = response.json()
+        client = get_shared_http_client()
+        response = await client.get(
+            PHOTON_SEARCH_URL,
+            params={"q": query, "limit": limit},
+            timeout=self.timeout_sec,
+        )
+        response.raise_for_status()
+        data = response.json()
 
         results: list[PlaceCandidate] = []
         for feat in data.get("features") or []:
@@ -202,16 +206,19 @@ async def resolve_google_maps_url(
     if parsed is not None:
         return parsed
 
-    # Follow redirects manually so every hop is validated against the allowlist.
+    # Follow redirects manually via streaming so hops do not download HTML bodies.
     current_url = cleaned
     try:
-        async with httpx.AsyncClient(
-            timeout=timeout_sec, follow_redirects=False
-        ) as client:
-            for _ in range(max_redirects):
-                if not is_allowed_google_maps_url(current_url):
-                    return None
-                response = await client.get(current_url)
+        client = get_shared_http_client()
+        for _ in range(max_redirects):
+            if not is_allowed_google_maps_url(current_url):
+                return None
+            async with client.stream(
+                "GET",
+                current_url,
+                timeout=timeout_sec,
+                follow_redirects=False,
+            ) as response:
                 if response.is_redirect and "location" in response.headers:
                     next_url = urljoin(current_url, response.headers["location"])
                     if not is_allowed_google_maps_url(next_url):

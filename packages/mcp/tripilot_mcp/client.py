@@ -33,12 +33,20 @@ class TripilotClient:
         resolved_url = (
             base_url
             if base_url is not None
-            else os.environ.get("TRIPPILOT_API_URL", DEFAULT_API_URL)
+            else (
+                os.environ.get("TRIPILOT_API_URL")
+                or os.environ.get("TRIPPILOT_API_URL")
+                or DEFAULT_API_URL
+            )
         )
         resolved_token = (
             api_token
             if api_token is not None
-            else os.environ.get("TRIPPILOT_API_TOKEN", "")
+            else (
+                os.environ.get("TRIPILOT_API_TOKEN")
+                or os.environ.get("TRIPPILOT_API_TOKEN")
+                or ""
+            )
         )
 
         self._base_url = resolved_url.rstrip("/")

@@ -20,6 +20,7 @@ from app.api.v1 import stats as stats_router
 from app.api.v1 import trips as trips_router
 from app.core.config import get_settings
 from app.core.database import Base, engine
+from app.core.http_client import close_shared_http_client
 
 
 @asynccontextmanager
@@ -49,7 +50,10 @@ async def _lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
                         "ADD COLUMN is_selected BOOLEAN NOT NULL DEFAULT 1"
                     )
                 )
-    yield
+    try:
+        yield
+    finally:
+        await close_shared_http_client()
 
 
 def create_app() -> FastAPI:

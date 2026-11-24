@@ -5,6 +5,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.core.constants import ISO_CURRENCY_CODE_LENGTH, MAX_NOTES_LENGTH
 from app.models.enums import ExpenseCategory
 
 
@@ -14,12 +15,14 @@ class ExpenseCreate(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     category: ExpenseCategory = ExpenseCategory.OTHER
     amount_original: Decimal = Field(gt=Decimal("0"))
-    currency_original: str = Field(min_length=3, max_length=3)
+    currency_original: str = Field(
+        min_length=ISO_CURRENCY_CODE_LENGTH, max_length=ISO_CURRENCY_CODE_LENGTH
+    )
     exchange_rate: Decimal = Field(default=Decimal("1.0"), gt=Decimal("0"))
     amount_home: Decimal | None = Field(default=None, gt=Decimal("0"))
     paid_at: datetime | None = None
     payment_method: str | None = Field(default=None, max_length=60)
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=MAX_NOTES_LENGTH)
 
     @field_validator("currency_original")
     @classmethod
@@ -33,12 +36,16 @@ class ExpenseUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
     category: ExpenseCategory | None = None
     amount_original: Decimal | None = Field(default=None, gt=Decimal("0"))
-    currency_original: str | None = Field(default=None, min_length=3, max_length=3)
+    currency_original: str | None = Field(
+        default=None,
+        min_length=ISO_CURRENCY_CODE_LENGTH,
+        max_length=ISO_CURRENCY_CODE_LENGTH,
+    )
     exchange_rate: Decimal | None = Field(default=None, gt=Decimal("0"))
     amount_home: Decimal | None = Field(default=None, gt=Decimal("0"))
     paid_at: datetime | None = None
     payment_method: str | None = Field(default=None, max_length=60)
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=MAX_NOTES_LENGTH)
 
     @field_validator("currency_original")
     @classmethod

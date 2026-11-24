@@ -2,12 +2,14 @@
 
 from datetime import date, datetime
 from typing import Any
+from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.core.constants import (
     ISO_COUNTRY_CODE_LENGTH,
     ISO_CURRENCY_CODE_LENGTH,
+    MAX_NOTES_LENGTH,
     MAX_TRIP_DATE_SPAN_DAYS,
 )
 from app.models.enums import ItemType, RouteProfile, TripStatus
@@ -15,6 +17,38 @@ from app.models.enums import ItemType, RouteProfile, TripStatus
 SENSITIVE_DETAIL_KEYS: frozenset[str] = frozenset(
     {"booking_ref", "confirmation_code", "reservation_code", "attachments"}
 )
+
+
+def _validate_http_url(url: str | None) -> str | None:
+    if url is None:
+        return None
+    cleaned = url.strip()
+    if not cleaned:
+        return None
+    parsed = urlparse(cleaned)
+    if parsed.scheme.lower() not in {"http", "https"} or not parsed.netloc:
+        raise ValueError("URL must use http:// or https://")
+    return cleaned
+
+
+def _validate_details_attachments(details: dict[str, Any]) -> dict[str, Any]:
+    attachments = details.get("attachments")
+    if isinstance(attachments, list):
+        for entry in attachments:
+            if isinstance(entry, dict) and isinstance(entry.get("url"), str):
+                _validate_http_url(entry["url"])
+    return details
+
+
+def _normalize_country_codes(values: list[str]) -> list[str]:
+    normalized: list[str] = []
+    for code in values:
+        clean = code.strip().upper()
+        if len(clean) != ISO_COUNTRY_CODE_LENGTH:
+            raise ValueError(f"Invalid ISO-2 country code: {code}")
+        if clean not in normalized:
+            normalized.append(clean)
+    return normalized
 
 
 class ShareVisibilityPolicy(BaseModel):
@@ -50,12 +84,22 @@ class ItineraryItemCreate(BaseModel):
     latitude: float | None = Field(default=None, ge=-90.0, le=90.0)
     longitude: float | None = Field(default=None, ge=-180.0, le=180.0)
     google_maps_url: str | None = Field(default=None, max_length=600)
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=MAX_NOTES_LENGTH)
     details: dict[str, Any] = Field(default_factory=dict)
     choice_group_id: str | None = Field(default=None, max_length=36)
     # Optional ID of an existing item to group with as a slot-level alternative.
     alternative_for_item_id: str | None = None
     is_selected: bool = True
+
+    @field_validator("google_maps_url")
+    @classmethod
+    def _check_google_maps_url(cls, value: str | None) -> str | None:
+        return _validate_http_url(value)
+
+    @field_validator("details")
+    @classmethod
+    def _check_details(cls, value: dict[str, Any]) -> dict[str, Any]:
+        return _validate_details_attachments(value)
 
 
 class ItineraryItemUpdate(BaseModel):
@@ -69,10 +113,20 @@ class ItineraryItemUpdate(BaseModel):
     latitude: float | None = Field(default=None, ge=-90.0, le=90.0)
     longitude: float | None = Field(default=None, ge=-180.0, le=180.0)
     google_maps_url: str | None = Field(default=None, max_length=600)
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=MAX_NOTES_LENGTH)
     details: dict[str, Any] | None = None
     choice_group_id: str | None = None
     is_selected: bool | None = None
+
+    @field_validator("google_maps_url")
+    @classmethod
+    def _check_google_maps_url(cls, value: str | None) -> str | None:
+        return _validate_http_url(value)
+
+    @field_validator("details")
+    @classmethod
+    def _check_details(cls, value: dict[str, Any] | None) -> dict[str, Any] | None:
+        return _validate_details_attachments(value) if value is not None else None
 
 
 class ItineraryItemReorderRequest(BaseModel):
@@ -102,7 +156,7 @@ class ItineraryItemResponse(BaseModel):
 
 class DayOptionCreate(BaseModel):
     label: str = Field(min_length=1, max_length=80)
-    summary_notes: str | None = None
+    summary_notes: str | None = Field(default=None, max_length=MAX_NOTES_LENGTH)
 
 
 class DayOptionCloneRequest(BaseModel):
@@ -111,7 +165,7 @@ class DayOptionCloneRequest(BaseModel):
 
 class DayOptionUpdate(BaseModel):
     label: str | None = Field(default=None, min_length=1, max_length=80)
-    summary_notes: str | None = None
+    summary_notes: str | None = Field(default=None, max_length=MAX_NOTES_LENGTH)
 
 
 class ActiveOptionUpdate(BaseModel):
@@ -120,7 +174,7 @@ class ActiveOptionUpdate(BaseModel):
 
 class TripDayUpdate(BaseModel):
     title: str | None = Field(default=None, max_length=160)
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=MAX_NOTES_LENGTH)
 
 
 class DayOptionResponse(BaseModel):
@@ -163,24 +217,22 @@ class TripCreate(BaseModel):
     )
     cover_image_url: str | None = Field(default=None, max_length=500)
     status: TripStatus = TripStatus.PLANNING
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=MAX_NOTES_LENGTH)
 
     @field_validator("default_currency")
     @classmethod
     def _upper_currency(cls, value: str) -> str:
         return value.upper()
 
+    @field_validator("cover_image_url")
+    @classmethod
+    def _check_cover_url(cls, value: str | None) -> str | None:
+        return _validate_http_url(value)
+
     @field_validator("country_codes")
     @classmethod
     def _upper_countries(cls, values: list[str]) -> list[str]:
-        normalized: list[str] = []
-        for code in values:
-            clean = code.strip().upper()
-            if len(clean) != ISO_COUNTRY_CODE_LENGTH:
-                raise ValueError(f"Invalid ISO-2 country code: {code}")
-            if clean not in normalized:
-                normalized.append(clean)
-        return normalized
+        return _normalize_country_codes(values)
 
     @model_validator(mode="after")
     def _validate_date_range(self) -> "TripCreate":
@@ -197,15 +249,29 @@ class TripUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=160)
     destination_summary: str | None = Field(default=None, max_length=200)
     country_codes: list[str] | None = None
-    default_currency: str | None = Field(default=None, min_length=3, max_length=3)
+    default_currency: str | None = Field(
+        default=None,
+        min_length=ISO_CURRENCY_CODE_LENGTH,
+        max_length=ISO_CURRENCY_CODE_LENGTH,
+    )
     cover_image_url: str | None = Field(default=None, max_length=500)
     status: TripStatus | None = None
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=MAX_NOTES_LENGTH)
 
     @field_validator("default_currency")
     @classmethod
     def _upper_currency(cls, value: str | None) -> str | None:
         return value.upper() if value is not None else None
+
+    @field_validator("cover_image_url")
+    @classmethod
+    def _check_cover_url(cls, value: str | None) -> str | None:
+        return _validate_http_url(value)
+
+    @field_validator("country_codes")
+    @classmethod
+    def _upper_countries(cls, values: list[str] | None) -> list[str] | None:
+        return _normalize_country_codes(values) if values is not None else None
 
 
 class TripSummaryResponse(BaseModel):

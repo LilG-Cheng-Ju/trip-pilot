@@ -14,6 +14,7 @@ from app.core.constants import (
     ROUTING_HTTP_TIMEOUT_SEC,
     SECONDS_PER_MINUTE,
 )
+from app.core.http_client import get_shared_http_client
 from app.models import DayOption, ItemType, ItineraryItem, RouteProfile, RouteSegment
 from app.services.airport_service import haversine_km
 
@@ -107,6 +108,7 @@ class OsrmRoutingProvider:
                 response = await self._client.get(
                     url,
                     params={"overview": "simplified", "geometries": "polyline"},
+                    timeout=self.timeout_sec,
                 )
             else:
                 async with httpx.AsyncClient(timeout=self.timeout_sec) as client:
@@ -181,21 +183,19 @@ async def recalculate_option_routes(
             ]
         )
     else:
-        # Share a single connection pool across all legs in the day option.
-        async with httpx.AsyncClient(timeout=ROUTING_HTTP_TIMEOUT_SEC) as shared_client:
-            osrm = OsrmRoutingProvider(client=shared_client)
-            legs = await asyncio.gather(
-                *[
-                    osrm.compute_leg(
-                        prev_item.latitude,  # type: ignore[arg-type]
-                        prev_item.longitude,  # type: ignore[arg-type]
-                        next_item.latitude,  # type: ignore[arg-type]
-                        next_item.longitude,  # type: ignore[arg-type]
-                        RouteProfile.DRIVING,
-                    )
-                    for prev_item, next_item in pairs
-                ]
-            )
+        osrm = OsrmRoutingProvider(client=get_shared_http_client())
+        legs = await asyncio.gather(
+            *[
+                osrm.compute_leg(
+                    prev_item.latitude,  # type: ignore[arg-type]
+                    prev_item.longitude,  # type: ignore[arg-type]
+                    next_item.latitude,  # type: ignore[arg-type]
+                    next_item.longitude,  # type: ignore[arg-type]
+                    RouteProfile.DRIVING,
+                )
+                for prev_item, next_item in pairs
+            ]
+        )
 
     total_km = 0.0
     any_approx = False
