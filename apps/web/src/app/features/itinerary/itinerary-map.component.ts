@@ -35,8 +35,7 @@ interface TrackedMarker {
   isStay: boolean;
 }
 
-const POSITRON_STYLE_URL =
-  'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+const POSITRON_STYLE_URL = 'https://tiles.openfreemap.org/styles/positron';
 const ROUTE_SOURCE_ID = 'day-route-source';
 const ROUTE_LAYER_ID = 'day-route-layer';
 const STAY_LEG_SOURCE_ID = 'stay-leg-source';
