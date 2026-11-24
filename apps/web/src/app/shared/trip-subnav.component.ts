@@ -96,7 +96,7 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
     .trip-name {
       margin: 0;
       font-size: 1.1875rem;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--color-primary);
       white-space: nowrap;
       overflow: hidden;
@@ -133,7 +133,7 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
       color: var(--color-text-secondary);
       text-decoration: none;
       font-size: 0.82rem;
-      font-weight: 700;
+      font-weight: 600;
       transition: background-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
     }
     .ws-tab:hover {

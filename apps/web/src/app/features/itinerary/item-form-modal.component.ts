@@ -358,7 +358,7 @@ export interface ItemFormSubmitEvent {
     .req {
       color: var(--color-alert);
       font-style: normal;
-      font-weight: 700;
+      font-weight: 600;
     }
     .err-msg {
       color: var(--color-alert);
@@ -487,7 +487,7 @@ export interface ItemFormSubmitEvent {
       border: none;
       border-radius: var(--radius-pill);
       background: var(--color-primary);
-      color: #ffffff;
+      color: var(--color-text-on-primary);
       font: inherit;
       font-size: 0.8125rem;
       font-weight: 600;
@@ -518,7 +518,7 @@ export interface ItemFormSubmitEvent {
       align-items: center;
       gap: 4px;
       font-size: 0.78rem;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--color-primary);
     }
     .att-list {

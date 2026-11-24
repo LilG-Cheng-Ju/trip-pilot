@@ -213,7 +213,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
         rgba(27, 42, 74, 0.45) 45%,
         rgba(15, 23, 42, 0.85) 100%
       );
-      color: #ffffff;
+      color: var(--color-text-on-primary);
     }
     .brand-lockup {
       display: inline-flex;
@@ -227,7 +227,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
     }
     .brand-title {
       font-size: 1.35rem;
-      font-weight: 800;
+      font-weight: 600;
       letter-spacing: 0.03em;
     }
     .beta-chip {
@@ -235,15 +235,15 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
       border-radius: 5px;
       border: 1px solid rgba(200, 155, 91, 0.65);
       background: rgba(200, 155, 91, 0.2);
-      color: #f3d7a4;
+      color: var(--color-accent-light);
       font-size: 0.65rem;
-      font-weight: 700;
+      font-weight: 600;
       letter-spacing: 0.08em;
     }
     .visual-copy h2 {
       margin: 0 0 6px;
       font-size: 1.35rem;
-      font-weight: 800;
+      font-weight: 600;
       line-height: 1.3;
     }
     .visual-copy p {
@@ -297,7 +297,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
       color: var(--color-primary);
       font: inherit;
       font-size: 0.76rem;
-      font-weight: 700;
+      font-weight: 600;
       cursor: pointer;
     }
     .form-card {
@@ -315,7 +315,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
     .form-head h1 {
       margin: 0 0 4px;
       font-size: 1.4rem;
-      font-weight: 800;
+      font-weight: 600;
       color: var(--color-primary);
     }
     .head-sub {
@@ -341,7 +341,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
       color: var(--color-text-secondary);
       font: inherit;
       font-size: 0.82rem;
-      font-weight: 700;
+      font-weight: 600;
       cursor: pointer;
     }
     .mode-tab.active {
@@ -361,13 +361,13 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
     }
     .field-label {
       font-size: 0.74rem;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--color-text-secondary);
     }
     .req {
       color: var(--color-alert);
       font-style: normal;
-      font-weight: 700;
+      font-weight: 600;
     }
     .input-control {
       width: 100%;
@@ -389,10 +389,10 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
       border: none;
       border-radius: var(--radius-pill);
       background: var(--color-primary);
-      color: #ffffff;
+      color: var(--color-text-on-primary);
       font: inherit;
       font-size: 0.9rem;
-      font-weight: 700;
+      font-weight: 600;
       cursor: pointer;
       margin-top: 2px;
     }
@@ -429,7 +429,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
       color: var(--color-primary);
       font: inherit;
       font-size: 0.88rem;
-      font-weight: 700;
+      font-weight: 600;
       cursor: pointer;
     }
     .google-btn:hover {

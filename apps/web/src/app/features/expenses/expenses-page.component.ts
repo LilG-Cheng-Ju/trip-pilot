@@ -293,12 +293,12 @@ import { ItineraryStore } from '../../state/itinerary.store';
       border: 1px solid var(--color-border);
       color: var(--color-primary);
       text-decoration: none;
-      font-weight: 700;
+      font-weight: 600;
     }
     .page-title {
       margin: 0;
       font-size: 1.375rem;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--color-primary);
     }
     .trip-sub {
@@ -324,7 +324,7 @@ import { ItineraryStore } from '../../state/itinerary.store';
       padding: var(--space-5);
       border-radius: var(--radius-lg);
       background: var(--color-primary);
-      color: #ffffff;
+      color: var(--color-text-on-primary);
       box-shadow: var(--shadow-card);
     }
     .hero-label {
@@ -347,7 +347,7 @@ import { ItineraryStore } from '../../state/itinerary.store';
     .hero-amount .currency {
       font-size: 1rem;
       font-weight: 600;
-      color: #ffffff;
+      color: var(--color-text-on-primary);
     }
     .hero-count {
       font-size: 0.8125rem;
@@ -376,13 +376,13 @@ import { ItineraryStore } from '../../state/itinerary.store';
     }
     .field-label {
       font-size: 0.72rem;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--color-text-secondary);
     }
     .req {
       color: var(--color-alert);
       font-style: normal;
-      font-weight: 700;
+      font-weight: 600;
     }
     .exp-amounts {
       display: flex;
@@ -404,7 +404,7 @@ import { ItineraryStore } from '../../state/itinerary.store';
     .section-title {
       margin: 0;
       font-size: 0.9375rem;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--color-primary);
     }
     .input-main,
@@ -434,7 +434,7 @@ import { ItineraryStore } from '../../state/itinerary.store';
     }
     .input-currency {
       text-transform: uppercase;
-      font-weight: 700;
+      font-weight: 600;
       padding: 9px 6px;
     }
     .rate-box {
@@ -523,7 +523,7 @@ import { ItineraryStore } from '../../state/itinerary.store';
       color: var(--color-primary);
       font: inherit;
       font-size: 0.74rem;
-      font-weight: 700;
+      font-weight: 600;
       cursor: pointer;
     }
     .cat-chips {
@@ -545,7 +545,7 @@ import { ItineraryStore } from '../../state/itinerary.store';
     .cat-chip.active {
       background: var(--color-primary);
       border-color: var(--color-primary);
-      color: #ffffff;
+      color: var(--color-text-on-primary);
     }
     .more-toggle {
       align-self: flex-start;
@@ -568,9 +568,9 @@ import { ItineraryStore } from '../../state/itinerary.store';
       border: none;
       border-radius: var(--radius-pill);
       background: var(--color-primary);
-      color: #ffffff;
+      color: var(--color-text-on-primary);
       font: inherit;
-      font-weight: 700;
+      font-weight: 600;
       cursor: pointer;
     }
     .bar-row {
@@ -631,9 +631,9 @@ import { ItineraryStore } from '../../state/itinerary.store';
       padding: 4px 10px;
       border-radius: var(--radius-pill);
       background: var(--color-accent-soft);
-      color: #8b652d;
+      color: var(--color-accent-ink);
       font-size: 0.7rem;
-      font-weight: 700;
+      font-weight: 600;
       flex-shrink: 0;
     }
     .exp-title {
@@ -654,7 +654,7 @@ import { ItineraryStore } from '../../state/itinerary.store';
       text-align: right;
     }
     .exp-home {
-      font-weight: 700;
+      font-weight: 600;
       color: var(--color-primary);
       font-size: 0.9375rem;
     }

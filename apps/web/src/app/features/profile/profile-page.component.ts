@@ -170,7 +170,7 @@ import { AuthStore } from '../../state/auth.store';
     .page-title {
       margin: 0;
       font-size: 1.375rem;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--color-primary);
     }
     .panel {
@@ -239,7 +239,7 @@ import { AuthStore } from '../../state/auth.store';
       border: none;
       border-radius: var(--radius-pill);
       background: var(--color-primary);
-      color: #ffffff;
+      color: var(--color-text-on-primary);
       font: inherit;
       font-size: 0.875rem;
       font-weight: 600;
@@ -264,7 +264,7 @@ import { AuthStore } from '../../state/auth.store';
     .pill-btn.danger:hover {
       background: var(--color-alert);
       border-color: var(--color-alert);
-      color: #ffffff;
+      color: var(--color-text-on-primary);
     }
     .token-form input.has-error {
       border-color: var(--color-alert);
@@ -296,7 +296,7 @@ import { AuthStore } from '../../state/auth.store';
     .warn-text {
       margin: 0 0 6px;
       font-size: 0.8125rem;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--color-primary);
     }
     .token-secret-row {
@@ -352,7 +352,7 @@ import { AuthStore } from '../../state/auth.store';
     .mcp-subhead {
       margin: 0;
       font-size: 0.85rem;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--color-primary);
     }
     .connect-row {
@@ -374,7 +374,7 @@ import { AuthStore } from '../../state/auth.store';
     }
     .connect-label {
       font-size: 0.72rem;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--color-text-secondary);
     }
     .connect-url {
@@ -394,12 +394,12 @@ import { AuthStore } from '../../state/auth.store';
       color: var(--color-primary);
       font: inherit;
       font-size: 0.82rem;
-      font-weight: 700;
+      font-weight: 600;
       cursor: pointer;
     }
     .btn-secondary:hover {
       background: var(--color-primary);
-      color: #ffffff;
+      color: var(--color-text-on-primary);
     }
   `,
 })

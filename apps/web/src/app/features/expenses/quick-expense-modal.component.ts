@@ -175,13 +175,13 @@ import { ExpenseStore } from '../../state/expense.store';
     }
     .field-label {
       font-size: 0.72rem;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--color-text-secondary);
     }
     .req {
       color: var(--color-alert);
       font-style: normal;
-      font-weight: 700;
+      font-weight: 600;
     }
     .input-control {
       width: 100%;
@@ -201,7 +201,7 @@ import { ExpenseStore } from '../../state/expense.store';
     .preview-line {
       margin-top: -6px;
       font-size: 0.78rem;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--color-primary);
     }
     .cat-chips {
@@ -223,7 +223,7 @@ import { ExpenseStore } from '../../state/expense.store';
     .cat-chip.active {
       background: var(--color-primary);
       border-color: var(--color-primary);
-      color: #ffffff;
+      color: var(--color-text-on-primary);
     }
     .extra-row {
       display: grid;
@@ -256,9 +256,9 @@ import { ExpenseStore } from '../../state/expense.store';
       border: none;
       border-radius: var(--radius-pill);
       background: var(--color-primary);
-      color: #ffffff;
+      color: var(--color-text-on-primary);
       font: inherit;
-      font-weight: 700;
+      font-weight: 600;
       cursor: pointer;
     }
     .btn-primary:disabled {

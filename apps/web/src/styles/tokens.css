@@ -15,8 +15,11 @@
 
   /* Accent: Burnished Champagne Gold & Terracotta Alert */
   --color-accent: #c4924c;
+  --color-accent-ink: #8b652d;
+  --color-accent-light: #f3d7a4;
   --color-accent-soft: #faf3e8;
   --color-alert: #c84b3b;
+  --color-alert-light: #fecaca;
   --color-alert-soft: #fdf2f0;
 
   /* Surfaces & Hairline Borders */
@@ -24,6 +27,7 @@
   --color-surface: #ffffff;
   --color-surface-muted: #eeece6;
   --color-border: rgba(20, 24, 31, 0.09);
+  --color-border-strong: rgba(20, 24, 31, 0.18);
 
   /* Typography Hierarchy */
   --color-text-primary: #14181f;
@@ -31,12 +35,14 @@
   --color-text-muted: #8b93a1;
   --color-text-on-primary: #ffffff;
 
-  /* Semantic Item Dot Accents */
+  /* Semantic Item & Category Accents */
   --item-flight: #162136;
   --item-reserved: #2f5fb3;
   --item-stay: #c4924c;
   --item-food: #d45d42;
   --item-spot: #2e7d62;
+  --category-shopping: #7c5cbf;
+  --category-other: #8b93a1;
 
   /* Crisp Radii */
   --radius-sm: 7px;

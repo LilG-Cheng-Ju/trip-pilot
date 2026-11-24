@@ -2,18 +2,18 @@
 
 **Mobile-First, Agent-Native Travel Itinerary Platform.**
 
-Tripilot pairs a calm, one-handed mobile PWA (Refined Japanese Deep Navy `#1B2A4A`, Warm Champagne Gold `#C89B5B`, Terracotta `#D96B52`, and Warm Off-White `#F7F6F2`) with a structured travel data model and first-class Antigravity / Gemini MCP integration.
+Tripilot pairs a calm, editorial mobile PWA (see [DESIGN.md](DESIGN.md) and [`tokens.css`](apps/web/src/styles/tokens.css)) with a structured travel data model and first-class Remote & Local MCP integration.
 
 ## Highlights
 
-- **Multi-Trip Overview**: Manage domestic and international trips across `Upcoming` and `Completed` tabs with searchable multi-country selection (50+ countries), departure countdowns, and flexible return dates (`End Date`, `Trip Length`, or `Decide Later` + `+ Add Day`).
+- **Multi-Trip Overview**: Manage domestic and international trips across `Upcoming` and `Completed` tabs with searchable multi-country selection (50+ countries), 180-day departure countdowns, and flexible return dates (`End Date`, `Trip Length`, or `Decide Later` + `+ Add Day`).
 - **Two-Layer Plan Alternatives**:
-  - **Whole-Day Variants (`DayOption`)**: Compare `Plan A` vs. `Plan B (Rainy)` on the same day without duplicating dates.
-  - **Slot-Level Multi-Choice (`choice_group_id`)**: Keep multiple candidates for a single slot (e.g., 3 lunch options and 2 dinner options) with inline switching that dynamically updates map pins and route distance.
-- **Split Transit Model & Smart Places**: Boarding-pass `FLIGHT` cards (auto Great-Circle distance & airport pin), `RESERVED_TRANSIT`, slim `LOCAL_TRANSIT` connectors, `STAY` cards with automatic cross-day basecamp inheritance on the map, `SPOT` & `FOOD` cards with **Google Places API (New)** search, safe Google Maps URL resolution, and one-tap local-language name copy (`local_name`).
-- **Interactive Maps & Privacy-First Sharing**: Lazy-loaded **MapLibre GL JS** (mobile `[ List | Map ]` toggle + collapsible desktop split view) and read-only share links (`/s/:token`) with backend-enforced privacy policies.
-- **Zero-Friction Expenses & Travel Stats**: Per-trip multi-currency expense ledger + annual/lifetime stats (international trip detection, countries visited, travel days, distance flown & ground distance without double-counting backup options).
-- **Agent-Native MCP Server (`packages/mcp`)**: 17 FastMCP tools + `SKILL.md` powered by scoped Personal API Tokens (`tp_pat_*`) so AI agents can ingest Gmail bookings, build Plan B backups, and log expenses.
+  - **Whole-Day Variants (`DayOption`)**: Clean single-plan view by default; add `Plan B` from blank or cloned from the current plan, rename any plan inline, and safely delete backups (guarded so the last remaining plan cannot be removed).
+  - **Slot-Level Multi-Choice (`choice_group_id`)**: Keep multiple candidates for a single slot with 0ms optimistic switching that updates map pins and route distance.
+- **Split Transit Model & Smart Places**: Boarding-pass `FLIGHT` cards (auto Great-Circle distance & airport pin), `RESERVED_TRANSIT`, slim `LOCAL_TRANSIT` connectors, `STAY` cards with automatic cross-day basecamp inheritance on the map, `SPOT` & `FOOD` cards with **Google Places API (New)** search, safe Google Maps URL resolution, editable route/address field, cloud attachment links, and one-tap local-language name copy (`local_name`).
+- **Interactive Maps & Privacy-First Sharing**: Lazy-loaded **MapLibre GL JS** with semantic pin colors synced 1:1 with card dots, always-on desktop split view, mobile thumb-zone bottom sheet + floating preview card, and read-only share links (`/s/:token`) with backend-enforced privacy policies.
+- **Zero-Friction Expenses & Travel Stats**: 1-tap quick expense logging with live cached FX rates, multi-currency totals, and annual/lifetime travel dashboard (`All | Domestic | International`) without double-counting backup options.
+- **Agent-Native Remote & Local MCP**: In-process Streamable HTTP MCP endpoint (`POST /mcp`) + public `/llms.txt` + local FastMCP server (`packages/mcp`) and `SKILL.md`, all authenticated via scoped Personal API Tokens (`tp_pat_*`).
 
 ## Monorepo Architecture
 
@@ -21,11 +21,12 @@ Tripilot pairs a calm, one-handed mobile PWA (Refined Japanese Deep Navy `#1B2A4
 trip-pilot/
 ├── apps/
 │   ├── web/          # Angular 22 PWA (Standalone, Signals, NgRx SignalStore, MapLibre GL, i18n en/zh-TW)
-│   └── api/          # FastAPI + SQLAlchemy 2.x (async) + Alembic (SQLite locally, PostgreSQL/Supabase prod)
+│   └── api/          # FastAPI + SQLAlchemy 2.x (async) + Alembic + Remote /mcp & /llms.txt
 ├── packages/
-│   └── mcp/          # FastMCP Server (`tripilot-mcp`) + Agent `SKILL.md`
+│   └── mcp/          # Local FastMCP Server (`tripilot-mcp`) + Agent `SKILL.md`
 ├── docs/
 │   └── DEPLOY.md     # Firebase Hosting + Google Cloud Run + Supabase deployment guide
+├── DESIGN.md         # Editorial Travel & Precision Aviation design system
 └── docker-compose.yaml
 ```
 

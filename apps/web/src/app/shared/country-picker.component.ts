@@ -123,7 +123,7 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
       padding: 3px 9px;
       border-radius: var(--radius-pill);
       background: var(--color-primary);
-      color: #ffffff;
+      color: var(--color-text-on-primary);
       font-size: 0.78rem;
       font-weight: 600;
     }

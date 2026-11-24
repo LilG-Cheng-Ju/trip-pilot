@@ -67,7 +67,7 @@ import { ItineraryMapComponent, MapPin } from '../itinerary/itinerary-map.compon
       margin-bottom: var(--space-4);
       border-radius: var(--radius-lg);
       background: var(--color-primary);
-      color: #ffffff;
+      color: var(--color-text-on-primary);
     }
     .badge {
       display: inline-block;
@@ -77,7 +77,7 @@ import { ItineraryMapComponent, MapPin } from '../itinerary/itinerary-map.compon
       background: rgba(200, 155, 91, 0.22);
       color: var(--color-accent);
       font-size: 0.75rem;
-      font-weight: 700;
+      font-weight: 600;
     }
     .public-header h1 {
       margin: 0 0 4px;
@@ -108,7 +108,7 @@ import { ItineraryMapComponent, MapPin } from '../itinerary/itinerary-map.compon
     .day-pill.active {
       background: var(--color-primary);
       border-color: var(--color-primary);
-      color: #ffffff;
+      color: var(--color-text-on-primary);
     }
     .public-grid {
       display: grid;

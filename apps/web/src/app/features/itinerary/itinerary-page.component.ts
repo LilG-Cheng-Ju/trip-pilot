@@ -631,7 +631,7 @@ import {
     }
     .status-pill.offline {
       background: var(--color-accent-soft);
-      color: #8b652d;
+      color: var(--color-accent-ink);
     }
     .spin {
       animation: tp-spin 1s linear infinite;
@@ -711,10 +711,10 @@ import {
       border: none;
       border-radius: var(--radius-pill);
       background: var(--color-primary);
-      color: #ffffff;
+      color: var(--color-text-on-primary);
       font: inherit;
       font-size: 0.85rem;
-      font-weight: 700;
+      font-weight: 600;
       box-shadow: 0 8px 24px rgba(27, 42, 74, 0.32);
       cursor: pointer;
     }
@@ -758,7 +758,7 @@ import {
     }
     .sheet-title {
       font-size: 0.85rem;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--color-primary);
     }
     .sheet-close-btn {
@@ -772,7 +772,7 @@ import {
       color: var(--color-primary);
       font: inherit;
       font-size: 0.76rem;
-      font-weight: 700;
+      font-weight: 600;
       cursor: pointer;
     }
     .sheet-map-body {
@@ -815,9 +815,9 @@ import {
       height: 22px;
       border-radius: var(--radius-pill);
       background: var(--color-primary);
-      color: #ffffff;
+      color: var(--color-text-on-primary);
       font-size: 0.72rem;
-      font-weight: 700;
+      font-weight: 600;
       flex-shrink: 0;
     }
     .mini-pin.stay {
@@ -825,7 +825,7 @@ import {
     }
     .mini-title {
       font-size: 0.92rem;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--color-primary);
       white-space: nowrap;
       overflow: hidden;
@@ -878,12 +878,12 @@ import {
     .mini-btn.primary {
       background: var(--color-primary);
       border-color: var(--color-primary);
-      color: #ffffff;
+      color: var(--color-text-on-primary);
     }
     .mini-btn.accent {
       border-color: rgba(200, 155, 91, 0.55);
       background: var(--color-accent-soft);
-      color: #8b652d;
+      color: var(--color-accent-ink);
     }
     .mini-truncate {
       max-width: 130px;
@@ -930,7 +930,7 @@ import {
       color: var(--color-text-on-primary);
     }
     .day-num {
-      font-weight: 700;
+      font-weight: 600;
       font-size: 0.875rem;
     }
     .day-date {
@@ -1038,26 +1038,6 @@ import {
       color: var(--color-primary);
       box-shadow: var(--shadow-card);
     }
-    .confirm-copy {
-      margin: 0;
-      font-size: 0.9rem;
-      line-height: 1.55;
-      color: var(--color-text-secondary);
-    }
-    .btn-danger {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 8px 16px;
-      border: none;
-      border-radius: var(--radius-pill);
-      background: var(--color-alert);
-      color: #ffffff;
-      font: inherit;
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-    }
     .plan-pills {
       display: inline-flex;
       flex-wrap: wrap;
@@ -1101,10 +1081,10 @@ import {
       border: 1px dashed var(--color-accent);
       border-radius: var(--radius-pill);
       background: var(--color-accent-soft);
-      color: #8b652d;
+      color: var(--color-accent-ink);
       font: inherit;
       font-size: 0.75rem;
-      font-weight: 700;
+      font-weight: 600;
       cursor: pointer;
     }
     .activate-banner {
@@ -1129,7 +1109,7 @@ import {
       border: none;
       border-radius: var(--radius-pill);
       background: var(--color-primary);
-      color: #ffffff;
+      color: var(--color-text-on-primary);
       font: inherit;
       font-size: 0.8125rem;
       font-weight: 600;
@@ -1188,7 +1168,7 @@ import {
     .choice-pill.active {
       border-color: var(--color-primary);
       background: var(--color-primary);
-      color: #ffffff;
+      color: var(--color-text-on-primary);
     }
     .choice-add-btn {
       display: grid;
@@ -1199,7 +1179,7 @@ import {
       border: 1px dashed var(--color-accent);
       border-radius: var(--radius-pill);
       background: var(--color-surface);
-      color: #8b652d;
+      color: var(--color-accent-ink);
       cursor: pointer;
     }
     .empty-day {
@@ -1209,41 +1189,6 @@ import {
       background: var(--color-surface);
       border: 1px dashed var(--color-border);
       border-radius: var(--radius-md);
-    }
-    .modal-form {
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-3);
-    }
-    .field {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: var(--color-text-secondary);
-    }
-    .field input {
-      padding: 9px 10px;
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-sm);
-      background: var(--color-bg);
-      color: var(--color-text-primary);
-      font: inherit;
-    }
-    .field.has-error input {
-      border-color: var(--color-alert);
-      background: var(--color-alert-soft);
-    }
-    .req {
-      color: var(--color-alert);
-      font-style: normal;
-      font-weight: 700;
-    }
-    .err-msg {
-      color: var(--color-alert);
-      font-size: 0.75rem;
-      font-weight: 600;
     }
     .add-actions {
       display: flex;
@@ -1283,25 +1228,6 @@ import {
     .share-row-actions {
       display: flex;
       gap: 6px;
-    }
-
-    .pill-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 7px 12px;
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-pill);
-      background: var(--color-surface);
-      color: var(--color-primary);
-      text-decoration: none;
-      font: inherit;
-      font-size: 0.8125rem;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    .pill-btn.danger {
-      color: var(--color-alert);
     }
     @media (min-width: 768px) {
       .day-scroll-btn {

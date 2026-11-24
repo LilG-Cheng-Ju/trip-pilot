@@ -313,49 +313,6 @@ type DateEndMode = 'end' | 'duration' | 'open';
     </div>
   `,
   styles: `
-    .page {
-      max-width: 1120px;
-      margin: 0 auto;
-      padding: var(--space-5) var(--space-4) calc(var(--nav-bottom-height) + var(--space-6));
-    }
-    .page-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: var(--space-3);
-      margin-bottom: var(--space-4);
-    }
-    .page-title {
-      margin: 0;
-      font-size: 1.375rem;
-      font-weight: 700;
-      color: var(--color-primary);
-    }
-    .btn-primary {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 10px 16px;
-      border: none;
-      border-radius: var(--radius-pill);
-      background: var(--color-primary);
-      color: var(--color-text-on-primary);
-      font: inherit;
-      font-size: 0.875rem;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    .btn-ghost {
-      padding: 10px 16px;
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-pill);
-      background: var(--color-surface);
-      color: var(--color-text-secondary);
-      font: inherit;
-      font-size: 0.875rem;
-      font-weight: 600;
-      cursor: pointer;
-    }
     .tab-bar {
       display: inline-flex;
       gap: 4px;
@@ -426,7 +383,7 @@ type DateEndMode = 'end' | 'duration' | 'open';
       padding: 2px 9px;
       border-radius: var(--radius-pill);
       background: var(--color-accent-soft);
-      color: #8b652d;
+      color: var(--color-accent-ink);
       font-size: var(--text-badge);
       font-weight: 600;
     }
@@ -493,7 +450,7 @@ type DateEndMode = 'end' | 'duration' | 'open';
     .action-pill.alert:hover {
       background: var(--color-alert);
       border-color: var(--color-alert);
-      color: #ffffff;
+      color: var(--color-text-on-primary);
     }
     .empty-card {
       padding: var(--space-6);
@@ -503,73 +460,10 @@ type DateEndMode = 'end' | 'duration' | 'open';
       border: 1px dashed var(--color-border);
       border-radius: var(--radius-md);
     }
-    .modal-form {
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-4);
-    }
-    .seg-row {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 4px;
-      padding: 4px;
-      border-radius: var(--radius-pill);
-      background: var(--color-surface-muted);
-    }
-    .seg-row.compact {
-      grid-template-columns: repeat(3, 1fr);
-    }
-    .seg-btn {
-      padding: 8px 10px;
-      border: none;
-      border-radius: var(--radius-pill);
-      background: transparent;
-      color: var(--color-text-secondary);
-      font: inherit;
-      font-size: 0.8125rem;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    .seg-btn.active {
-      background: var(--color-surface);
-      color: var(--color-primary);
-      box-shadow: var(--shadow-card);
-    }
-    .field {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      font-size: 0.8125rem;
-      font-weight: 600;
-      color: var(--color-text-secondary);
-    }
-    .field input,
-    .field select {
-      padding: 10px 12px;
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-sm);
-      background: var(--color-bg);
-      color: var(--color-text-primary);
-      font: inherit;
-    }
-    .field.has-error input {
-      border-color: var(--color-alert);
-      background: var(--color-alert-soft);
-    }
     .field-hint {
       font-size: 0.75rem;
       font-weight: 400;
       color: var(--color-text-muted);
-    }
-    .req {
-      color: var(--color-alert);
-      font-style: normal;
-      font-weight: 700;
-    }
-    .err-msg {
-      color: var(--color-alert);
-      font-size: 0.75rem;
-      font-weight: 600;
     }
     .stepper-row {
       display: flex;

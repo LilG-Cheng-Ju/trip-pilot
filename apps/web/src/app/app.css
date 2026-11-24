@@ -44,7 +44,7 @@
 .brand-name {
   margin: 0;
   font-size: 1.125rem;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.03em;
 }
 
@@ -55,7 +55,7 @@
   border-radius: 5px;
   border: 1px solid rgba(196, 146, 76, 0.55);
   background: rgba(196, 146, 76, 0.16);
-  color: #f3d7a4;
+  color: var(--color-accent-light);
   font-family: var(--font-mono);
   font-size: 0.6rem;
   font-weight: 600;
@@ -84,7 +84,7 @@
   border-radius: 50%;
   border: 1.5px solid rgba(196, 146, 76, 0.65);
   background: rgba(255, 255, 255, 0.12);
-  color: #ffffff;
+  color: var(--color-text-on-primary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -108,7 +108,7 @@
 
 .avatar-initial {
   font-size: 0.875rem;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.02em;
 }
 
@@ -142,7 +142,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
+  font-weight: 600;
   font-size: 1rem;
   overflow: hidden;
   flex-shrink: 0;
@@ -154,7 +154,7 @@
 
 .account-name {
   font-size: 0.875rem;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--color-primary);
   white-space: nowrap;
   overflow: hidden;
@@ -198,17 +198,17 @@
 }
 
 .menu-item.danger {
-  color: #b91c1c;
+  color: var(--color-alert);
 }
 
 .menu-trailing {
   margin-left: auto;
   font-size: 0.74rem;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--color-primary);
   padding: 2px 7px;
   border-radius: var(--radius-pill);
-  background: rgba(27, 42, 74, 0.08);
+  background: var(--color-primary-tint);
 }
 
 .menu-footer {
@@ -221,7 +221,7 @@
 }
 
 .version-pill {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-weight: 600;
   color: var(--color-primary);
 }
@@ -288,12 +288,12 @@
 
   .nav-tab:hover {
     background: rgba(255, 255, 255, 0.08);
-    color: #ffffff;
+    color: var(--color-text-on-primary);
   }
 
   .nav-tab.active {
     background: rgba(255, 255, 255, 0.14);
-    color: #ffffff;
+    color: var(--color-text-on-primary);
     font-weight: 600;
     box-shadow: inset 0 -2px 0 var(--color-accent);
   }

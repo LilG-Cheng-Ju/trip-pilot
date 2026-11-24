@@ -292,7 +292,7 @@ interface TripAttachmentEntry {
     .section-head h3 {
       margin: 0;
       font-size: 0.98rem;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--color-primary);
     }
     .section-ico {
@@ -304,7 +304,7 @@ interface TripAttachmentEntry {
     }
     .section-ico.stay {
       background: var(--color-accent-soft);
-      color: #8b652d;
+      color: var(--color-accent-ink);
     }
     .count-badge {
       margin-left: auto;
@@ -313,7 +313,7 @@ interface TripAttachmentEntry {
       background: var(--color-surface-muted);
       color: var(--color-text-secondary);
       font-size: 0.74rem;
-      font-weight: 700;
+      font-weight: 600;
     }
     .empty-hint {
       margin: 0;
@@ -341,7 +341,7 @@ interface TripAttachmentEntry {
     }
     .flight-card {
       background: var(--color-primary);
-      color: #ffffff;
+      color: var(--color-text-on-primary);
       border-color: var(--color-primary);
     }
     .brief-card-top {
@@ -357,7 +357,7 @@ interface TripAttachmentEntry {
       align-items: center;
       gap: 6px;
       font-size: 0.78rem;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--color-primary);
     }
     .arrow {
@@ -367,7 +367,7 @@ interface TripAttachmentEntry {
       padding: 2px 8px;
       border-radius: var(--radius-pill);
       background: var(--color-accent-soft);
-      color: #8b652d;
+      color: var(--color-accent-ink);
       font-size: 0.72rem;
     }
     .change-badge {
@@ -379,12 +379,12 @@ interface TripAttachmentEntry {
       background: var(--color-primary-tint);
       color: var(--color-primary);
       font-size: 0.72rem;
-      font-weight: 700;
+      font-weight: 600;
     }
     .item-title {
       margin: 0 0 3px;
       font-size: 0.95rem;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--color-text-primary);
     }
     .item-sub {
@@ -430,7 +430,7 @@ interface TripAttachmentEntry {
     }
     .day-tag {
       font-size: 0.76rem;
-      font-weight: 700;
+      font-weight: 600;
       opacity: 0.85;
     }
     .day-tag.light {
@@ -465,7 +465,7 @@ interface TripAttachmentEntry {
     }
     .iata {
       font-size: 1.35rem;
-      font-weight: 800;
+      font-weight: 600;
       letter-spacing: 0.04em;
     }
     .time {
@@ -480,7 +480,7 @@ interface TripAttachmentEntry {
     }
     .flight-no {
       font-size: 0.76rem;
-      font-weight: 700;
+      font-weight: 600;
       opacity: 0.9;
     }
     .arc-bar {
@@ -490,7 +490,7 @@ interface TripAttachmentEntry {
     }
     .flight-km {
       font-size: 0.72rem;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--color-accent);
     }
     .vault-grid {
@@ -525,7 +525,7 @@ interface TripAttachmentEntry {
     }
     .vault-name {
       font-size: 0.85rem;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--color-primary);
       white-space: nowrap;
       overflow: hidden;

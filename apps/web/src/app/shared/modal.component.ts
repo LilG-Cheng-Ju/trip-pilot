@@ -61,7 +61,7 @@ import { Component, input, output } from '@angular/core';
     .modal-title {
       margin: 0;
       font-size: 1.0625rem;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--color-primary);
     }
     .close-btn {

@@ -9,13 +9,13 @@ import { expenseCategoryKey, formatMoney } from '../../core/utils/travel-format.
 import { StatsStore } from '../../state/stats.store';
 
 const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
-  FLIGHT: '#1B2A4A',
-  LODGING: '#C89B5B',
-  FOOD: '#D96B52',
-  TRANSIT: '#3B82F6',
-  ACTIVITY: '#10B981',
-  SHOPPING: '#8B5CF6',
-  OTHER: '#94A3B8',
+  FLIGHT: 'var(--item-flight)',
+  LODGING: 'var(--item-stay)',
+  FOOD: 'var(--item-food)',
+  TRANSIT: 'var(--item-reserved)',
+  ACTIVITY: 'var(--item-spot)',
+  SHOPPING: 'var(--category-shopping)',
+  OTHER: 'var(--category-other)',
 };
 
 /** Annual and lifetime travel dashboard with scope tabs, spend structure, and country footprint. */
@@ -256,7 +256,7 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
     .page-title {
       margin: 0;
       font-size: 1.375rem;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--color-primary);
     }
     .controls-bar {
@@ -288,7 +288,7 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
       color: var(--color-text-secondary);
       font: inherit;
       font-size: 0.8rem;
-      font-weight: 700;
+      font-weight: 600;
       white-space: nowrap;
       cursor: pointer;
     }
@@ -323,12 +323,12 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
     }
     .kpi-card.highlight {
       background: var(--color-primary);
-      color: #ffffff;
+      color: var(--color-text-on-primary);
       border-color: var(--color-primary);
     }
     .kpi-label {
       font-size: 0.72rem;
-      font-weight: 700;
+      font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.05em;
       opacity: 0.75;
@@ -377,7 +377,7 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
     .panel-head h3 {
       margin: 0;
       font-size: 0.98rem;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--color-primary);
     }
     .panel-ico {
@@ -389,11 +389,11 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
     }
     .panel-ico.spend {
       background: var(--color-accent-soft);
-      color: #8b652d;
+      color: var(--color-accent-ink);
     }
     .panel-total {
       font-size: 0.88rem;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--color-primary);
     }
     .count-pill {
@@ -402,7 +402,7 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
       background: var(--color-surface-muted);
       color: var(--color-text-secondary);
       font-size: 0.74rem;
-      font-weight: 700;
+      font-weight: 600;
     }
     .stacked-bar {
       display: flex;
@@ -451,13 +451,13 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
     }
     .cat-pct {
       font-size: 0.76rem;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--color-text-muted);
       min-width: 34px;
       text-align: right;
     }
     .cat-amt {
-      font-weight: 700;
+      font-weight: 600;
       color: var(--color-primary);
     }
     .country-rank-list {
@@ -473,12 +473,12 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
       margin-bottom: 5px;
     }
     .country-name {
-      font-weight: 700;
+      font-weight: 600;
       color: var(--color-text-primary);
     }
     .country-count {
       font-size: 0.78rem;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--color-primary);
     }
     .bar-track {
@@ -525,7 +525,7 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
     }
     .trip-row-title {
       font-size: 0.92rem;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--color-primary);
     }
     .scope-tag {
@@ -534,11 +534,11 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
       background: var(--color-surface-muted);
       color: var(--color-text-secondary);
       font-size: 0.7rem;
-      font-weight: 700;
+      font-weight: 600;
     }
     .scope-tag.intl {
       background: var(--color-accent-soft);
-      color: #8b652d;
+      color: var(--color-accent-ink);
     }
     .trip-row-meta {
       display: flex;
@@ -556,7 +556,7 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
     }
     .trip-spend {
       font-size: 0.85rem;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--color-primary);
     }
     .chevron {
@@ -631,7 +631,7 @@ export class StatsPageComponent implements OnInit {
           category,
           amount,
           percent: Math.max(1, Math.round((Number(amount) / total) * 100)),
-          color: CATEGORY_COLORS[category] ?? '#94A3B8',
+          color: CATEGORY_COLORS[category] ?? 'var(--category-other)',
         };
       })
       .sort((a, b) => Number(b.amount) - Number(a.amount));

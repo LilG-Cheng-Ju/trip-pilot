@@ -480,13 +480,13 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       border: 1px solid rgba(200, 155, 91, 0.55);
       border-radius: 6px;
       background: var(--color-accent-soft);
-      color: #8b652d;
+      color: var(--color-accent-ink);
       cursor: pointer;
     }
     .connector-spend-btn:hover {
       background: var(--color-accent);
       border-color: var(--color-accent);
-      color: #ffffff;
+      color: var(--color-text-on-primary);
     }
     .connector-menu-btn {
       display: inline-flex;
@@ -563,7 +563,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     }
     .iata {
       font-size: 1.5rem;
-      font-weight: 800;
+      font-weight: 600;
       letter-spacing: 0.04em;
     }
     .time {
@@ -584,14 +584,14 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     .flight-km {
       color: var(--color-accent);
       font-size: 0.75rem;
-      font-weight: 700;
+      font-weight: 600;
     }
     .standard-card {
       background: var(--color-surface);
       border: 1px solid var(--color-border);
     }
     .standard-card:hover {
-      border-color: #cbd5e1;
+      border-color: var(--color-border-strong);
     }
     .type-dot {
       width: 7px;
@@ -631,9 +631,9 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       height: 24px;
       border-radius: var(--radius-pill);
       background: var(--color-primary);
-      color: #ffffff;
+      color: var(--color-text-on-primary);
       font-size: 0.75rem;
-      font-weight: 800;
+      font-weight: 600;
       flex-shrink: 0;
     }
     .pin-badge.selected {
@@ -670,7 +670,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       border-radius: 7px;
       border: 1px solid rgba(196, 146, 76, 0.35);
       background: var(--color-accent-soft);
-      color: #8b652d;
+      color: var(--color-accent-ink);
       text-decoration: none;
       font-family: var(--font-mono);
       font-size: 0.7rem;
@@ -702,26 +702,26 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     .head-action-btn.expense-trigger {
       border-color: rgba(200, 155, 91, 0.55);
       background: var(--color-accent-soft);
-      color: #8b652d;
+      color: var(--color-accent-ink);
     }
     .head-action-btn.expense-trigger:hover {
       border-color: var(--color-accent);
       background: var(--color-accent);
-      color: #ffffff;
+      color: var(--color-text-on-primary);
     }
     .head-action-btn.dark {
       border-color: rgba(255, 255, 255, 0.24);
       background: rgba(255, 255, 255, 0.1);
-      color: #ffffff;
+      color: var(--color-text-on-primary);
     }
     .head-action-btn.accent-dark {
       border-color: rgba(200, 155, 91, 0.65);
       background: rgba(200, 155, 91, 0.22);
-      color: #f3d7a4;
+      color: var(--color-accent-light);
     }
     .head-action-btn.accent-dark:hover {
       background: var(--color-accent);
-      color: #ffffff;
+      color: var(--color-text-on-primary);
     }
     .head-menu-btn {
       display: inline-flex;
@@ -743,7 +743,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     .head-menu-btn.dark {
       border-color: rgba(255, 255, 255, 0.24);
       background: rgba(255, 255, 255, 0.1);
-      color: #ffffff;
+      color: var(--color-text-on-primary);
     }
     .overflow-anchor {
       position: relative;
@@ -937,7 +937,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     .meta-chip.dark.alert {
       border-color: rgba(252, 165, 165, 0.45);
       background: rgba(200, 75, 59, 0.26);
-      color: #fecaca;
+      color: var(--color-alert-light);
     }
     .footer-pills.dark {
       scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
@@ -948,7 +948,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     .head-expense-pill.dark {
       border-color: rgba(212, 175, 55, 0.45);
       background: rgba(212, 175, 55, 0.16);
-      color: #f4d87c;
+      color: var(--color-accent-light);
     }
     .head-expense-pill.dark:hover {
       background: rgba(212, 175, 55, 0.26);
@@ -965,12 +965,12 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     .attachment-chip.dark {
       border-color: rgba(255, 255, 255, 0.24);
       background: rgba(255, 255, 255, 0.1);
-      color: #ffffff;
+      color: var(--color-text-on-primary);
     }
     .expense-chip {
       border: 1px solid rgba(200, 155, 91, 0.5);
       background: var(--color-accent-soft);
-      color: #8b652d;
+      color: var(--color-accent-ink);
     }
     .expense-chip:hover {
       border-color: var(--color-accent);
@@ -978,7 +978,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     .expense-chip.dark {
       border-color: rgba(200, 155, 91, 0.6);
       background: rgba(200, 155, 91, 0.2);
-      color: #f3d7a4;
+      color: var(--color-accent-light);
     }
     .order-controls {
       display: flex;
@@ -1006,7 +1006,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     .order-btn.dark {
       border-color: rgba(255, 255, 255, 0.24);
       background: rgba(255, 255, 255, 0.08);
-      color: #ffffff;
+      color: var(--color-text-on-primary);
     }
   `,
 })
