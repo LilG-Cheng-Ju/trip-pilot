@@ -117,7 +117,7 @@ async def create_trip(
 
 @mcp.tool()
 async def create_day_option(
-    trip_day_id: str,
+    day_id: str,
     label: str,
     clone_from_option_id: str | None = None,
     summary_notes: str | None = None,
@@ -128,7 +128,7 @@ async def create_day_option(
     variant without modifying the original or changing active_option_id.
 
     Args:
-        trip_day_id: ID of the target TripDay.
+        day_id: ID of the target TripDay.
         label: Label for the new option (e.g. "Plan B - Rainy Day").
         clone_from_option_id: Optional existing DayOption ID to deep-clone.
         summary_notes: Optional notes (used when creating a fresh empty option).
@@ -140,7 +140,7 @@ async def create_day_option(
                 label=label,
             )
         return await client.add_day_option(
-            day_id=trip_day_id,
+            day_id=day_id,
             label=label,
             summary_notes=summary_notes,
         )
@@ -175,25 +175,25 @@ async def delete_day_option(option_id: str) -> dict[str, Any]:
 
 @mcp.tool()
 async def set_active_option(
-    trip_day_id: str,
-    day_option_id: str,
+    day_id: str,
+    option_id: str,
 ) -> dict[str, Any]:
     """Switch the active DayOption pointer for a TripDay.
 
     Args:
-        trip_day_id: ID of the TripDay to update.
-        day_option_id: ID of the DayOption belonging to that day to activate.
+        day_id: ID of the TripDay to update.
+        option_id: ID of the DayOption belonging to that day to activate.
     """
     async with TripilotClient() as client:
         return await client.set_active_option(
-            day_id=trip_day_id,
-            day_option_id=day_option_id,
+            day_id=day_id,
+            day_option_id=option_id,
         )
 
 
 @mcp.tool()
 async def add_itinerary_item(
-    day_option_id: str,
+    option_id: str,
     item_type: str,
     title: str,
     start_time: str | None = None,
@@ -209,7 +209,7 @@ async def add_itinerary_item(
     """Add an itinerary item directly to a known DayOption ID.
 
     Args:
-        day_option_id: Target DayOption ID.
+        option_id: Target DayOption ID.
         item_type: One of FLIGHT, RESERVED_TRANSIT, LOCAL_TRANSIT, STAY, SPOT, FOOD.
         title: Concise item title.
         start_time: Optional start time string (e.g. "09:30").
@@ -238,7 +238,7 @@ async def add_itinerary_item(
         alternative_for_item_id=alternative_for_item_id,
     )
     async with TripilotClient() as client:
-        return await client.add_item(option_id=day_option_id, payload=payload)
+        return await client.add_item(option_id=option_id, payload=payload)
 
 
 @mcp.tool()
@@ -346,6 +346,7 @@ async def add_expense(
     exchange_rate: float = 1.0,
     payment_method: str | None = None,
     trip_day_id: str | None = None,
+    itinerary_item_id: str | None = None,
     notes: str | None = None,
 ) -> dict[str, Any]:
     """Log an actual expense against a trip.
@@ -359,6 +360,7 @@ async def add_expense(
         exchange_rate: Multiplier to convert original currency to user's home currency.
         payment_method: Optional payment method (e.g. "Visa", "Suica", "Cash").
         trip_day_id: Optional TripDay ID to associate the expense with a specific day.
+        itinerary_item_id: Optional ItineraryItem ID to link the expense to a stop.
         notes: Optional notes or receipt reference.
     """
     payload: dict[str, Any] = {
@@ -372,6 +374,8 @@ async def add_expense(
         payload["payment_method"] = payment_method
     if trip_day_id is not None:
         payload["trip_day_id"] = trip_day_id
+    if itinerary_item_id is not None:
+        payload["itinerary_item_id"] = itinerary_item_id
     if notes is not None:
         payload["notes"] = notes
 
@@ -419,19 +423,19 @@ async def search_airports(query: str) -> list[dict[str, Any]]:
 
 @mcp.tool()
 async def update_day_title(
-    trip_day_id: str,
+    day_id: str,
     title: str | None = None,
     notes: str | None = None,
 ) -> dict[str, Any]:
     """Set or update a TripDay's theme title or notes.
 
     Args:
-        trip_day_id: Target TripDay ID.
+        day_id: Target TripDay ID.
         title: Concise day focus/area (e.g. "East Busan · Luge & Sky Capsule").
         notes: Optional day-level notes.
     """
     async with TripilotClient() as client:
-        return await client.update_day(day_id=trip_day_id, title=title, notes=notes)
+        return await client.update_day(day_id=day_id, title=title, notes=notes)
 
 
 @mcp.tool()

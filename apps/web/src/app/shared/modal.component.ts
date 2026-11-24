@@ -4,7 +4,6 @@ import {
   effect,
   ElementRef,
   input,
-  OnDestroy,
   output,
   viewChild,
 } from '@angular/core';
@@ -117,13 +116,12 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
     }
   `,
 })
-export class AppModalComponent implements OnDestroy {
+export class AppModalComponent {
   readonly open = input(false);
   readonly title = input('');
   readonly closed = output<void>();
 
   private readonly dialogEl = viewChild<ElementRef<HTMLDialogElement>>('dialogEl');
-  private lockedScroll = false;
 
   constructor() {
     effect(() => {
@@ -136,18 +134,10 @@ export class AppModalComponent implements OnDestroy {
         if (!dialog.open && typeof dialog.showModal === 'function') {
           dialog.showModal();
         }
-        this.lockBodyScroll(true);
-      } else {
-        if (dialog.open && typeof dialog.close === 'function') {
-          dialog.close();
-        }
-        this.lockBodyScroll(false);
+      } else if (dialog.open && typeof dialog.close === 'function') {
+        dialog.close();
       }
     });
-  }
-
-  ngOnDestroy(): void {
-    this.lockBodyScroll(false);
   }
 
   protected onNativeCancel(event: Event): void {
@@ -158,19 +148,6 @@ export class AppModalComponent implements OnDestroy {
   protected onBackdropClick(event: MouseEvent): void {
     if (event.target === this.dialogEl()?.nativeElement) {
       this.closed.emit();
-    }
-  }
-
-  private lockBodyScroll(lock: boolean): void {
-    if (typeof document === 'undefined') {
-      return;
-    }
-    if (lock && !this.lockedScroll) {
-      document.body.style.overflow = 'hidden';
-      this.lockedScroll = true;
-    } else if (!lock && this.lockedScroll) {
-      document.body.style.overflow = '';
-      this.lockedScroll = false;
     }
   }
 }

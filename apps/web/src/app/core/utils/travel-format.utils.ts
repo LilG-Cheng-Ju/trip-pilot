@@ -176,6 +176,49 @@ export function getSelectedDayItems(day: TripDay): ItineraryItem[] {
   return opt.items.filter((item) => item.is_selected);
 }
 
+/** Return the selected item's sibling group updated when appending a newly created alternative. */
+export function appendCreatedItem(
+  items: readonly ItineraryItem[],
+  created: ItineraryItem,
+  alternativeForId?: string | null,
+): ItineraryItem[] {
+  const updated =
+    alternativeForId && created.choice_group_id
+      ? items.map((it) =>
+          it.id === alternativeForId
+            ? { ...it, choice_group_id: created.choice_group_id }
+            : it,
+        )
+      : [...items];
+  return [...updated, created];
+}
+
+/** Remove an item and promote the first remaining sibling when the active choice is deleted. */
+export function removeItemWithChoicePromotion(
+  items: readonly ItineraryItem[],
+  deletedItemId: string,
+): ItineraryItem[] {
+  const deleted = items.find((it) => it.id === deletedItemId);
+  const remaining = items.filter((it) => it.id !== deletedItemId);
+  if (!deleted?.choice_group_id || !deleted.is_selected) {
+    return remaining;
+  }
+  const hasSelectedSibling = remaining.some(
+    (it) => it.choice_group_id === deleted.choice_group_id && it.is_selected,
+  );
+  if (hasSelectedSibling) {
+    return remaining;
+  }
+  let promoted = false;
+  return remaining.map((it) => {
+    if (!promoted && it.choice_group_id === deleted.choice_group_id) {
+      promoted = true;
+      return { ...it, is_selected: true };
+    }
+    return it;
+  });
+}
+
 /** Format a numeric or string amount cleanly with locale thousand separators. */
 export function formatMoney(amount: number | string, maxFractionDigits = 0): string {
   const num = Number(amount);

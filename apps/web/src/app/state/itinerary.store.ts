@@ -11,7 +11,11 @@ import {
   TripDetail,
   TripShare,
 } from '../core/models/tripilot.models';
-import { groupItemsIntoSlots } from '../core/utils/travel-format.utils';
+import {
+  appendCreatedItem,
+  groupItemsIntoSlots,
+  removeItemWithChoicePromotion,
+} from '../core/utils/travel-format.utils';
 
 interface ItineraryState {
   trip: TripDetail | null;
@@ -140,6 +144,18 @@ export const ItineraryStore = signalStore(
         patchState(store, {
           error: err instanceof Error ? err.message : fallback,
         });
+      };
+
+      const refreshTripSilently = async (tripId: string): Promise<void> => {
+        const seq = ++loadTripSeq;
+        try {
+          const fresh = await api.getTrip(tripId);
+          if (seq === loadTripSeq && store.trip()?.id === tripId) {
+            commitTrip(fresh);
+          }
+        } catch {
+          // Keep in-place optimistic state when background route sync fails.
+        }
       };
 
       return {
@@ -451,11 +467,21 @@ export const ItineraryStore = signalStore(
                 options: d.options.map((opt) =>
                   opt.id !== option.id
                     ? opt
-                    : { ...opt, items: [...opt.items, created] },
+                    : {
+                        ...opt,
+                        items: appendCreatedItem(
+                          opt.items,
+                          created,
+                          payload.alternative_for_item_id,
+                        ),
+                      },
                 ),
               })),
             };
             commitTrip(nextTrip);
+            if (created.latitude !== null && created.longitude !== null) {
+              void refreshTripSilently(trip.id);
+            }
           } catch (err) {
             recordError(err, 'Failed to add itinerary item');
           }
@@ -468,6 +494,14 @@ export const ItineraryStore = signalStore(
           const trip = store.trip();
           if (!trip) {
             return;
+          }
+          let prevItem: ItineraryItem | undefined;
+          for (const day of trip.days) {
+            for (const opt of day.options) {
+              prevItem = opt.items.find((it) => it.id === itemId);
+              if (prevItem) break;
+            }
+            if (prevItem) break;
           }
           try {
             const updated = await api.updateItem(itemId, payload);
@@ -482,6 +516,13 @@ export const ItineraryStore = signalStore(
               })),
             };
             commitTrip(nextTrip);
+            if (
+              prevItem?.latitude !== updated.latitude ||
+              prevItem?.longitude !== updated.longitude ||
+              prevItem?.type !== updated.type
+            ) {
+              void refreshTripSilently(trip.id);
+            }
           } catch (err) {
             recordError(err, 'Failed to update itinerary item');
           }
@@ -492,26 +533,42 @@ export const ItineraryStore = signalStore(
           if (!trip) {
             return;
           }
+          let deletedItem: ItineraryItem | undefined;
+          for (const day of trip.days) {
+            for (const opt of day.options) {
+              deletedItem = opt.items.find((it) => it.id === itemId);
+              if (deletedItem) break;
+            }
+            if (deletedItem) break;
+          }
           const previousTrip = trip;
+          const prevSelectedId = store.selectedItemId();
           const nextTrip: TripDetail = {
             ...trip,
             days: trip.days.map((d) => ({
               ...d,
               options: d.options.map((opt) => ({
                 ...opt,
-                items: opt.items.filter((it) => it.id !== itemId),
+                items: removeItemWithChoicePromotion(opt.items, itemId),
               })),
             })),
           };
           patchState(store, {
             trip: nextTrip,
-            selectedItemId: store.selectedItemId() === itemId ? null : store.selectedItemId(),
+            selectedItemId: prevSelectedId === itemId ? null : prevSelectedId,
           });
           try {
             await api.deleteItem(itemId);
             cache.set(`trip.${nextTrip.id}`, nextTrip);
+            if (
+              deletedItem &&
+              deletedItem.latitude !== null &&
+              deletedItem.longitude !== null
+            ) {
+              void refreshTripSilently(nextTrip.id);
+            }
           } catch (err) {
-            patchState(store, { trip: previousTrip });
+            patchState(store, { trip: previousTrip, selectedItemId: prevSelectedId });
             recordError(err, 'Failed to delete itinerary item');
           }
         },

@@ -394,14 +394,16 @@ async def _dispatch_tool(
         return TripDayResponse.model_validate(day).model_dump(mode="json")
 
     if name == "update_day_title":
+        day_id = str(args.get("day_id") or args["trip_day_id"])
         day = await trip_svc.update_day(
-            str(args["day_id"]), user_id, TripDayUpdate(title=args.get("title"))
+            day_id, user_id, TripDayUpdate(title=args.get("title"))
         )
         return TripDayResponse.model_validate(day).model_dump(mode="json")
 
     if name == "create_day_option":
+        day_id = str(args.get("day_id") or args["trip_day_id"])
         opt = await trip_svc.add_day_option(
-            str(args["day_id"]),
+            day_id,
             user_id,
             DayOptionCreate(
                 label=str(args["label"]),
@@ -423,14 +425,20 @@ async def _dispatch_tool(
         return TripDayResponse.model_validate(day).model_dump(mode="json")
 
     if name == "set_active_option":
-        day = await trip_svc.set_active_option(
-            str(args["day_id"]), user_id, str(args["option_id"])
-        )
+        day_id = str(args.get("day_id") or args["trip_day_id"])
+        option_id = str(args.get("option_id") or args["day_option_id"])
+        day = await trip_svc.set_active_option(day_id, user_id, option_id)
         return TripDayResponse.model_validate(day).model_dump(mode="json")
 
     if name == "add_itinerary_item":
-        option_id = str(args["option_id"])
-        item_fields = {k: v for k, v in args.items() if k != "option_id"}
+        option_id = str(args.get("option_id") or args["day_option_id"])
+        item_fields = {
+            k: v
+            for k, v in args.items()
+            if k not in {"option_id", "day_option_id"}
+        }
+        if "type" not in item_fields and "item_type" in item_fields:
+            item_fields["type"] = item_fields.pop("item_type")
         item = await trip_svc.add_item(
             option_id, user_id, ItineraryItemCreate(**item_fields)
         )

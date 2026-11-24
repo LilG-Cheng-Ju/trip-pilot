@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, input, output, signal } from '@angu
 import { COPY_FEEDBACK_DURATION_MS } from '../../core/constants/app-limits';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ItineraryItem } from '../../core/models/tripilot.models';
+import { buildGoogleMapsUrl, getItemDetailString } from '../../core/utils/travel-format.utils';
 import { ItineraryMapComponent, MapPin, StayMapPin } from './itinerary-map.component';
 
 /** Mobile thumb-zone bottom sheet displaying the interactive map and floating spot preview card. */
@@ -10,6 +11,9 @@ import { ItineraryMapComponent, MapPin, StayMapPin } from './itinerary-map.compo
   selector: 'app-mobile-map-sheet',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TranslatePipe, ItineraryMapComponent],
+  host: {
+    '(document:keydown.escape)': 'closed.emit()',
+  },
   template: `
     <div class="mobile-map-sheet" role="dialog" [attr.aria-label]="'map.openSheet' | t">
       <div class="sheet-bar">
@@ -322,19 +326,11 @@ export class MobileMapSheetComponent {
   protected readonly copiedLocal = signal(false);
 
   protected mapsUrl(item: ItineraryItem): string | null {
-    if (item.google_maps_url) return item.google_maps_url;
-    if (item.latitude !== null && item.longitude !== null) {
-      return `https://www.google.com/maps/search/?api=1&query=${item.latitude},${item.longitude}`;
-    }
-    if (item.address) {
-      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.address)}`;
-    }
-    return null;
+    return buildGoogleMapsUrl(item);
   }
 
   protected localName(item: ItineraryItem): string | null {
-    const val = item.details?.['local_name'];
-    return val === undefined || val === null || val === '' ? null : String(val);
+    return getItemDetailString(item.details, 'local_name');
   }
 
   protected async copyLocalName(text: string): Promise<void> {

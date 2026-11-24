@@ -4,9 +4,11 @@ import { OfflineCacheService } from '../cache/offline-cache.service';
 import { ItineraryItem } from '../models/tripilot.models';
 import {
   addDaysToIsoDate,
+  appendCreatedItem,
   buildGoogleMapsUrl,
   extractItemAttachments,
   groupItemsIntoSlots,
+  removeItemWithChoicePromotion,
 } from './travel-format.utils';
 
 function makeItem(overrides: Partial<ItineraryItem>): ItineraryItem {
@@ -84,6 +86,45 @@ describe('travel-format.utils', () => {
     expect(slots[1].key).toBe('g-lunch');
     expect(slots[1].activeItem.id).toBe('l2');
     expect(slots[1].choices.map((c) => c.id)).toEqual(['l1', 'l2']);
+  });
+
+  it('propagates choice_group_id onto the anchor item when adding a slot alternative', () => {
+    const anchor = makeItem({ id: 'anchor-1', title: 'Ramen A', choice_group_id: null });
+    const alt = makeItem({
+      id: 'alt-1',
+      title: 'Ramen B',
+      choice_group_id: 'group-ramen',
+      is_selected: false,
+    });
+
+    const patched = appendCreatedItem([anchor], alt, 'anchor-1');
+    const slots = groupItemsIntoSlots(patched);
+
+    expect(slots).toHaveLength(1);
+    expect(slots[0].key).toBe('group-ramen');
+    expect(slots[0].activeItem.id).toBe('anchor-1');
+    expect(slots[0].choices.map((c) => c.id)).toEqual(['anchor-1', 'alt-1']);
+  });
+
+  it('promotes the first remaining sibling when deleting the selected choice item', () => {
+    const firstAlt = makeItem({
+      id: 'alt-1',
+      title: 'Ramen A',
+      choice_group_id: 'group-ramen',
+      is_selected: true,
+    });
+    const secondAlt = makeItem({
+      id: 'alt-2',
+      title: 'Ramen B',
+      choice_group_id: 'group-ramen',
+      is_selected: false,
+    });
+
+    const remaining = removeItemWithChoicePromotion([firstAlt, secondAlt], 'alt-1');
+
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0].id).toBe('alt-2');
+    expect(remaining[0].is_selected).toBe(true);
   });
 
   it('clears SWR cache and FX rate keys on sign-out cleanup', () => {

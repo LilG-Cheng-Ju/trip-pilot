@@ -35,6 +35,8 @@ interface TrackedMarker {
   isStay: boolean;
 }
 
+const POSITRON_STYLE_URL =
+  'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
 const ROUTE_SOURCE_ID = 'day-route-source';
 const ROUTE_LAYER_ID = 'day-route-layer';
 const STAY_LEG_SOURCE_ID = 'stay-leg-source';
@@ -140,7 +142,7 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
     try {
       this.map = new maplibregl.Map({
         container,
-        style: 'https://tiles.openfreemap.org/styles/positron',
+        style: POSITRON_STYLE_URL,
         center: [139.7671, 35.6812],
         zoom: 11,
         attributionControl: false,
@@ -269,7 +271,7 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
       stayEl.addEventListener('click', () => this.pinSelected.emit(stay.id));
 
       const tracked: TrackedMarker = { el: stayEl, type: 'STAY', isStay: true };
-      this.applyMarkerStyle(tracked, false);
+      this.applyMarkerStyle(tracked, stay.id === this.selectedPinId());
       this.markerEls.set(stay.id, tracked);
 
       const stayMarker = new maplibregl.Marker({ element: stayEl })
@@ -313,7 +315,7 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
       }
 
       const tracked: TrackedMarker = { el, type: pinType, isStay: false };
-      this.applyMarkerStyle(tracked, false);
+      this.applyMarkerStyle(tracked, pin.id === this.selectedPinId());
       this.markerEls.set(pin.id, tracked);
 
       el.addEventListener('click', () => this.pinSelected.emit(pin.id));
@@ -356,7 +358,7 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
         paint: {
           'line-color': this.resolveCssToken('--color-primary', '#162136'),
           'line-width': 3,
-          'line-dasharray': [2, 2],
+          'line-opacity': 0.78,
         },
       });
     }

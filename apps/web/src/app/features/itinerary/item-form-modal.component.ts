@@ -170,7 +170,7 @@ export interface ItemFormSubmitEvent {
                 type="text"
                 [(ngModel)]="address"
                 name="address"
-                placeholder="例如：三島站南口 → 河口湖站"
+                [placeholder]="'itinerary.form.addressPlaceholder' | t"
               />
             </label>
           }
@@ -239,7 +239,7 @@ export interface ItemFormSubmitEvent {
                       type="button"
                       class="att-remove"
                       (click)="removeAttachment($index)"
-                      aria-label="Remove attachment"
+                      [attr.aria-label]="'item.attachmentRemove' | t"
                     >
                       <span class="ms-icon sm">close</span>
                     </button>

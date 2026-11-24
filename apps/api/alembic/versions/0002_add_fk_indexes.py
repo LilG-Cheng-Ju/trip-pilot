@@ -17,6 +17,12 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     op.create_index(
+        op.f("ix_trip_days_active_option_id"),
+        "trip_days",
+        ["active_option_id"],
+        unique=False,
+    )
+    op.create_index(
         op.f("ix_route_segments_from_item_id"),
         "route_segments",
         ["from_item_id"],
@@ -47,3 +53,4 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_expenses_trip_day_id"), table_name="expenses")
     op.drop_index(op.f("ix_route_segments_to_item_id"), table_name="route_segments")
     op.drop_index(op.f("ix_route_segments_from_item_id"), table_name="route_segments")
+    op.drop_index(op.f("ix_trip_days_active_option_id"), table_name="trip_days")

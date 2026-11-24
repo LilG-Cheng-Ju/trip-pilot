@@ -28,11 +28,13 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
         <h2 class="page-title">{{ 'stats.title' | t }}</h2>
 
         <div class="controls-bar">
-          <div class="segmented" role="tablist" aria-label="Trip scope">
+          <div class="segmented" role="tablist" [attr.aria-label]="'stats.scopeAria' | t">
             @for (sc of scopes; track sc) {
               <button
                 type="button"
+                role="tab"
                 class="seg-btn"
+                [attr.aria-selected]="store.selectedScope() === sc"
                 [class.active]="store.selectedScope() === sc"
                 (click)="store.loadStats(store.selectedYear(), sc)"
               >
@@ -41,11 +43,13 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
             }
           </div>
 
-          <div class="segmented" role="tablist" aria-label="Year filter">
+          <div class="segmented" role="tablist" [attr.aria-label]="'stats.yearAria' | t">
             @for (yr of yearOptions(); track yr) {
               <button
                 type="button"
+                role="tab"
                 class="seg-btn tabular-nums"
+                [attr.aria-selected]="store.selectedYear() === yr"
                 [class.active]="store.selectedYear() === yr"
                 (click)="store.loadStats(yr, store.selectedScope())"
               >
@@ -569,14 +573,7 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
       font-size: 0.84rem;
     }
     @media (min-width: 900px) {
-      .dashboard-body {
-      transition: opacity 160ms ease;
-    }
-    .dashboard-body.refreshing {
-      opacity: 0.55;
-      pointer-events: none;
-    }
-    .kpi-grid {
+      .kpi-grid {
         grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: var(--space-4);
       }

@@ -133,6 +133,7 @@ class TripDay(Base):
         String(36),
         ForeignKey("day_options.id", ondelete="SET NULL", use_alter=True),
         nullable=True,
+        index=True,
     )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 

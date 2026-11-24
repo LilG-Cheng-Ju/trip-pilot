@@ -219,7 +219,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
                   type="button"
                   class="order-btn dark"
                   (click)="moveUp.emit(item())"
-                  aria-label="Move up"
+                  [attr.aria-label]="'item.moveUp' | t"
                 >
                   <span class="ms-icon sm">keyboard_arrow_up</span>
                 </button>
@@ -227,7 +227,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
                   type="button"
                   class="order-btn dark"
                   (click)="moveDown.emit(item())"
-                  aria-label="Move down"
+                  [attr.aria-label]="'item.moveDown' | t"
                 >
                   <span class="ms-icon sm">keyboard_arrow_down</span>
                 </button>
@@ -419,7 +419,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
                   type="button"
                   class="order-btn"
                   (click)="moveUp.emit(item())"
-                  aria-label="Move up"
+                  [attr.aria-label]="'item.moveUp' | t"
                 >
                   <span class="ms-icon sm">keyboard_arrow_up</span>
                 </button>
@@ -427,7 +427,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
                   type="button"
                   class="order-btn"
                   (click)="moveDown.emit(item())"
-                  aria-label="Move down"
+                  [attr.aria-label]="'item.moveDown' | t"
                 >
                   <span class="ms-icon sm">keyboard_arrow_down</span>
                 </button>

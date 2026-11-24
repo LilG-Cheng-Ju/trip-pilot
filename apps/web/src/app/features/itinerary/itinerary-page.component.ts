@@ -82,7 +82,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
               <button
                 type="button"
                 class="day-scroll-btn"
-                aria-label="Scroll days left"
+                [attr.aria-label]="'itinerary.dayScrollLeft' | t"
                 (click)="scrollDayStrip(-dayStripScrollStepPx)"
               >
                 <span class="ms-icon sm" aria-hidden="true">chevron_left</span>
@@ -115,7 +115,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
               <button
                 type="button"
                 class="day-scroll-btn"
-                aria-label="Scroll days right"
+                [attr.aria-label]="'itinerary.dayScrollRight' | t"
                 (click)="scrollDayStrip(dayStripScrollStepPx)"
               >
                 <span class="ms-icon sm" aria-hidden="true">chevron_right</span>
@@ -262,7 +262,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
                               type="button"
                               class="choice-add-btn"
                               (click)="openAlternativeModal(slot.activeItem)"
-                              aria-label="Add alternative"
+                              [attr.aria-label]="'itinerary.choice.addAlt' | t"
                             >
                               <span class="ms-icon sm">add</span>
                             </button>
@@ -392,7 +392,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
               [(ngModel)]="cloneLabel"
               name="cloneLabel"
               (ngModelChange)="cloneLabelError.set(false)"
-              placeholder="Plan B · 雨天室內版"
+              [placeholder]="'itinerary.plan.placeholderClone' | t"
             />
             @if (cloneLabelError()) {
               <small class="err-msg">{{ 'itinerary.plan.errRequired' | t }}</small>
@@ -421,7 +421,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
               [(ngModel)]="renameLabel"
               name="renameLabel"
               (ngModelChange)="renameLabelError.set(false)"
-              placeholder="Plan A · 晴天戶外版"
+              [placeholder]="'itinerary.plan.placeholderRename' | t"
             />
             @if (renameLabelError()) {
               <small class="err-msg">{{ 'itinerary.plan.errRequired' | t }}</small>
@@ -1128,10 +1128,9 @@ export class ItineraryPageComponent implements OnInit {
   } | null>(null);
   protected readonly showShareModal = signal(false);
   protected readonly copiedToken = signal<string | null>(null);
-  protected readonly copiedMiniLocal = signal(false);
   protected readonly cloneLabelError = signal(false);
 
-  protected cloneLabel = 'Plan B · 雨天備案';
+  protected cloneLabel = 'Plan B';
   protected renameLabel = '';
   protected hideSecrets = true;
   protected includeNotes = false;
