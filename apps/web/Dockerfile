@@ -6,7 +6,7 @@ RUN chown -R node:node /app
 
 USER node
 COPY --chown=node:node package.json package-lock.json* ./
-RUN npm install --no-audit --no-fund
+RUN npm ci --no-audit --no-fund
 
 
 FROM deps AS dev

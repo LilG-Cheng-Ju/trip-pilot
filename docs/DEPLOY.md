@@ -77,6 +77,6 @@ Ensure Cloud Run's service account has access to verify Firebase ID tokens (auto
 1. Sign in to your deployed Tripilot web app -> **Settings (`Profile`)** -> generate a **Personal API Token** (`tp_pat_...`).
 2. Configure `packages/mcp` with:
    ```env
-   TRIPPILOT_API_URL=https://tripilot-api-xxxxx-de.a.run.app
-   TRIPPILOT_API_TOKEN=tp_pat_...
+   TRIPILOT_API_URL=https://tripilot-api-xxxxx-de.a.run.app
+   TRIPILOT_API_TOKEN=tp_pat_...
    ```

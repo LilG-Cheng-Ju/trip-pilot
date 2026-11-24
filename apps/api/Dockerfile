@@ -10,20 +10,24 @@ RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 COPY pyproject.toml ./
-# Install dependencies into the isolated virtualenv without copying source yet.
+# Install runtime-only dependencies into the isolated virtualenv for slim prod builds.
 RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir ".[dev]"
+    && pip install --no-cache-dir .
 
 
 FROM python:3.12-slim AS dev
 
-WORKDIR /app
+WORKDIR /tmp/build
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH"
 
 COPY --from=builder /opt/venv /opt/venv
+COPY pyproject.toml ./
+RUN pip install --no-cache-dir ".[dev]" && rm -rf /tmp/build
+
+WORKDIR /app
 
 RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser \
     && chown -R appuser:appgroup /app

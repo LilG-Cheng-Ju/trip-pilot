@@ -1,6 +1,5 @@
 """Export all ORM models so SQLAlchemy metadata and Alembic discover them."""
 
-from app.models.airport import Airport
 from app.models.enums import ExpenseCategory, ItemType, RouteProfile, TripStatus
 from app.models.trip import (
     DayOption,
@@ -14,7 +13,6 @@ from app.models.trip import (
 from app.models.user import ApiToken, User
 
 __all__ = [
-    "Airport",
     "ApiToken",
     "DayOption",
     "Expense",

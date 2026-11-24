@@ -21,8 +21,8 @@ Set the following environment variables before starting the server:
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `TRIPPILOT_API_URL` | No | `http://localhost:8000` | Base URL of the Tripilot API (without `/api/v1`) |
-| `TRIPPILOT_API_TOKEN` | Yes (prod) | `""` | Personal API Token (`tp_pat_...`) or local dev bearer token |
+| `TRIPILOT_API_URL` | No | `http://localhost:8000` | Base URL of the Tripilot API (without `/api/v1`) |
+| `TRIPILOT_API_TOKEN` | Yes (prod) | `""` | Personal API Token (`tp_pat_...`) or local dev bearer token |
 
 ## MCP Client Configuration
 
@@ -34,8 +34,8 @@ Add `tripilot` to your MCP client's server configuration (for example, `mcp_conf
     "tripilot": {
       "command": "tripilot-mcp",
       "env": {
-        "TRIPPILOT_API_URL": "http://localhost:8000",
-        "TRIPPILOT_API_TOKEN": "tp_pat_your_personal_api_token"
+        "TRIPILOT_API_URL": "http://localhost:8000",
+        "TRIPILOT_API_TOKEN": "tp_pat_your_personal_api_token"
       }
     }
   }
@@ -51,8 +51,8 @@ Or run via `uv` without a global install:
       "command": "uv",
       "args": ["run", "--directory", "/path/to/trip-pilot/packages/mcp", "tripilot-mcp"],
       "env": {
-        "TRIPPILOT_API_URL": "http://localhost:8000",
-        "TRIPPILOT_API_TOKEN": "tp_pat_your_personal_api_token"
+        "TRIPILOT_API_URL": "http://localhost:8000",
+        "TRIPILOT_API_TOKEN": "tp_pat_your_personal_api_token"
       }
     }
   }
@@ -86,7 +86,7 @@ Or run via `uv` without a global install:
 
 ## Agent Skill
 
-A companion skill file with ready-to-use workflows (Gmail confirmation parsing, Plan B cloning, and travel stats queries) is included at `skills/trippilot/SKILL.md`.
+A companion skill file with ready-to-use workflows (Gmail confirmation parsing, Plan B cloning, and travel stats queries) is included at `SKILL.md`.
 
 ## Development & Tests
 

@@ -135,6 +135,56 @@ async def test_remote_mcp_lifecycle_and_tool_calls(
     )
     assert add_flt.json()["result"]["isError"] is False
 
+    add_by_date = await api_client.post(
+        "/mcp",
+        headers=dev_headers,
+        json={
+            "jsonrpc": "2.0",
+            "id": 71,
+            "method": "tools/call",
+            "params": {
+                "name": "add_item_by_date",
+                "arguments": {
+                    "trip_id": trip_id,
+                    "target_date": "2026-05-01",
+                    "type": "SPOT",
+                    "title": "Charles Bridge",
+                },
+            },
+        },
+    )
+    assert add_by_date.json()["result"]["isError"] is False
+    date_item = json.loads(add_by_date.json()["result"]["content"][0]["text"])
+    assert date_item["title"] == "Charles Bridge"
+
+    airport_res = await api_client.post(
+        "/mcp",
+        headers=dev_headers,
+        json={
+            "jsonrpc": "2.0",
+            "id": 72,
+            "method": "tools/call",
+            "params": {"name": "search_airports", "arguments": {"query": "PRG"}},
+        },
+    )
+    assert airport_res.json()["result"]["isError"] is False
+    airports = json.loads(airport_res.json()["result"]["content"][0]["text"])
+    assert any(a["iata"] == "PRG" for a in airports)
+
+    list_planning = await api_client.post(
+        "/mcp",
+        headers=dev_headers,
+        json={
+            "jsonrpc": "2.0",
+            "id": 73,
+            "method": "tools/call",
+            "params": {"name": "list_trips", "arguments": {"status": "PLANNING"}},
+        },
+    )
+    assert list_planning.json()["result"]["isError"] is False
+    planning_trips = json.loads(list_planning.json()["result"]["content"][0]["text"])
+    assert any(t["id"] == trip_id for t in planning_trips)
+
     stats_res = await api_client.post(
         "/mcp",
         headers=dev_headers,
