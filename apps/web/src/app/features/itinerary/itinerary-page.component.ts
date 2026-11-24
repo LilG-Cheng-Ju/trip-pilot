@@ -3,7 +3,6 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 
 import {
-  COPY_FEEDBACK_DURATION_MS,
   DAY_STRIP_SCROLL_STEP_PX,
   SHARE_COPY_FEEDBACK_DURATION_MS,
 } from '../../core/constants/app-limits';
@@ -31,6 +30,7 @@ import {
   MapPin,
   StayMapPin,
 } from './itinerary-map.component';
+import { MobileMapSheetComponent } from './mobile-map-sheet.component';
 
 /** Mobile-first itinerary timeline with Day 1..N, Plan A/B, slot choices, and map sync. */
 @Component({
@@ -43,6 +43,7 @@ import {
     ItemFormModalComponent,
     ItineraryCardComponent,
     ItineraryMapComponent,
+    MobileMapSheetComponent,
     QuickExpenseModalComponent,
   ],
   template: `
@@ -121,6 +122,19 @@ import {
           </div>
 
           <div class="timeline-scroll">
+            @if (store.error(); as err) {
+              <div class="error-banner" role="alert">
+                <span>{{ err }}</span>
+                <button
+                  type="button"
+                  class="error-dismiss"
+                  [attr.aria-label]="'common.cancel' | t"
+                  (click)="store.clearError()"
+                >
+                  <span class="ms-icon sm" aria-hidden="true">close</span>
+                </button>
+              </div>
+            }
             @if (store.selectedDay(); as day) {
               <!-- Inline Editable Day Theme / Focus -->
               <div class="day-theme-bar">
@@ -304,110 +318,21 @@ import {
 
       <!-- Mobile Non-Destructive Bottom Sheet Map Overlay -->
       @if (store.mobileMapOpen()) {
-        <div class="mobile-map-sheet" role="dialog" aria-label="Interactive Map">
-          <div class="sheet-bar">
-            <span class="sheet-handle" aria-hidden="true"></span>
-            <span class="sheet-title tabular-nums">
-              @if (store.selectedDay(); as d) {
-                Day {{ d.day_index }} · {{ d.date.slice(5) }}
-              }
-            </span>
-            <button
-              type="button"
-              class="sheet-close-btn"
-              (click)="store.setMobileMapOpen(false)"
-            >
-              <span class="ms-icon sm" aria-hidden="true">close</span>
-              <span>{{ 'map.closeSheet' | t }}</span>
-            </button>
-          </div>
-          <div class="sheet-map-body">
-            <app-itinerary-map
-              [pins]="mapPins()"
-              [routePath]="mapRoutePath()"
-              [stayPin]="stayMapPin()"
-              [connectFromStay]="connectFromStay()"
-              [connectToStay]="connectToStay()"
-              [selectedPinId]="store.selectedItemId()"
-              (pinSelected)="store.selectItem($event)"
-            />
-
-            @if (selectedMapItem(); as spot) {
-              <div class="map-mini-card" (click)="$event.stopPropagation()">
-                <div class="mini-head">
-                  <div class="mini-title-row">
-                    @if (pinOrderById().get(spot.id); as num) {
-                      <span class="mini-pin tabular-nums">{{ num }}</span>
-                    } @else if (spot.type === 'STAY') {
-                      <span class="mini-pin stay">
-                        <span class="ms-icon sm" aria-hidden="true">hotel</span>
-                      </span>
-                    }
-                    <strong class="mini-title">{{ spot.title }}</strong>
-                  </div>
-                  <button
-                    type="button"
-                    class="mini-close"
-                    aria-label="Close preview"
-                    (click)="store.selectItem(null)"
-                  >
-                    <span class="ms-icon sm" aria-hidden="true">close</span>
-                  </button>
-                </div>
-
-                @if (spot.start_time || spot.address) {
-                  <p class="mini-meta tabular-nums">
-                    @if (spot.start_time) {
-                      <span>
-                        {{ spot.start_time }}@if (spot.end_time) { – {{ spot.end_time }} }
-                      </span>
-                    }
-                    @if (spot.start_time && spot.address) { · }
-                    @if (spot.address) {
-                      <span>{{ spot.address }}</span>
-                    }
-                  </p>
-                }
-
-                <div class="mini-actions">
-                  @if (itemMapsUrl(spot); as url) {
-                    <a
-                      class="mini-btn primary"
-                      [href]="url"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <span class="ms-icon sm" aria-hidden="true">near_me</span>
-                      <span>{{ 'common.navigate' | t }}</span>
-                    </a>
-                  }
-                  @if (itemLocalName(spot); as localName) {
-                    <button
-                      type="button"
-                      class="mini-btn"
-                      (click)="copyMiniLocalName(localName)"
-                    >
-                      <span class="ms-icon sm" aria-hidden="true">
-                        {{ copiedMiniLocal() ? 'check' : 'content_copy' }}
-                      </span>
-                      <span class="mini-truncate">
-                        {{ copiedMiniLocal() ? ('common.copied' | t) : localName }}
-                      </span>
-                    </button>
-                  }
-                  <button
-                    type="button"
-                    class="mini-btn accent"
-                    (click)="openQuickExpenseModal(spot)"
-                  >
-                    <span class="ms-icon sm" aria-hidden="true">payments</span>
-                    <span>{{ 'item.spendShort' | t }}</span>
-                  </button>
-                </div>
-              </div>
-            }
-          </div>
-        </div>
+        <app-mobile-map-sheet
+          [dayLabel]="selectedDayLabel()"
+          [pins]="mapPins()"
+          [routePath]="mapRoutePath()"
+          [stayPin]="stayMapPin()"
+          [connectFromStay]="connectFromStay()"
+          [connectToStay]="connectToStay()"
+          [selectedPinId]="store.selectedItemId()"
+          [selectedItem]="selectedMapItem()"
+          [selectedPinOrder]="selectedMapItem() ? (pinOrderById().get(selectedMapItem()!.id) ?? null) : null"
+          (pinSelected)="store.selectItem($event)"
+          (clearSelection)="store.selectItem(null)"
+          (logExpense)="openQuickExpenseModal($event)"
+          (closed)="store.setMobileMapOpen(false)"
+        />
       }
 
       <!-- Unified Add / Edit / Alternative Item Modal -->
@@ -721,175 +646,26 @@ import {
     .fab-ico {
       color: var(--color-accent);
     }
-    .mobile-map-sheet {
-      position: fixed;
-      left: 0;
-      right: 0;
-      bottom: calc(var(--nav-bottom-height) + env(safe-area-inset-bottom));
-      height: 70dvh;
-      z-index: 38;
-      display: flex;
-      flex-direction: column;
-      background: var(--color-surface);
-      border-top: 1px solid var(--color-border);
-      border-radius: 16px 16px 0 0;
-      box-shadow: 0 -10px 30px rgba(15, 23, 42, 0.22);
-      overflow: hidden;
-    }
-    .sheet-bar {
+    .error-banner {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 8px;
-      padding: 10px 14px;
-      border-bottom: 1px solid var(--color-border);
-      background: var(--color-surface);
-      position: relative;
+      padding: 8px 12px;
+      margin-bottom: var(--space-3);
+      border-radius: var(--radius-sm);
+      background: var(--color-alert-soft);
+      border: 1px solid rgba(200, 75, 59, 0.35);
+      color: var(--color-alert);
+      font-size: 0.8125rem;
     }
-    .sheet-handle {
-      position: absolute;
-      top: 5px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 36px;
-      height: 4px;
-      border-radius: 99px;
-      background: var(--color-border);
-    }
-    .sheet-title {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--color-primary);
-    }
-    .sheet-close-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 5px 11px;
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-pill);
-      background: var(--color-bg);
-      color: var(--color-primary);
-      font: inherit;
-      font-size: 0.76rem;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    .sheet-map-body {
-      position: relative;
-      flex: 1;
-      min-height: 0;
-      padding: 8px;
-    }
-    .map-mini-card {
-      position: absolute;
-      left: 16px;
-      right: 16px;
-      bottom: 16px;
-      z-index: 12;
-      padding: 12px 14px;
-      border-radius: 12px;
-      background: var(--color-surface);
-      border: 1px solid var(--color-border);
-      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.22);
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .mini-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-    }
-    .mini-title-row {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      min-width: 0;
-    }
-    .mini-pin {
-      display: inline-grid;
+    .error-dismiss {
+      display: grid;
       place-items: center;
-      width: 22px;
-      height: 22px;
-      border-radius: var(--radius-pill);
-      background: var(--color-primary);
-      color: var(--color-text-on-primary);
-      font-size: 0.72rem;
-      font-weight: 600;
-      flex-shrink: 0;
-    }
-    .mini-pin.stay {
-      background: var(--color-accent);
-    }
-    .mini-title {
-      font-size: 0.92rem;
-      font-weight: 600;
-      color: var(--color-primary);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .mini-close {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 26px;
-      height: 26px;
-      padding: 0;
       border: none;
-      border-radius: 7px;
       background: transparent;
-      color: var(--color-text-muted);
+      color: inherit;
       cursor: pointer;
-      flex-shrink: 0;
-    }
-    .mini-meta {
-      margin: 0;
-      font-size: 0.76rem;
-      color: var(--color-text-secondary);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .mini-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-top: 2px;
-    }
-    .mini-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      height: 30px;
-      padding: 0 10px;
-      border: 1px solid var(--color-border);
-      border-radius: 8px;
-      background: var(--color-bg);
-      color: var(--color-primary);
-      text-decoration: none;
-      font: inherit;
-      font-size: 0.76rem;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    .mini-btn.primary {
-      background: var(--color-primary);
-      border-color: var(--color-primary);
-      color: var(--color-text-on-primary);
-    }
-    .mini-btn.accent {
-      border-color: rgba(200, 155, 91, 0.55);
-      background: var(--color-accent-soft);
-      color: var(--color-accent-ink);
-    }
-    .mini-truncate {
-      max-width: 130px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
     }
     .cold-start-box {
       max-width: 420px;
@@ -1382,6 +1158,11 @@ export class ItineraryPageComponent implements OnInit {
     return map;
   });
 
+  protected readonly selectedDayLabel = computed(() => {
+    const d = this.store.selectedDay();
+    return d ? `Day ${d.day_index} · ${d.date.slice(5)}` : '';
+  });
+
   protected readonly selectedMapItem = computed<ItineraryItem | null>(() => {
     const selectedId = this.store.selectedItemId();
     if (!selectedId) {
@@ -1406,24 +1187,6 @@ export class ItineraryPageComponent implements OnInit {
 
   private readonly dayStrip = viewChild<ElementRef<HTMLDivElement>>('dayStrip');
   protected readonly dayStripScrollStepPx = DAY_STRIP_SCROLL_STEP_PX;
-
-  protected itemMapsUrl(item: ItineraryItem): string | null {
-    return buildGoogleMapsUrl(item);
-  }
-
-  protected itemLocalName(item: ItineraryItem): string | null {
-    return getItemDetailString(item.details, 'local_name');
-  }
-
-  protected async copyMiniLocalName(text: string): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(text);
-      this.copiedMiniLocal.set(true);
-      setTimeout(() => this.copiedMiniLocal.set(false), COPY_FEEDBACK_DURATION_MS);
-    } catch {
-      // Ignore clipboard failures in restricted contexts.
-    }
-  }
 
   protected openQuickExpenseModal(item: ItineraryItem): void {
     this.quickExpenseItem.set(item);

@@ -83,6 +83,29 @@ export const ExpenseStore = signalStore(
     ) => {
       let loadExpensesSeq = 0;
 
+      const rebuildSummary = (
+        base: TripExpensesSummary,
+        items: TripExpensesSummary['items'],
+      ): TripExpensesSummary => {
+        const byCat: Record<string, number> = {};
+        let total = 0;
+        for (const item of items) {
+          const amt = Number(item.amount_home) || 0;
+          total += amt;
+          byCat[item.category] = (byCat[item.category] ?? 0) + amt;
+        }
+        const byCategoryStr: Record<string, string> = {};
+        for (const [k, v] of Object.entries(byCat)) {
+          byCategoryStr[k] = v.toFixed(2);
+        }
+        return {
+          ...base,
+          total_home_amount: total.toFixed(2),
+          by_category: byCategoryStr,
+          items,
+        };
+      };
+
       return {
         setCategoryFilter(selectedCategory: ExpenseCategory | 'ALL'): void {
           patchState(store, { selectedCategory });
@@ -120,13 +143,45 @@ export const ExpenseStore = signalStore(
         },
 
         async addExpense(tripId: string, payload: CreateExpensePayload): Promise<void> {
-          await api.createExpense(tripId, payload);
-          await this.loadExpenses(tripId);
+          try {
+            const created = await api.createExpense(tripId, payload);
+            const current = store.summary();
+            if (current && current.trip_id === tripId) {
+              const next = rebuildSummary(current, [created, ...current.items]);
+              cache.set(`expenses.${tripId}`, next);
+              patchState(store, { summary: next, error: null });
+            } else {
+              await this.loadExpenses(tripId);
+            }
+          } catch (err) {
+            patchState(store, {
+              error: err instanceof Error ? err.message : 'Failed to add expense',
+            });
+          }
         },
 
         async deleteExpense(tripId: string, expenseId: string): Promise<void> {
-          await api.deleteExpense(expenseId);
-          await this.loadExpenses(tripId);
+          const current = store.summary();
+          const previous = current;
+          if (current && current.trip_id === tripId) {
+            const optimistic = rebuildSummary(
+              current,
+              current.items.filter((it) => it.id !== expenseId),
+            );
+            patchState(store, { summary: optimistic, error: null });
+          }
+          try {
+            await api.deleteExpense(expenseId);
+            const latest = store.summary();
+            if (latest && latest.trip_id === tripId) {
+              cache.set(`expenses.${tripId}`, latest);
+            }
+          } catch (err) {
+            patchState(store, {
+              summary: previous,
+              error: err instanceof Error ? err.message : 'Failed to delete expense',
+            });
+          }
         },
 
         reset(): void {

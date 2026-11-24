@@ -1,4 +1,4 @@
-import { Component, effect, inject, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import {
@@ -25,6 +25,7 @@ export interface ItemFormSubmitEvent {
 /** Unified modal for adding, editing, or adding a slot-level alternative item. */
 @Component({
   selector: 'app-item-form-modal',
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FormsModule, TranslatePipe, AppModalComponent, AppTimeInputComponent],
   template: `
     <app-modal [open]="open()" [title]="modalTitle() | t" (closed)="closed.emit()">

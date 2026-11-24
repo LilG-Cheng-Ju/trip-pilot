@@ -1,4 +1,5 @@
 import {
+  ChangeDetectionStrategy,
   Component,
   computed,
   ElementRef,
@@ -23,6 +24,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
 /** Renders split-transit and venue itinerary cards with synced map pins, attachments, and 1-tap expense logging. */
 @Component({
   selector: 'app-itinerary-card',
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, TranslatePipe],
   host: {
     '(document:click)': 'onDocumentClick($event)',
@@ -833,30 +835,6 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-    }
-    .detail-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-top: 6px;
-    }
-    .info-chip,
-    .alert-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 3px 8px;
-      border-radius: var(--radius-sm);
-      font-size: 0.75rem;
-      font-weight: 600;
-    }
-    .info-chip {
-      background: var(--color-primary-tint);
-      color: var(--color-primary);
-    }
-    .alert-chip {
-      background: var(--color-alert-soft);
-      color: var(--color-alert);
     }
     .card-notes {
       margin: 7px 0 0;

@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import { TripilotApiService } from '../../core/api/tripilot-api.service';
@@ -21,6 +21,7 @@ import { ExpenseStore } from '../../state/expense.store';
 /** Low-friction modal for logging an expense directly from an itinerary card. */
 @Component({
   selector: 'app-quick-expense-modal',
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AppModalComponent, FormsModule, TranslatePipe],
   template: `
     <app-modal

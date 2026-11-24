@@ -131,7 +131,22 @@ export const ItineraryStore = signalStore(
     ) => {
       let loadTripSeq = 0;
 
+      const commitTrip = (nextTrip: TripDetail): void => {
+        cache.set(`trip.${nextTrip.id}`, nextTrip);
+        patchState(store, { trip: nextTrip, error: null });
+      };
+
+      const recordError = (err: unknown, fallback: string): void => {
+        patchState(store, {
+          error: err instanceof Error ? err.message : fallback,
+        });
+      };
+
       return {
+        clearError(): void {
+          patchState(store, { error: null });
+        },
+
         selectDay(dayIndex: number): void {
           patchState(store, { selectedDayIndex: dayIndex, selectedItemId: null });
         },
@@ -219,9 +234,19 @@ export const ItineraryStore = signalStore(
           if (!day || !trip) {
             return;
           }
-          const created = await api.addDayOption(day.id, label);
-          await this.loadTrip(trip.id);
-          this.previewOption(day.id, created.id);
+          try {
+            const created = await api.addDayOption(day.id, label);
+            const nextTrip: TripDetail = {
+              ...trip,
+              days: trip.days.map((d) =>
+                d.id === day.id ? { ...d, options: [...d.options, created] } : d,
+              ),
+            };
+            commitTrip(nextTrip);
+            this.previewOption(day.id, created.id);
+          } catch (err) {
+            recordError(err, 'Failed to create plan option');
+          }
         },
 
         async cloneCurrentOption(label: string): Promise<void> {
@@ -231,9 +256,19 @@ export const ItineraryStore = signalStore(
           if (!day || !option || !trip) {
             return;
           }
-          const cloned = await api.cloneDayOption(option.id, label);
-          await this.loadTrip(trip.id);
-          this.previewOption(day.id, cloned.id);
+          try {
+            const cloned = await api.cloneDayOption(option.id, label);
+            const nextTrip: TripDetail = {
+              ...trip,
+              days: trip.days.map((d) =>
+                d.id === day.id ? { ...d, options: [...d.options, cloned] } : d,
+              ),
+            };
+            commitTrip(nextTrip);
+            this.previewOption(day.id, cloned.id);
+          } catch (err) {
+            recordError(err, 'Failed to clone plan option');
+          }
         },
 
         async renameOption(optionId: string, label: string): Promise<void> {
@@ -241,8 +276,19 @@ export const ItineraryStore = signalStore(
           if (!trip) {
             return;
           }
-          await api.updateDayOption(optionId, label);
-          await this.loadTrip(trip.id);
+          try {
+            const updated = await api.updateDayOption(optionId, label);
+            const nextTrip: TripDetail = {
+              ...trip,
+              days: trip.days.map((d) => ({
+                ...d,
+                options: d.options.map((opt) => (opt.id === updated.id ? updated : opt)),
+              })),
+            };
+            commitTrip(nextTrip);
+          } catch (err) {
+            recordError(err, 'Failed to rename plan option');
+          }
         },
 
         async deleteOption(dayId: string, optionId: string): Promise<void> {
@@ -250,10 +296,18 @@ export const ItineraryStore = signalStore(
           if (!trip) {
             return;
           }
-          const updatedDay = await api.deleteDayOption(optionId);
-          await this.loadTrip(trip.id);
-          if (updatedDay.active_option_id) {
-            this.previewOption(dayId, updatedDay.active_option_id);
+          try {
+            const updatedDay = await api.deleteDayOption(optionId);
+            const nextTrip: TripDetail = {
+              ...trip,
+              days: trip.days.map((d) => (d.id === updatedDay.id ? updatedDay : d)),
+            };
+            commitTrip(nextTrip);
+            if (updatedDay.active_option_id) {
+              this.previewOption(dayId, updatedDay.active_option_id);
+            }
+          } catch (err) {
+            recordError(err, 'Failed to delete plan option');
           }
         },
 
@@ -262,9 +316,19 @@ export const ItineraryStore = signalStore(
           if (!trip) {
             return;
           }
-          const newDay = await api.appendDay(trip.id);
-          await this.loadTrip(trip.id);
-          this.selectDay(newDay.day_index);
+          try {
+            const newDay = await api.appendDay(trip.id);
+            const nextEndDate = newDay.date > trip.end_date ? newDay.date : trip.end_date;
+            const nextTrip: TripDetail = {
+              ...trip,
+              end_date: nextEndDate,
+              days: [...trip.days, newDay],
+            };
+            commitTrip(nextTrip);
+            this.selectDay(newDay.day_index);
+          } catch (err) {
+            recordError(err, 'Failed to append day');
+          }
         },
 
         async updateDayTitle(dayId: string, title: string | null): Promise<void> {
@@ -272,8 +336,18 @@ export const ItineraryStore = signalStore(
           if (!trip) {
             return;
           }
-          await api.updateDay(dayId, { title: title?.trim() || null });
-          await this.loadTrip(trip.id);
+          try {
+            const updatedDay = await api.updateDay(dayId, { title: title?.trim() || null });
+            const nextTrip: TripDetail = {
+              ...trip,
+              days: trip.days.map((d) =>
+                d.id === updatedDay.id ? { ...d, title: updatedDay.title } : d,
+              ),
+            };
+            commitTrip(nextTrip);
+          } catch (err) {
+            recordError(err, 'Failed to update day theme');
+          }
         },
 
         async selectChoiceItem(itemId: string): Promise<void> {
@@ -346,8 +420,20 @@ export const ItineraryStore = signalStore(
           if (!trip) {
             return;
           }
-          await api.setActiveOption(dayId, optionId);
-          await this.loadTrip(trip.id);
+          try {
+            const updatedDay = await api.setActiveOption(dayId, optionId);
+            const nextTrip: TripDetail = {
+              ...trip,
+              days: trip.days.map((d) =>
+                d.id === updatedDay.id
+                  ? { ...d, active_option_id: updatedDay.active_option_id }
+                  : d,
+              ),
+            };
+            commitTrip(nextTrip);
+          } catch (err) {
+            recordError(err, 'Failed to switch active plan');
+          }
         },
 
         async addItem(payload: CreateItemPayload): Promise<void> {
@@ -356,8 +442,23 @@ export const ItineraryStore = signalStore(
           if (!option || !trip) {
             return;
           }
-          await api.addItem(option.id, payload);
-          await this.loadTrip(trip.id);
+          try {
+            const created = await api.addItem(option.id, payload);
+            const nextTrip: TripDetail = {
+              ...trip,
+              days: trip.days.map((d) => ({
+                ...d,
+                options: d.options.map((opt) =>
+                  opt.id !== option.id
+                    ? opt
+                    : { ...opt, items: [...opt.items, created] },
+                ),
+              })),
+            };
+            commitTrip(nextTrip);
+          } catch (err) {
+            recordError(err, 'Failed to add itinerary item');
+          }
         },
 
         async updateItem(
@@ -368,8 +469,22 @@ export const ItineraryStore = signalStore(
           if (!trip) {
             return;
           }
-          await api.updateItem(itemId, payload);
-          await this.loadTrip(trip.id);
+          try {
+            const updated = await api.updateItem(itemId, payload);
+            const nextTrip: TripDetail = {
+              ...trip,
+              days: trip.days.map((d) => ({
+                ...d,
+                options: d.options.map((opt) => ({
+                  ...opt,
+                  items: opt.items.map((it) => (it.id === updated.id ? updated : it)),
+                })),
+              })),
+            };
+            commitTrip(nextTrip);
+          } catch (err) {
+            recordError(err, 'Failed to update itinerary item');
+          }
         },
 
         async deleteItem(itemId: string): Promise<void> {
@@ -377,8 +492,28 @@ export const ItineraryStore = signalStore(
           if (!trip) {
             return;
           }
-          await api.deleteItem(itemId);
-          await this.loadTrip(trip.id);
+          const previousTrip = trip;
+          const nextTrip: TripDetail = {
+            ...trip,
+            days: trip.days.map((d) => ({
+              ...d,
+              options: d.options.map((opt) => ({
+                ...opt,
+                items: opt.items.filter((it) => it.id !== itemId),
+              })),
+            })),
+          };
+          patchState(store, {
+            trip: nextTrip,
+            selectedItemId: store.selectedItemId() === itemId ? null : store.selectedItemId(),
+          });
+          try {
+            await api.deleteItem(itemId);
+            cache.set(`trip.${nextTrip.id}`, nextTrip);
+          } catch (err) {
+            patchState(store, { trip: previousTrip });
+            recordError(err, 'Failed to delete itinerary item');
+          }
         },
 
         async moveItem(item: ItineraryItem, direction: -1 | 1): Promise<void> {
@@ -400,14 +535,54 @@ export const ItineraryStore = signalStore(
             slots[targetIndex],
             slots[currentIndex],
           ];
-          const reorderedIds = slots.flatMap((s) => s.choices.map((c) => c.id));
-          await api.reorderItems(option.id, reorderedIds);
-          await this.loadTrip(trip.id);
+          const reorderedItems = slots.flatMap((s) => s.choices);
+          const reorderedIds = reorderedItems.map((c) => c.id);
+
+          // Optimistic 0ms reorder; rollback on API error.
+          const previousTrip = trip;
+          const optimisticTrip: TripDetail = {
+            ...trip,
+            days: trip.days.map((d) => ({
+              ...d,
+              options: d.options.map((opt) =>
+                opt.id !== option.id
+                  ? opt
+                  : {
+                      ...opt,
+                      items: reorderedItems.map((it, idx) => ({ ...it, sort_order: idx })),
+                    },
+              ),
+            })),
+          };
+          patchState(store, { trip: optimisticTrip });
+
+          try {
+            const updatedOption = await api.reorderItems(option.id, reorderedIds);
+            const latest = store.trip();
+            if (!latest) return;
+            const mergedTrip: TripDetail = {
+              ...latest,
+              days: latest.days.map((d) => ({
+                ...d,
+                options: d.options.map((opt) =>
+                  opt.id === updatedOption.id ? updatedOption : opt,
+                ),
+              })),
+            };
+            commitTrip(mergedTrip);
+          } catch (err) {
+            patchState(store, { trip: previousTrip });
+            recordError(err, 'Failed to reorder items');
+          }
         },
 
         async loadShares(tripId: string): Promise<void> {
-          const shares = await api.listShares(tripId);
-          patchState(store, { shares });
+          try {
+            const shares = await api.listShares(tripId);
+            patchState(store, { shares });
+          } catch (err) {
+            recordError(err, 'Failed to load share links');
+          }
         },
 
         async createShare(
@@ -421,8 +596,14 @@ export const ItineraryStore = signalStore(
         },
 
         async revokeShare(tripId: string, shareId: string): Promise<void> {
-          await api.revokeShare(tripId, shareId);
-          await this.loadShares(tripId);
+          try {
+            await api.revokeShare(tripId, shareId);
+            patchState(store, {
+              shares: store.shares().filter((s) => s.id !== shareId),
+            });
+          } catch (err) {
+            recordError(err, 'Failed to revoke share link');
+          }
         },
 
         reset(): void {
