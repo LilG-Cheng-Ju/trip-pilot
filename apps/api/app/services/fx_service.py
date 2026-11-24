@@ -28,6 +28,13 @@ class ExchangeRateProvider(Protocol):
     ) -> tuple[float, str, bool]: ...
 
 
+def _round_rate(rate: float) -> float:
+    """Round FX rates to 4 decimals while preserving precision for micro-currencies."""
+    if rate >= 0.01:
+        return round(rate, 4)
+    return float(f"{rate:.4g}") if rate > 0 else rate
+
+
 class OpenErApiProvider:
     """Free, key-less FX provider backed by open.er-api.com with TTL caching."""
 
@@ -54,7 +61,7 @@ class OpenErApiProvider:
         if cached_entry and now - cached_entry[0] < self.ttl_seconds:
             rate = cached_entry[1].get(dst)
             if rate is not None:
-                return round(rate, 4), "open_er_api", True
+                return _round_rate(rate), "open_er_api", True
 
         try:
             client = get_shared_http_client()
@@ -71,14 +78,14 @@ class OpenErApiProvider:
                         if isinstance(v, (int, float))
                     }
                     self._cache[src] = (now, numeric_rates)
-                    return round(numeric_rates[dst], 4), "open_er_api", False
+                    return _round_rate(numeric_rates[dst]), "open_er_api", False
         except Exception:
             pass
 
         # Fallback via USD cross-rate so offline expense logging never breaks.
         if src in _FALLBACK_USD_RATES and dst in _FALLBACK_USD_RATES:
             cross = _FALLBACK_USD_RATES[dst] / _FALLBACK_USD_RATES[src]
-            return round(cross, 4), "fallback", False
+            return _round_rate(cross), "fallback", False
 
         return 1.0, "fallback", False
 

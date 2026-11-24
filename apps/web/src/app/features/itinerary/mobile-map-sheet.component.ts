@@ -15,7 +15,12 @@ import { ItineraryMapComponent, MapPin, StayMapPin } from './itinerary-map.compo
     '(document:keydown.escape)': 'closed.emit()',
   },
   template: `
-    <div class="mobile-map-sheet" role="dialog" [attr.aria-label]="'map.openSheet' | t">
+    <div
+      class="mobile-map-sheet"
+      [class.no-bottom-nav]="readOnly()"
+      role="dialog"
+      [attr.aria-label]="'map.openSheet' | t"
+    >
       <div class="sheet-bar">
         <span class="sheet-handle" aria-hidden="true"></span>
         <span class="sheet-title tabular-nums">
@@ -139,6 +144,11 @@ import { ItineraryMapComponent, MapPin, StayMapPin } from './itinerary-map.compo
       border-radius: 16px 16px 0 0;
       box-shadow: 0 -10px 30px rgba(15, 23, 42, 0.22);
       overflow: hidden;
+    }
+    .mobile-map-sheet.no-bottom-nav {
+      bottom: 0;
+      height: 74dvh;
+      padding-bottom: env(safe-area-inset-bottom);
     }
     .sheet-bar {
       display: flex;

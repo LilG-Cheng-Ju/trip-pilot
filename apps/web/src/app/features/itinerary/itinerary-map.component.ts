@@ -288,8 +288,16 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
       this.markers.push(stayMarker);
     };
 
+    const samePoint = (pt: [number, number], target: StayMapPin | null): boolean =>
+      target !== null &&
+      Math.abs(pt[0] - target.lng) < COORDINATE_EPSILON &&
+      Math.abs(pt[1] - target.lat) < COORDINATE_EPSILON;
+
     const isHotelChange =
-      departureStay !== null && stay !== null && departureStay.id !== stay.id;
+      departureStay !== null &&
+      stay !== null &&
+      departureStay.id !== stay.id &&
+      !samePoint([departureStay.lng, departureStay.lat], stay);
 
     // On hotel-change days, render both morning departure hotel and tonight's check-in hotel.
     if (isHotelChange && departureStay) {
@@ -347,17 +355,18 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
       this.markers.push(marker);
     }
 
-    const lineCoords: [number, number][] =
-      routePath.length >= 2
+    const stopCoords: [number, number][] =
+      routePath.length > 0
         ? routePath
         : pins.map((p): [number, number] => [p.lng, p.lat]);
+    const routeCoords: [number, number][] = stopCoords.length >= 2 ? stopCoords : [];
 
     const routeGeoJson = {
       type: 'Feature' as const,
       properties: {},
       geometry: {
         type: 'LineString' as const,
-        coordinates: lineCoords,
+        coordinates: routeCoords,
       },
     };
 
@@ -386,18 +395,19 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
 
     // Subtle champagne-gold dashed connectors: morning leg from departureStay, evening leg to arrivalStay.
     const stayLegs: [number, number][][] = [];
-    const samePoint = (pt: [number, number], target: StayMapPin | null): boolean =>
-      target !== null &&
-      Math.abs(pt[0] - target.lng) < COORDINATE_EPSILON &&
-      Math.abs(pt[1] - target.lat) < COORDINATE_EPSILON;
 
-    if (lineCoords.length > 0) {
-      if (fromStay && departureStay && !samePoint(lineCoords[0], departureStay)) {
-        stayLegs.push([[departureStay.lng, departureStay.lat], lineCoords[0]]);
+    if (stopCoords.length > 0) {
+      if (fromStay && departureStay && !samePoint(stopCoords[0], departureStay)) {
+        stayLegs.push([[departureStay.lng, departureStay.lat], stopCoords[0]]);
       }
-      if (toStay && stay && !samePoint(lineCoords[lineCoords.length - 1], stay)) {
-        stayLegs.push([lineCoords[lineCoords.length - 1], [stay.lng, stay.lat]]);
+      if (toStay && stay && !samePoint(stopCoords[stopCoords.length - 1], stay)) {
+        stayLegs.push([stopCoords[stopCoords.length - 1], [stay.lng, stay.lat]]);
       }
+    } else if (isHotelChange && departureStay && stay) {
+      stayLegs.push([
+        [departureStay.lng, departureStay.lat],
+        [stay.lng, stay.lat],
+      ]);
     }
 
     const stayLegsGeoJson = {

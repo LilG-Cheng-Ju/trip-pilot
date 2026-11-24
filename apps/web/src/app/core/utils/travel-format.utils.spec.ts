@@ -5,10 +5,13 @@ import { ItineraryItem } from '../models/tripilot.models';
 import {
   addDaysToIsoDate,
   appendCreatedItem,
+  buildDayMapPins,
   buildGoogleMapsUrl,
+  buildPinOrderMap,
   extractItemAttachments,
   groupItemsIntoSlots,
   removeItemWithChoicePromotion,
+  roundFxRate,
 } from './travel-format.utils';
 
 function makeItem(overrides: Partial<ItineraryItem>): ItineraryItem {
@@ -125,6 +128,34 @@ describe('travel-format.utils', () => {
     expect(remaining).toHaveLength(1);
     expect(remaining[0].id).toBe('alt-2');
     expect(remaining[0].is_selected).toBe(true);
+  });
+
+  it('rounds FX rates to 4 decimals while preserving precision for micro-currencies', () => {
+    expect(roundFxRate(0.215432)).toBe(0.2154);
+    expect(roundFxRate(0.00003937)).toBe(0.00003937);
+    expect(roundFxRate(0)).toBe(1);
+    expect(roundFxRate(Number.NaN)).toBe(1);
+  });
+
+  it('builds ordered map pins and pinOrder map skipping STAY items', () => {
+    const items: ItineraryItem[] = [
+      makeItem({ id: 'flt-1', type: 'FLIGHT', title: 'CI130', latitude: 43.0, longitude: 141.3 }),
+      makeItem({ id: 'stay-1', type: 'STAY', title: 'Hotel A', latitude: 43.06, longitude: 141.35 }),
+      makeItem({ id: 'spot-1', type: 'SPOT', title: 'Park', latitude: 43.07, longitude: 141.34 }),
+      makeItem({ id: 'food-1', type: 'FOOD', title: 'Soup Curry', latitude: 43.05, longitude: 141.36 }),
+    ];
+
+    const pins = buildDayMapPins(items, 'stay-1');
+    expect(pins.map((p) => ({ id: p.id, order: p.order }))).toEqual([
+      { id: 'flt-1', order: 0 },
+      { id: 'spot-1', order: 1 },
+      { id: 'food-1', order: 2 },
+    ]);
+
+    const orderMap = buildPinOrderMap(pins);
+    expect(orderMap.get('flt-1')).toBeUndefined();
+    expect(orderMap.get('spot-1')).toBe(1);
+    expect(orderMap.get('food-1')).toBe(2);
   });
 
   it('clears SWR cache and FX rate keys on sign-out cleanup', () => {

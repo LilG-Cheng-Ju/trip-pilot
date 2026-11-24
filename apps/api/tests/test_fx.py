@@ -5,6 +5,13 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from httpx import AsyncClient
 
+from app.services.fx_service import _round_rate
+
+
+def test_round_rate_preserves_precision_for_micro_currencies() -> None:
+    assert _round_rate(0.215432) == 0.2154
+    assert _round_rate(0.00003937) == 0.00003937
+
 
 @pytest.mark.asyncio
 async def test_fx_rate_requires_auth_and_returns_rate(

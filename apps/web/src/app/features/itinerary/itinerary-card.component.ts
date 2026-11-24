@@ -668,6 +668,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     .head-expense-pill {
       display: inline-flex;
       align-items: center;
+      gap: 4px;
       height: 28px;
       padding: 0 8px;
       border-radius: 7px;
@@ -679,6 +680,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       font-size: 0.7rem;
       font-weight: 600;
       white-space: nowrap;
+      flex-shrink: 0;
     }
     .head-expense-pill:hover {
       border-color: var(--color-accent);
@@ -886,8 +888,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       background: rgba(20, 24, 31, 0.32);
     }
     .meta-chip,
-    .attachment-chip,
-    .expense-chip {
+    .attachment-chip {
       display: inline-flex;
       align-items: center;
       gap: 4px;
@@ -1015,7 +1016,7 @@ export class ItineraryCardComponent {
     return (
       this.hasDetailChips() ||
       this.attachments().length > 0 ||
-      Boolean(this.expenseSummary())
+      Boolean(this.expenseSummary() && this.tripId())
     );
   }
 

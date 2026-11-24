@@ -1,9 +1,28 @@
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  ElementRef,
+  inject,
+  OnInit,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 
 import { TripilotApiService } from '../../core/api/tripilot-api.service';
+import { DAY_STRIP_SCROLL_STEP_PX } from '../../core/constants/app-limits';
+import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ItineraryItem, PublicTrip } from '../../core/models/tripilot.models';
+import {
+  buildDayMapPins,
+  buildMapRoutePath,
+  buildPinOrderMap,
+  groupItemsIntoSlots,
+  ItinerarySlot,
+  toStayMapPin,
+} from '../../core/utils/travel-format.utils';
 import { ItineraryCardComponent } from '../itinerary/itinerary-card.component';
 import {
   ItineraryMapComponent,
@@ -33,24 +52,52 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
                 <span class="dates tabular-nums">
                   {{ publicTrip.start_date }} — {{ publicTrip.end_date }}
                 </span>
+                <button type="button" class="lang-btn" (click)="i18n.toggleLocale()">
+                  {{ i18n.locale() === 'en' ? '繁中' : 'EN' }}
+                </button>
               </div>
               <h1 class="share-title">{{ publicTrip.title }}</h1>
             </header>
 
-            <div class="day-strip" role="tablist">
-              @for (day of publicTrip.days; track day.id) {
-                <button
-                  type="button"
-                  role="tab"
-                  [attr.aria-selected]="selectedDayIndex() === day.day_index"
-                  class="day-chip tabular-nums"
-                  [class.active]="selectedDayIndex() === day.day_index"
-                  (click)="selectDay(day.day_index)"
-                >
-                  <span class="day-num">Day {{ day.day_index }}</span>
-                  <span class="day-date">{{ day.date.slice(5) }}</span>
-                </button>
-              }
+            <div class="day-strip-wrap">
+              <button
+                type="button"
+                class="day-scroll-btn"
+                [attr.aria-label]="'itinerary.dayScrollLeft' | t"
+                (click)="scrollDayStrip(-dayStripScrollStepPx)"
+              >
+                <span class="ms-icon sm" aria-hidden="true">chevron_left</span>
+              </button>
+
+              <div
+                #dayStrip
+                class="day-strip"
+                role="tablist"
+                (wheel)="onDayStripWheel($event)"
+              >
+                @for (day of publicTrip.days; track day.id) {
+                  <button
+                    type="button"
+                    role="tab"
+                    [attr.aria-selected]="selectedDayIndex() === day.day_index"
+                    class="day-chip tabular-nums"
+                    [class.active]="selectedDayIndex() === day.day_index"
+                    (click)="selectDay(day.day_index, $event)"
+                  >
+                    <span class="day-num">Day {{ day.day_index }}</span>
+                    <span class="day-date">{{ day.date.slice(5) }}</span>
+                  </button>
+                }
+              </div>
+
+              <button
+                type="button"
+                class="day-scroll-btn"
+                [attr.aria-label]="'itinerary.dayScrollRight' | t"
+                (click)="scrollDayStrip(dayStripScrollStepPx)"
+              >
+                <span class="ms-icon sm" aria-hidden="true">chevron_right</span>
+              </button>
             </div>
           </div>
 
@@ -81,18 +128,51 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
                 </div>
               }
 
-              @if (activeItems().length === 0) {
+              @if (selectedOption(); as opt) {
+                @if (timelineSlots().length > 0) {
+                  <div class="share-summary tabular-nums">
+                    <span>{{ 'itinerary.summary.stops' | t: { count: stopCount() } }}</span>
+                    @if (opt.cached_ground_distance_km > 0) {
+                      <span>
+                        · {{ opt.cached_distance_is_approx ? '~' : '' }}{{ opt.cached_ground_distance_km }} km
+                      </span>
+                    }
+                  </div>
+                }
+              }
+
+              @if (timelineSlots().length === 0) {
                 <div class="empty-day">{{ 'itinerary.emptyDay' | t }}</div>
               } @else {
                 <div class="timeline">
-                  @for (item of activeItems(); track item.id) {
-                    <app-itinerary-card
-                      [item]="item"
-                      [pinOrder]="pinOrderById().get(item.id) ?? null"
-                      [selected]="selectedItemId() === item.id"
-                      [readOnly]="true"
-                      (cardClicked)="selectedItemId.set($event)"
-                    />
+                  @for (slot of timelineSlots(); track slot.key) {
+                    <div class="slot-group" [class.has-choices]="slot.choices.length > 1">
+                      @if (slot.choices.length > 1) {
+                        <div class="choice-pills">
+                          @for (choice of slot.choices; track choice.id) {
+                            <button
+                              type="button"
+                              class="choice-pill"
+                              [class.active]="choice.id === slot.activeItem.id"
+                              (click)="selectChoicePreview(slot.key, choice.id)"
+                            >
+                              @if (choice.id === slot.activeItem.id) {
+                                <span class="choice-dot" aria-hidden="true"></span>
+                              }
+                              <span>{{ choice.title }}</span>
+                            </button>
+                          }
+                        </div>
+                      }
+
+                      <app-itinerary-card
+                        [item]="slot.activeItem"
+                        [pinOrder]="pinOrderById().get(slot.activeItem.id) ?? null"
+                        [selected]="selectedItemId() === slot.activeItem.id"
+                        [readOnly]="true"
+                        (cardClicked)="selectedItemId.set($event)"
+                      />
+                    </div>
                   }
                 </div>
               }
@@ -143,9 +223,9 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
           (closed)="mobileMapOpen.set(false)"
         />
       }
-    } @else if (error()) {
+    } @else if (errorKey(); as errKey) {
       <div class="state-wrap">
-        <p class="empty-day">{{ error() }}</p>
+        <p class="empty-day">{{ errKey | t }}</p>
       </div>
     } @else {
       <div class="state-wrap">
@@ -156,8 +236,8 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
   styles: `
     .share-layout {
       display: grid;
-      grid-template-columns: 1fr;
-      min-height: calc(100dvh - 54px);
+      grid-template-columns: minmax(0, 1fr);
+      min-height: 100dvh;
     }
     .timeline-pane {
       display: flex;
@@ -169,11 +249,14 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
     }
     .sticky-share-top {
       position: sticky;
-      top: 54px;
-      z-index: 20;
+      top: 0;
+      z-index: 25;
+      flex-shrink: 0;
+      min-width: 0;
+      max-width: 100%;
       padding: var(--space-3) var(--space-4) var(--space-2);
-      background: rgba(248, 247, 244, 0.94);
-      backdrop-filter: blur(10px);
+      background: rgba(247, 244, 239, 0.95);
+      backdrop-filter: blur(12px);
       border-bottom: 1px solid var(--color-border);
     }
     .share-header {
@@ -199,6 +282,18 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
       font-size: var(--text-card-meta);
       color: var(--color-text-muted);
     }
+    .lang-btn {
+      margin-left: auto;
+      padding: 3px 10px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-pill);
+      background: var(--color-surface);
+      color: var(--color-primary);
+      font: inherit;
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
     .share-title {
       margin: 0;
       font-family: var(--font-display);
@@ -206,11 +301,40 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
       font-weight: 600;
       color: var(--color-primary);
     }
+    .day-strip-wrap {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      min-width: 0;
+      max-width: 100%;
+    }
+    .day-scroll-btn {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 44px;
+      padding: 0;
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      background: var(--color-surface);
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .day-scroll-btn:hover {
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+    }
     .day-strip {
       display: flex;
+      flex: 1;
+      min-width: 0;
+      max-width: 100%;
       align-items: center;
       gap: 8px;
       overflow-x: auto;
+      scroll-behavior: smooth;
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
       padding: 2px 0;
@@ -302,10 +426,53 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
       border-radius: 50%;
       background: var(--color-accent);
     }
+    .share-summary {
+      margin: 0 0 var(--space-3);
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: var(--color-text-muted);
+    }
     .timeline {
       display: flex;
       flex-direction: column;
       gap: var(--space-3);
+    }
+    .slot-group.has-choices {
+      padding: 8px;
+      border-radius: var(--radius-md);
+      background: rgba(200, 155, 91, 0.08);
+      border: 1px solid rgba(200, 155, 91, 0.35);
+    }
+    .choice-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+    .choice-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-pill);
+      background: var(--color-surface);
+      color: var(--color-text-secondary);
+      font: inherit;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .choice-pill.active {
+      border-color: var(--color-primary);
+      background: var(--color-primary);
+      color: var(--color-text-on-primary);
+    }
+    .choice-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--color-accent);
     }
     .empty-day {
       padding: var(--space-6);
@@ -346,17 +513,22 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
     .fab-ico {
       color: var(--color-accent);
     }
+    @media (min-width: 768px) {
+      .day-scroll-btn {
+        display: inline-flex;
+      }
+    }
     @media (min-width: 1024px) {
       .mobile-map-fab {
         display: none;
       }
       .share-layout {
-        grid-template-columns: minmax(440px, 46%) 1fr;
-        height: calc(100dvh - 54px);
+        grid-template-columns: minmax(440px, 46%) minmax(0, 1fr);
+        height: 100dvh;
       }
       .timeline-pane {
         max-width: none;
-        height: calc(100dvh - 54px);
+        height: 100dvh;
         overflow: hidden;
       }
       .sticky-share-top {
@@ -372,9 +544,9 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
       .desktop-map-pane {
         display: block;
         padding: var(--space-4) var(--space-4) var(--space-4) 0;
-        height: calc(100dvh - 54px);
+        height: 100dvh;
         position: sticky;
-        top: 54px;
+        top: 0;
       }
     }
   `,
@@ -382,13 +554,18 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
 export class PublicSharePageComponent implements OnInit {
   private readonly api = inject(TripilotApiService);
   private readonly route = inject(ActivatedRoute);
+  protected readonly i18n = inject(I18nService);
+
+  private readonly dayStrip = viewChild<ElementRef<HTMLDivElement>>('dayStrip');
+  protected readonly dayStripScrollStepPx = DAY_STRIP_SCROLL_STEP_PX;
 
   protected readonly trip = signal<PublicTrip | null>(null);
   protected readonly selectedDayIndex = signal(1);
   protected readonly previewOptionByDay = signal<Record<string, string>>({});
+  protected readonly previewChoiceByGroup = signal<Record<string, string>>({});
   protected readonly selectedItemId = signal<string | null>(null);
   protected readonly mobileMapOpen = signal(false);
-  protected readonly error = signal<string | null>(null);
+  protected readonly errorKey = signal<'share.errInvalid' | 'share.errNotFound' | null>(null);
 
   protected readonly selectedDay = computed(() => {
     const t = this.trip();
@@ -412,10 +589,29 @@ export class PublicSharePageComponent implements OnInit {
     );
   });
 
-  protected readonly activeItems = computed<ItineraryItem[]>(() => {
+  protected readonly timelineSlots = computed<ItinerarySlot[]>(() => {
     const opt = this.selectedOption();
-    return opt ? opt.items.filter((i) => i.is_selected) : [];
+    const publicTrip = this.trip();
+    if (!opt) return [];
+    const includeBackups = Boolean(publicTrip?.visibility_policy.include_backup_options);
+    const visibleItems = includeBackups ? opt.items : opt.items.filter((i) => i.is_selected);
+    const previewChoices = this.previewChoiceByGroup();
+    return groupItemsIntoSlots(visibleItems).map((slot) => {
+      const overrideId = previewChoices[slot.key];
+      const overrideItem = overrideId
+        ? slot.choices.find((c) => c.id === overrideId)
+        : undefined;
+      return overrideItem ? { ...slot, activeItem: overrideItem } : slot;
+    });
   });
+
+  protected readonly activeItems = computed<ItineraryItem[]>(() =>
+    this.timelineSlots().map((slot) => slot.activeItem),
+  );
+
+  protected readonly stopCount = computed(
+    () => this.activeItems().filter((item) => item.type !== 'LOCAL_TRANSIT').length,
+  );
 
   protected readonly departureStay = computed<ItineraryItem | null>(() => {
     const t = this.trip();
@@ -445,17 +641,13 @@ export class PublicSharePageComponent implements OnInit {
     return latest;
   });
 
-  protected readonly departureStayMapPin = computed<StayMapPin | null>(() => {
-    const stay = this.departureStay();
-    if (!stay || stay.latitude === null || stay.longitude === null) return null;
-    return { id: stay.id, title: stay.title, lat: stay.latitude, lng: stay.longitude };
-  });
+  protected readonly departureStayMapPin = computed<StayMapPin | null>(() =>
+    toStayMapPin(this.departureStay()),
+  );
 
-  protected readonly stayMapPin = computed<StayMapPin | null>(() => {
-    const stay = this.arrivalStay();
-    if (!stay || stay.latitude === null || stay.longitude === null) return null;
-    return { id: stay.id, title: stay.title, lat: stay.latitude, lng: stay.longitude };
-  });
+  protected readonly stayMapPin = computed<StayMapPin | null>(() =>
+    toStayMapPin(this.arrivalStay()),
+  );
 
   protected readonly connectFromStay = computed(() => {
     const items = this.activeItems();
@@ -468,38 +660,16 @@ export class PublicSharePageComponent implements OnInit {
   });
 
   protected readonly mapRoutePath = computed<[number, number][]>(() =>
-    this.activeItems()
-      .filter((i) => i.latitude !== null && i.longitude !== null)
-      .map((i): [number, number] => [i.longitude!, i.latitude!]),
+    buildMapRoutePath(this.activeItems()),
   );
 
-  protected readonly mapPins = computed<MapPin[]>(() => {
-    const basecampId = this.stayMapPin()?.id;
-    const pins: MapPin[] = [];
-    let order = 1;
-    for (const item of this.activeItems()) {
-      if (item.id === basecampId || item.type === 'STAY') continue;
-      if (item.latitude !== null && item.longitude !== null) {
-        pins.push({
-          id: item.id,
-          order: item.type === 'FLIGHT' ? 0 : order++,
-          title: item.title,
-          lat: item.latitude,
-          lng: item.longitude,
-          type: item.type,
-        });
-      }
-    }
-    return pins;
-  });
+  protected readonly mapPins = computed<MapPin[]>(() =>
+    buildDayMapPins(this.activeItems(), this.stayMapPin()?.id),
+  );
 
-  protected readonly pinOrderById = computed<Map<string, number>>(() => {
-    const map = new Map<string, number>();
-    for (const pin of this.mapPins()) {
-      if (pin.order > 0) map.set(pin.id, pin.order);
-    }
-    return map;
-  });
+  protected readonly pinOrderById = computed<Map<string, number>>(() =>
+    buildPinOrderMap(this.mapPins()),
+  );
 
   protected readonly selectedMapItem = computed<ItineraryItem | null>(() => {
     const id = this.selectedItemId();
@@ -515,7 +685,7 @@ export class PublicSharePageComponent implements OnInit {
   async ngOnInit(): Promise<void> {
     const token = this.route.snapshot.paramMap.get('shareToken') ?? '';
     if (!token) {
-      this.error.set('Invalid share link.');
+      this.errorKey.set('share.errInvalid');
       return;
     }
     try {
@@ -523,17 +693,45 @@ export class PublicSharePageComponent implements OnInit {
       this.trip.set(data);
       this.selectedDayIndex.set(data.days[0]?.day_index ?? 1);
     } catch {
-      this.error.set('Share link not found or revoked.');
+      this.errorKey.set('share.errNotFound');
     }
   }
 
-  protected selectDay(dayIndex: number): void {
+  protected scrollDayStrip(deltaPx: number): void {
+    const el = this.dayStrip()?.nativeElement;
+    if (el) {
+      el.scrollBy({ left: deltaPx, behavior: 'smooth' });
+    }
+  }
+
+  protected onDayStripWheel(event: WheelEvent): void {
+    const el = this.dayStrip()?.nativeElement;
+    if (!el || el.scrollWidth <= el.clientWidth) {
+      return;
+    }
+    if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
+      event.preventDefault();
+      el.scrollLeft += event.deltaY;
+    }
+  }
+
+  protected selectDay(dayIndex: number, event?: Event): void {
     this.selectedDayIndex.set(dayIndex);
     this.selectedItemId.set(null);
+    (event?.currentTarget as HTMLElement | null)?.scrollIntoView({
+      behavior: 'smooth',
+      inline: 'nearest',
+      block: 'nearest',
+    });
   }
 
   protected selectOption(dayId: string, optionId: string): void {
     this.previewOptionByDay.update((curr) => ({ ...curr, [dayId]: optionId }));
+    this.selectedItemId.set(null);
+  }
+
+  protected selectChoicePreview(slotKey: string, choiceId: string): void {
+    this.previewChoiceByGroup.update((curr) => ({ ...curr, [slotKey]: choiceId }));
     this.selectedItemId.set(null);
   }
 }

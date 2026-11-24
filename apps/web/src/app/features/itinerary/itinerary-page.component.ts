@@ -9,10 +9,14 @@ import {
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ItineraryItem } from '../../core/models/tripilot.models';
 import {
+  buildDayMapPins,
   buildGoogleMapsUrl,
+  buildMapRoutePath,
+  buildPinOrderMap,
   getItemDetailString,
   groupItemsIntoSlots,
   ItinerarySlot,
+  toStayMapPin,
 } from '../../core/utils/travel-format.utils';
 import { AppModalComponent } from '../../shared/modal.component';
 import { TripSubnavComponent } from '../../shared/trip-subnav.component';
@@ -578,7 +582,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       position: sticky;
       top: 54px;
       z-index: 20;
-      background: rgba(245, 246, 248, 0.88);
+      background: rgba(247, 244, 239, 0.92);
       backdrop-filter: blur(12px);
       padding: var(--space-3) var(--space-4) var(--space-2);
       border-bottom: 1px solid var(--color-border);
@@ -1148,31 +1152,13 @@ export class ItineraryPageComponent implements OnInit {
     return option ? groupItemsIntoSlots(option.items) : [];
   });
 
-  protected readonly departureStayMapPin = computed<StayMapPin | null>(() => {
-    const stay = this.store.departureStay();
-    if (!stay || stay.latitude === null || stay.longitude === null) {
-      return null;
-    }
-    return {
-      id: stay.id,
-      title: stay.title,
-      lat: stay.latitude,
-      lng: stay.longitude,
-    };
-  });
+  protected readonly departureStayMapPin = computed<StayMapPin | null>(() =>
+    toStayMapPin(this.store.departureStay()),
+  );
 
-  protected readonly stayMapPin = computed<StayMapPin | null>(() => {
-    const stay = this.store.basecampStay();
-    if (!stay || stay.latitude === null || stay.longitude === null) {
-      return null;
-    }
-    return {
-      id: stay.id,
-      title: stay.title,
-      lat: stay.latitude,
-      lng: stay.longitude,
-    };
-  });
+  protected readonly stayMapPin = computed<StayMapPin | null>(() =>
+    toStayMapPin(this.store.basecampStay()),
+  );
 
   protected readonly connectFromStay = computed(() => {
     const slots = this.timelineSlots();
@@ -1190,46 +1176,20 @@ export class ItineraryPageComponent implements OnInit {
 
   /** Chronological coordinates across flights, stays, transit stations, and stops. */
   protected readonly mapRoutePath = computed<[number, number][]>(() =>
-    this.timelineSlots()
-      .map((slot) => slot.activeItem)
-      .filter((item) => item.latitude !== null && item.longitude !== null)
-      .map((item): [number, number] => [item.longitude!, item.latitude!]),
+    buildMapRoutePath(this.timelineSlots().map((slot) => slot.activeItem)),
   );
 
-  protected readonly mapPins = computed<MapPin[]>(() => {
-    const basecampId = this.stayMapPin()?.id;
-    const pins: MapPin[] = [];
-    let order = 1;
-    for (const slot of this.timelineSlots()) {
-      const item = slot.activeItem;
-      // Keep the active basecamp STAY on its dedicated hotel marker rather than numbering it.
-      if (item.id === basecampId || item.type === 'STAY') {
-        continue;
-      }
-      if (item.latitude !== null && item.longitude !== null) {
-        pins.push({
-          id: item.id,
-          order: item.type === 'FLIGHT' ? 0 : order++,
-          title: item.title,
-          lat: item.latitude,
-          lng: item.longitude,
-          type: item.type,
-        });
-      }
-    }
-    return pins;
-  });
+  protected readonly mapPins = computed<MapPin[]>(() =>
+    buildDayMapPins(
+      this.timelineSlots().map((slot) => slot.activeItem),
+      this.stayMapPin()?.id,
+    ),
+  );
 
   /** Lookup map syncing card pin numbers (1, 2, 3) with MapLibre markers. */
-  protected readonly pinOrderById = computed<Map<string, number>>(() => {
-    const map = new Map<string, number>();
-    for (const pin of this.mapPins()) {
-      if (pin.order > 0) {
-        map.set(pin.id, pin.order);
-      }
-    }
-    return map;
-  });
+  protected readonly pinOrderById = computed<Map<string, number>>(() =>
+    buildPinOrderMap(this.mapPins()),
+  );
 
   protected readonly selectedDayLabel = computed(() => {
     const d = this.store.selectedDay();

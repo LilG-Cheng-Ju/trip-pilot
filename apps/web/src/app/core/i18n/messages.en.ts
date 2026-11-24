@@ -130,6 +130,8 @@ export const MESSAGES_EN = {
   'share.includeBackups': 'Include Plan B backup options',
   'share.revoke': 'Revoke',
   'share.publicBadge': 'Read-Only Shared View',
+  'share.errInvalid': 'Invalid share link.',
+  'share.errNotFound': 'Share link not found, expired, or revoked.',
   'expenses.title': 'Trip Expenses',
   'expenses.total': 'Total Spent',
   'expenses.count': '{count} entries',

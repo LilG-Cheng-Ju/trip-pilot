@@ -15,6 +15,7 @@ import {
   EXPENSE_CATEGORIES,
   expenseCategoryKey,
   mapItemTypeToExpenseCategory,
+  roundFxRate,
 } from '../../core/utils/travel-format.utils';
 import { AppModalComponent } from '../../shared/modal.component';
 import { ExpenseStore } from '../../state/expense.store';
@@ -361,12 +362,12 @@ export class QuickExpenseModalComponent {
     this.fetchingRate.set(true);
     try {
       const res = await this.api.getExchangeRate(src, dst);
-      const rounded = Number(res.rate.toFixed(4));
+      const rounded = roundFxRate(res.rate);
       this.exchangeRate = rounded;
       this.cache.setFxRate(src, rounded);
     } catch {
       const cached = this.cache.getFxRate(src);
-      this.exchangeRate = cached ? Number(cached.toFixed(4)) : 1;
+      this.exchangeRate = cached ? roundFxRate(cached) : 1;
     } finally {
       this.fetchingRate.set(false);
     }

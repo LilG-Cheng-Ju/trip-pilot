@@ -107,7 +107,7 @@ async def test_public_share_enforces_visibility_policy(
     day1 = trip["days"][0]
     plan_a_id = day1["active_option_id"]
 
-    await api_client.post(
+    flight_resp = await api_client.post(
         f"/api/v1/options/{plan_a_id}/items",
         headers=dev_headers,
         json={
@@ -121,13 +121,23 @@ async def test_public_share_enforces_visibility_policy(
             },
         },
     )
+    flight_id = flight_resp.json()["id"]
+    await api_client.post(
+        f"/api/v1/options/{plan_a_id}/items",
+        headers=dev_headers,
+        json={
+            "type": "FLIGHT",
+            "title": "JL814 Backup Flight",
+            "alternative_for_item_id": flight_id,
+        },
+    )
     await api_client.post(
         f"/api/v1/days/{day1['id']}/options",
         headers=dev_headers,
         json={"label": "Plan B · Rainy"},
     )
 
-    # Default share hides booking_ref, notes, and backup options.
+    # Default share hides booking_ref, notes, and backup options/choices.
     share_resp = await api_client.post(
         f"/api/v1/trips/{trip['id']}/shares",
         headers=dev_headers,
@@ -140,12 +150,13 @@ async def test_public_share_enforces_visibility_policy(
     assert pub_resp.status_code == 200
     pub_trip = pub_resp.json()
     assert len(pub_trip["days"][0]["options"]) == 1
+    assert len(pub_trip["days"][0]["options"][0]["items"]) == 1
     pub_item = pub_trip["days"][0]["options"][0]["items"][0]
     assert pub_item["notes"] is None
     assert "booking_ref" not in pub_item["details"]
     assert pub_item["details"]["origin_iata"] == "TPE"
 
-    # Companion share explicitly exposes booking_ref and backup options.
+    # Companion share explicitly exposes booking_ref and backup options/choices.
     companion_resp = await api_client.post(
         f"/api/v1/trips/{trip['id']}/shares",
         headers=dev_headers,
@@ -163,6 +174,7 @@ async def test_public_share_enforces_visibility_policy(
         await api_client.get(f"/api/v1/public/trips/{companion_token}")
     ).json()
     assert len(comp_pub["days"][0]["options"]) == 2
+    assert len(comp_pub["days"][0]["options"][0]["items"]) == 2
     comp_item = comp_pub["days"][0]["options"][0]["items"][0]
     assert comp_item["details"]["booking_ref"] == "PNR-XYZ123"
     assert comp_item["notes"] == "Private passport reminder"

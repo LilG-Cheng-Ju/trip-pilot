@@ -606,6 +606,7 @@ class TripService:
                             ItineraryItemResponse.model_validate(item), policy
                         )
                         for item in opt.items
+                        if policy.include_backup_options or item.is_selected
                     ],
                     route_segments=[],
                 )

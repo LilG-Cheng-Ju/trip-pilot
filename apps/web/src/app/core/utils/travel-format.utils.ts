@@ -219,6 +219,88 @@ export function removeItemWithChoicePromotion(
   });
 }
 
+export interface AnnotatedMapPin {
+  id: string;
+  order: number;
+  title: string;
+  lat: number;
+  lng: number;
+  type: ItemType;
+}
+
+export interface SimpleStayPin {
+  id: string;
+  title: string;
+  lat: number;
+  lng: number;
+}
+
+/** Round FX rates to 4 decimals (or 4 sig figs for micro-currencies like VND/IDR). */
+export function roundFxRate(rate: number): number {
+  if (!Number.isFinite(rate) || rate <= 0) {
+    return 1;
+  }
+  return rate >= 0.01 ? Number(rate.toFixed(4)) : Number(rate.toPrecision(4));
+}
+
+/** Convert a geolocated STAY item into a map stay pin payload. */
+export function toStayMapPin(stay: ItineraryItem | null): SimpleStayPin | null {
+  if (!stay || stay.latitude === null || stay.longitude === null) {
+    return null;
+  }
+  return {
+    id: stay.id,
+    title: stay.title,
+    lat: stay.latitude,
+    lng: stay.longitude,
+  };
+}
+
+/** Build ordered non-STAY map pins from a day's selected itinerary items. */
+export function buildDayMapPins(
+  items: readonly ItineraryItem[],
+  arrivalStayId?: string | null,
+): AnnotatedMapPin[] {
+  const pins: AnnotatedMapPin[] = [];
+  let order = 1;
+  for (const item of items) {
+    if (item.id === arrivalStayId || item.type === 'STAY') {
+      continue;
+    }
+    if (item.latitude !== null && item.longitude !== null) {
+      pins.push({
+        id: item.id,
+        order: item.type === 'FLIGHT' ? 0 : order++,
+        title: item.title,
+        lat: item.latitude,
+        lng: item.longitude,
+        type: item.type,
+      });
+    }
+  }
+  return pins;
+}
+
+/** Index ordered map pin badges (excluding unnumbered pins) by itinerary item ID. */
+export function buildPinOrderMap(
+  pins: readonly { id: string; order: number }[],
+): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const pin of pins) {
+    if (pin.order > 0) {
+      map.set(pin.id, pin.order);
+    }
+  }
+  return map;
+}
+
+/** Extract chronological [lng, lat] coordinates across geolocated items. */
+export function buildMapRoutePath(items: readonly ItineraryItem[]): [number, number][] {
+  return items
+    .filter((item) => item.latitude !== null && item.longitude !== null)
+    .map((item): [number, number] => [item.longitude!, item.latitude!]);
+}
+
 /** Format a numeric or string amount cleanly with locale thousand separators. */
 export function formatMoney(amount: number | string, maxFractionDigits = 0): string {
   const num = Number(amount);

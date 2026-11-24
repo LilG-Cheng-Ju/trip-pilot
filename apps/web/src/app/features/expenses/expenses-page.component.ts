@@ -12,7 +12,11 @@ import {
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ExpenseCategory } from '../../core/models/tripilot.models';
-import { EXPENSE_CATEGORIES, expenseCategoryKey } from '../../core/utils/travel-format.utils';
+import {
+  EXPENSE_CATEGORIES,
+  expenseCategoryKey,
+  roundFxRate,
+} from '../../core/utils/travel-format.utils';
 import { AppModalComponent } from '../../shared/modal.component';
 import { TripSubnavComponent } from '../../shared/trip-subnav.component';
 import { ExpenseStore } from '../../state/expense.store';
@@ -117,7 +121,7 @@ import { ItineraryStore } from '../../state/itinerary.store';
                   <input
                     type="number"
                     step="any"
-                    min="0.0001"
+                    min="0.000001"
                     class="tabular-nums"
                     [(ngModel)]="exchangeRate"
                     name="exchangeRate"
@@ -453,20 +457,19 @@ import { ItineraryStore } from '../../state/itinerary.store';
     }
     .amount-row {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 78px 114px;
+      grid-template-columns: minmax(0, 1fr) 122px 104px;
       gap: 8px;
       align-items: end;
     }
-    @media (max-width: 420px) {
+    @media (max-width: 440px) {
       .amount-row {
-        grid-template-columns: minmax(0, 1fr) 88px;
+        grid-template-columns: minmax(0, 1fr) 124px;
       }
       .amount-row > :last-child {
         grid-column: 1 / -1;
       }
     }
     .input-currency {
-      text-transform: uppercase;
       font-weight: 600;
       padding: 9px 6px;
     }
@@ -898,7 +901,7 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
     this.fetchingRate.set(true);
     try {
       const res = await this.api.getExchangeRate(src, dst);
-      const rounded = Number(res.rate.toFixed(4));
+      const rounded = roundFxRate(res.rate);
       this.exchangeRate = rounded;
       this.rateSource.set(res.source);
       this.saveRate(src, rounded);
@@ -948,7 +951,7 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
     }
     const stored = this.cache.getFxRate(currency);
     if (stored !== null) {
-      this.exchangeRate = stored;
+      this.exchangeRate = roundFxRate(stored);
     }
   }
 
