@@ -9,6 +9,7 @@ import {
   model,
   OnDestroy,
   output,
+  signal,
   untracked,
   viewChild,
 } from '@angular/core';
@@ -16,7 +17,11 @@ import maplibregl from 'maplibre-gl';
 
 import { COORDINATE_EPSILON } from '../../core/constants/app-limits';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { MapRouteMode } from '../../core/utils/travel-format.utils';
+import {
+  DayMapRoutes,
+  EMPTY_DAY_MAP_ROUTES,
+  MapRouteMode,
+} from '../../core/utils/travel-format.utils';
 
 export interface MapPin {
   id: string;
@@ -84,6 +89,42 @@ const STAY_LEG_LAYER_ID = 'stay-leg-layer';
           <p>{{ emptyText() }}</p>
         </div>
       }
+      <div class="map-attrib" [class.open]="attributionOpen()">
+        @if (attributionOpen()) {
+          <span class="map-attrib-links">
+            <a href="https://openfreemap.org" target="_blank" rel="noopener noreferrer">
+              © OpenFreeMap
+            </a>
+            <span aria-hidden="true">·</span>
+            <a
+              href="https://www.openstreetmap.org/copyright"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              © OpenStreetMap
+            </a>
+          </span>
+        }
+        <button
+          type="button"
+          class="map-attrib-btn"
+          [attr.aria-label]="'map.attribAria' | t"
+          [attr.aria-expanded]="attributionOpen()"
+          (click)="toggleAttribution()"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 16 16"
+            fill="none"
+            aria-hidden="true"
+          >
+            <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.4" />
+            <circle cx="8" cy="4.9" r="0.85" fill="currentColor" />
+            <path d="M8 7.3V11.3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+          </svg>
+        </button>
+      </div>
     </div>
   `,
   styles: `
@@ -154,30 +195,90 @@ const STAY_LEG_LAYER_ID = 'stay-leg-layer';
       font-size: 0.875rem;
       max-width: 260px;
     }
+    .map-attrib {
+      position: absolute;
+      right: 8px;
+      bottom: 8px;
+      z-index: 3;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      max-width: calc(100% - 16px);
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.84);
+      backdrop-filter: blur(6px);
+      border: 1px solid rgba(20, 24, 31, 0.1);
+      box-shadow: 0 1px 4px rgba(20, 24, 31, 0.08);
+    }
+    .map-attrib.open {
+      padding-left: 9px;
+      background: rgba(255, 255, 255, 0.94);
+    }
+    .map-attrib-links {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.6875rem;
+      line-height: 1;
+      color: var(--color-text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .map-attrib-links a {
+      color: inherit;
+      text-decoration: none;
+    }
+    .map-attrib-links a:hover {
+      color: var(--color-primary);
+      text-decoration: underline;
+    }
+    .map-attrib-btn {
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      padding: 0;
+      border: 0;
+      border-radius: 9999px;
+      background: transparent;
+      color: var(--color-text-muted, #64748b);
+      cursor: pointer;
+      transition: color 140ms ease, background-color 140ms ease;
+    }
+    .map-attrib-btn:hover {
+      color: var(--color-primary, #162136);
+      background: rgba(20, 24, 31, 0.05);
+    }
   `,
 })
 export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
   readonly pins = input<MapPin[]>([]);
-  readonly routePath = input<[number, number][]>([]);
-  readonly roadRoutePath = input<[number, number][]>([]);
+  readonly schematicRoutes = input<DayMapRoutes>(EMPTY_DAY_MAP_ROUTES);
+  readonly roadRoutes = input<DayMapRoutes>(EMPTY_DAY_MAP_ROUTES);
+  readonly allowModeToggle = input(false);
   readonly routeMode = model<MapRouteMode>('schematic');
   readonly departureStayPin = input<StayMapPin | null>(null);
   readonly stayPin = input<StayMapPin | null>(null);
-  readonly connectFromStay = input(true);
-  readonly connectToStay = input(true);
   readonly selectedPinId = input<string | null>(null);
   readonly emptyText = input('');
 
   readonly pinSelected = output<string>();
 
+  protected readonly attributionOpen = signal(false);
+
   protected readonly showModeToggle = computed(
-    () => this.routePath().length >= 2 && this.roadRoutePath().length >= 2,
+    () =>
+      this.allowModeToggle() &&
+      (this.schematicRoutes().mainLegs.length > 0 ||
+        this.schematicRoutes().stayLegs.length > 0),
   );
   protected readonly effectiveMode = computed<MapRouteMode>(() =>
-    this.routeMode() === 'road' && this.roadRoutePath().length >= 2 ? 'road' : 'schematic',
+    this.allowModeToggle() && this.routeMode() === 'road' ? 'road' : 'schematic',
   );
-  protected readonly activeRoutePath = computed<[number, number][]>(() =>
-    this.effectiveMode() === 'road' ? this.roadRoutePath() : this.routePath(),
+  protected readonly activeRoutes = computed<DayMapRoutes>(() =>
+    this.effectiveMode() === 'road' ? this.roadRoutes() : this.schematicRoutes(),
   );
 
   private readonly mapContainer = viewChild<ElementRef<HTMLDivElement>>('mapContainer');
@@ -192,37 +293,25 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
       const currentPins = this.pins();
       const depStay = this.departureStayPin();
       const stay = this.stayPin();
-      const fromStay = this.connectFromStay();
-      const toStay = this.connectToStay();
-      this.routePath();
+      this.schematicRoutes();
       if (this.map && this.styleLoaded) {
         this.renderPinsAndRoute(
           currentPins,
-          untracked(() => this.activeRoutePath()),
+          untracked(() => this.activeRoutes()),
           depStay,
           stay,
-          fromStay,
-          toStay,
           untracked(() => this.effectiveMode()),
         );
         this.updateMarkerSelection(untracked(() => this.selectedPinId()));
       }
     });
 
-    // Update route GeoJSON sources in-place when toggling schematic/driving mode.
+    // Update route GeoJSON sources in-place when toggling Overview/Driving mode.
     effect(() => {
-      const activePath = this.activeRoutePath();
+      const routes = this.activeRoutes();
       const mode = this.effectiveMode();
       if (this.map && this.styleLoaded) {
-        this.updateRouteLayers(
-          untracked(() => this.pins()),
-          activePath,
-          untracked(() => this.departureStayPin()),
-          untracked(() => this.stayPin()),
-          untracked(() => this.connectFromStay()),
-          untracked(() => this.connectToStay()),
-          mode,
-        );
+        this.updateRouteLayers(routes, mode);
       }
     });
 
@@ -253,20 +342,15 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
         new maplibregl.NavigationControl({ showCompass: false }),
         'top-right',
       );
-      this.map.addControl(
-        new maplibregl.AttributionControl({ compact: true }),
-        'bottom-right',
-      );
+      this.map.on('movestart', () => this.attributionOpen.set(false));
       this.map.on('load', () => {
         this.styleLoaded = true;
         this.map?.resize();
         this.renderPinsAndRoute(
           this.pins(),
-          this.activeRoutePath(),
+          this.activeRoutes(),
           this.departureStayPin(),
           this.stayPin(),
-          this.connectFromStay(),
-          this.connectToStay(),
           this.effectiveMode(),
         );
         this.updateMarkerSelection(this.selectedPinId());
@@ -275,6 +359,10 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
       // Gracefully degrade in headless/WebGL-less test environments.
       this.map = null;
     }
+  }
+
+  protected toggleAttribution(): void {
+    this.attributionOpen.update((open) => !open);
   }
 
   ngOnDestroy(): void {
@@ -366,33 +454,21 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
     );
   }
 
-  private updateRouteLayers(
-    pins: MapPin[],
-    routePath: [number, number][],
-    departureStay: StayMapPin | null,
-    stay: StayMapPin | null,
-    fromStay: boolean,
-    toStay: boolean,
-    mode: MapRouteMode,
-  ): void {
+  private updateRouteLayers(routes: DayMapRoutes, mode: MapRouteMode): void {
     if (!this.map) {
       return;
     }
 
-    const groundPinCoords: [number, number][] = pins
-      .filter((p) => p.type !== 'FLIGHT')
-      .map((p): [number, number] => [p.lng, p.lat]);
-    const stopCoords: [number, number][] =
-      routePath.length > 0 ? routePath : groundPinCoords;
-    const routeCoords: [number, number][] = routePath.length >= 2 ? routePath : [];
     const lineWidth = mode === 'road' ? 3 : 2.5;
+    const stayWidth = mode === 'road' ? 2.8 : 2.5;
+    const stayDash = mode === 'road' ? [2, 2] : [1.5, 2.5];
 
     const routeGeoJson = {
       type: 'Feature' as const,
       properties: {},
       geometry: {
-        type: 'LineString' as const,
-        coordinates: routeCoords,
+        type: 'MultiLineString' as const,
+        coordinates: routes.mainLegs,
       },
     };
 
@@ -422,28 +498,13 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
       });
     }
 
-    // Subtle champagne-gold dashed connectors: morning leg from departureStay, evening leg to arrivalStay.
-    const stayLegs: [number, number][][] = [];
-    if (stopCoords.length > 0) {
-      if (fromStay && departureStay && !this.samePoint(stopCoords[0], departureStay)) {
-        stayLegs.push([[departureStay.lng, departureStay.lat], stopCoords[0]]);
-      }
-      if (toStay && stay && !this.samePoint(stopCoords[stopCoords.length - 1], stay)) {
-        stayLegs.push([stopCoords[stopCoords.length - 1], [stay.lng, stay.lat]]);
-      }
-    } else if (this.hasHotelChange(departureStay, stay) && departureStay && stay) {
-      stayLegs.push([
-        [departureStay.lng, departureStay.lat],
-        [stay.lng, stay.lat],
-      ]);
-    }
-
+    // Subtle champagne-gold dashed connectors for airport/basecamp hotel transfers.
     const stayLegsGeoJson = {
       type: 'Feature' as const,
       properties: {},
       geometry: {
         type: 'MultiLineString' as const,
-        coordinates: stayLegs,
+        coordinates: routes.stayLegs,
       },
     };
 
@@ -452,6 +513,10 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
       | undefined;
     if (existingStaySource) {
       existingStaySource.setData(stayLegsGeoJson);
+      if (this.map.getLayer(STAY_LEG_LAYER_ID)) {
+        this.map.setPaintProperty(STAY_LEG_LAYER_ID, 'line-width', stayWidth);
+        this.map.setPaintProperty(STAY_LEG_LAYER_ID, 'line-dasharray', stayDash);
+      }
     } else {
       this.map.addSource(STAY_LEG_SOURCE_ID, {
         type: 'geojson',
@@ -464,9 +529,9 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
         layout: { 'line-join': 'round', 'line-cap': 'round' },
         paint: {
           'line-color': this.resolveCssToken('--color-accent', '#c4924c'),
-          'line-width': 2.5,
+          'line-width': stayWidth,
           'line-opacity': 0.85,
-          'line-dasharray': [1.5, 2.5],
+          'line-dasharray': stayDash,
         },
       });
     }
@@ -474,11 +539,9 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
 
   private renderPinsAndRoute(
     pins: MapPin[],
-    routePath: [number, number][],
+    routes: DayMapRoutes,
     departureStay: StayMapPin | null,
     stay: StayMapPin | null,
-    fromStay: boolean,
-    toStay: boolean,
     mode: MapRouteMode,
   ): void {
     if (!this.map) {
@@ -575,7 +638,7 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
       this.markers.push(marker);
     }
 
-    this.updateRouteLayers(pins, routePath, departureStay, stay, fromStay, toStay, mode);
+    this.updateRouteLayers(routes, mode);
 
     const allPoints: [number, number][] = [
       ...pins.map((p): [number, number] => [p.lng, p.lat]),

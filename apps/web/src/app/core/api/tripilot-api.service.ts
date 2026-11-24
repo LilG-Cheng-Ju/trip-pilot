@@ -212,6 +212,12 @@ export class TripilotApiService {
     );
   }
 
+  recalculateOptionRoute(optionId: string): Promise<DayOption> {
+    return firstValueFrom(
+      this.http.post<DayOption>(`${this.baseUrl}/options/${optionId}/recalculate-route`, {}),
+    );
+  }
+
   listShares(tripId: string): Promise<TripShare[]> {
     return firstValueFrom(
       this.http.get<TripShare[]>(`${this.baseUrl}/trips/${tripId}/shares`),

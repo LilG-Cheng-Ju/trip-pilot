@@ -21,3 +21,4 @@ export const SAVE_NOTICE_DURATION_MS = 2000;
 
 export const DAY_STRIP_SCROLL_STEP_PX = 200;
 export const COORDINATE_EPSILON = 1e-5;
+export const MAX_AIRPORT_GROUND_LEG_KM = 350;

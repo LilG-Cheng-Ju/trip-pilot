@@ -114,6 +114,57 @@ class TripService:
             return user.home_country_code.upper()
         return "TW"
 
+    async def _resolve_departure_stay(
+        self, trip_day_id: str, user_id: str
+    ) -> ItineraryItem | None:
+        trip = await self.repo.get_trip_for_day(trip_day_id, user_id)
+        if trip is None:
+            return None
+        target_day = next((d for d in trip.days if d.id == trip_day_id), None)
+        if target_day is None:
+            return None
+        prev_stay: ItineraryItem | None = None
+        for day in trip.days:
+            if day.day_index >= target_day.day_index:
+                break
+            opt = next(
+                (o for o in day.options if o.id == day.active_option_id),
+                day.options[0] if day.options else None,
+            )
+            if opt is None:
+                continue
+            for item in opt.items:
+                if (
+                    item.is_selected
+                    and item.type == ItemType.STAY.value
+                    and item.latitude is not None
+                    and item.longitude is not None
+                ):
+                    prev_stay = item
+        return prev_stay
+
+    async def _recalculate_routes_for_option(
+        self,
+        option: DayOption,
+        items: list[ItineraryItem],
+        user_id: str,
+        *,
+        invalidate_item_ids: set[str] | None = None,
+        force_refresh: bool = False,
+    ) -> None:
+        departure_stay = await self._resolve_departure_stay(
+            option.trip_day_id, user_id
+        )
+        await recalculate_option_routes(
+            self.db,
+            option,
+            items,
+            self.routing_provider,
+            departure_stay=departure_stay,
+            invalidate_item_ids=invalidate_item_ids,
+            force_refresh=force_refresh,
+        )
+
     async def list_trips(
         self, user_id: str, status_filter: str | None = None
     ) -> list[Trip]:
@@ -302,21 +353,21 @@ class TripService:
             )
         await self.db.flush()
         for seg in source.route_segments:
-            new_from_id = item_id_remap.get(seg.from_item_id)
-            new_to_id = item_id_remap.get(seg.to_item_id)
-            if new_from_id and new_to_id:
-                self.db.add(
-                    RouteSegment(
-                        day_option_id=cloned.id,
-                        from_item_id=new_from_id,
-                        to_item_id=new_to_id,
-                        profile=seg.profile,
-                        distance_km=seg.distance_km,
-                        duration_min=seg.duration_min,
-                        geometry_polyline=seg.geometry_polyline,
-                        is_approx=seg.is_approx,
-                    )
+            # Remap same-day items while preserving prior-day inherited stay IDs.
+            new_from_id = item_id_remap.get(seg.from_item_id, seg.from_item_id)
+            new_to_id = item_id_remap.get(seg.to_item_id, seg.to_item_id)
+            self.db.add(
+                RouteSegment(
+                    day_option_id=cloned.id,
+                    from_item_id=new_from_id,
+                    to_item_id=new_to_id,
+                    profile=seg.profile,
+                    distance_km=seg.distance_km,
+                    duration_min=seg.duration_min,
+                    geometry_polyline=seg.geometry_polyline,
+                    is_approx=seg.is_approx,
                 )
+            )
         await self.db.commit()
         return _require_found(
             await self.repo.get_option_for_user(cloned.id, user_id),
@@ -465,12 +516,11 @@ class TripService:
         await self.db.flush()
         if (
             item.is_selected
-            and item.type != ItemType.FLIGHT.value
             and item.latitude is not None
             and item.longitude is not None
         ):
-            await recalculate_option_routes(
-                self.db, option, [*option.items, item], self.routing_provider
+            await self._recalculate_routes_for_option(
+                option, [*option.items, item], user_id
             )
         await self.db.commit()
         await self.db.refresh(item)
@@ -494,9 +544,7 @@ class TripService:
         else:
             item.is_selected = True
 
-        await recalculate_option_routes(
-            self.db, option, option.items, self.routing_provider
-        )
+        await self._recalculate_routes_for_option(option, option.items, user_id)
         await self.db.commit()
         self.db.expire(option, ["items", "route_segments"])
         return _require_found(
@@ -512,8 +560,8 @@ class TripService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Day option not found"
             )
-        await recalculate_option_routes(
-            self.db, option, option.items, self.routing_provider
+        await self._recalculate_routes_for_option(
+            option, option.items, user_id, force_refresh=True
         )
         await self.db.commit()
         self.db.expire(option, ["route_segments"])
@@ -534,6 +582,7 @@ class TripService:
         if "type" in updates and updates["type"] is not None:
             updates["type"] = updates["type"].value
         next_type = updates.get("type", item.type)
+        iata_changed = False
         if "details" in updates and updates["details"] is not None:
             new_details = updates["details"]
             iata_changed = next_type == ItemType.FLIGHT.value and (
@@ -558,7 +607,7 @@ class TripService:
                 updates["latitude"] = lat
                 updates["longitude"] = lng
 
-        needs_route_recalc = any(
+        needs_route_recalc = iata_changed or any(
             field in updates
             for field in ("latitude", "longitude", "type", "sort_order", "is_selected")
         )
@@ -569,8 +618,11 @@ class TripService:
         if needs_route_recalc:
             option = await self.repo.get_option_for_user(item.day_option_id, user_id)
             if option is not None:
-                await recalculate_option_routes(
-                    self.db, option, option.items, self.routing_provider
+                await self._recalculate_routes_for_option(
+                    option,
+                    option.items,
+                    user_id,
+                    invalidate_item_ids={item.id},
                 )
 
         await self.db.commit()
@@ -607,9 +659,7 @@ class TripService:
                         and siblings[0].longitude is not None
                     )
             if had_coords or promoted_has_coords:
-                await recalculate_option_routes(
-                    self.db, option, remaining, self.routing_provider
-                )
+                await self._recalculate_routes_for_option(option, remaining, user_id)
         await self.db.commit()
 
     async def reorder_items(
@@ -629,9 +679,7 @@ class TripService:
         for index, item_id in enumerate(item_ids):
             items_by_id[item_id].sort_order = index
         await self.db.flush()
-        await recalculate_option_routes(
-            self.db, option, option.items, self.routing_provider
-        )
+        await self._recalculate_routes_for_option(option, option.items, user_id)
         await self.db.commit()
         # Expire cached relationship order so SQLAlchemy reloads by updated sort_order.
         self.db.expire(option, ["items", "route_segments"])

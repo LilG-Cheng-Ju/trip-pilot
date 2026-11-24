@@ -13,6 +13,7 @@ from app.core.constants import (
     MAX_TRIP_DATE_SPAN_DAYS,
 )
 from app.models.enums import ItemType, RouteProfile, TripStatus
+from app.services.airport_service import infer_flight_airport_role
 
 SENSITIVE_DETAIL_KEYS: frozenset[str] = frozenset(
     {"booking_ref", "confirmation_code", "reservation_code", "attachments"}
@@ -152,6 +153,16 @@ class ItineraryItemResponse(BaseModel):
     details: dict[str, Any]
     choice_group_id: str | None = None
     is_selected: bool = True
+
+    @model_validator(mode="after")
+    def _populate_flight_airport_role(self) -> "ItineraryItemResponse":
+        if self.type == ItemType.FLIGHT and "airport_role" not in self.details:
+            role = infer_flight_airport_role(
+                self.details, self.latitude, self.longitude
+            )
+            if role:
+                self.details = {**self.details, "airport_role": role}
+        return self
 
 
 class DayOptionCreate(BaseModel):

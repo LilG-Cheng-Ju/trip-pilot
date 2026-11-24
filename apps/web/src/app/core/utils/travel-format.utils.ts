@@ -1,3 +1,4 @@
+import { COORDINATE_EPSILON, MAX_AIRPORT_GROUND_LEG_KM } from '../constants/app-limits';
 import {
   DayOption,
   ExpenseCategory,
@@ -395,6 +396,45 @@ function appendUniquePoint(coords: [number, number][], point: [number, number]):
 
 export type MapRouteMode = 'schematic' | 'road';
 
+export interface DayMapRoutes {
+  mainLegs: [number, number][][];
+  stayLegs: [number, number][][];
+  expectedPairs: string[];
+}
+
+export const EMPTY_DAY_MAP_ROUTES: DayMapRoutes = {
+  mainLegs: [],
+  stayLegs: [],
+  expectedPairs: [],
+};
+
+function haversineDistanceKm(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+): number {
+  const earthRadiusKm = 6371.0088;
+  const toRad = Math.PI / 180;
+  const phi1 = lat1 * toRad;
+  const phi2 = lat2 * toRad;
+  const dPhi = (lat2 - lat1) * toRad;
+  const dLambda = (lng2 - lng1) * toRad;
+  const a =
+    Math.sin(dPhi / 2) ** 2 +
+    Math.cos(phi1) * Math.cos(phi2) * Math.sin(dLambda / 2) ** 2;
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function appendSegmentCoords(
+  target: [number, number][],
+  points: readonly [number, number][],
+): void {
+  for (const pt of points) {
+    appendUniquePoint(target, pt);
+  }
+}
+
 /** Generate a subtle quadratic Bezier curve between two [lng, lat] points using local cos(lat) scaling. */
 export function buildSchematicCurve(
   from: [number, number],
@@ -425,22 +465,111 @@ export function buildSchematicCurve(
   return points;
 }
 
-/** Build ground route [lng, lat] coordinates as editorial curves (default) or cached road polylines. */
-export function buildMapRoutePath(
+/** Build Overview curved or Driving road polylines for daily stops, airport transfers, and stay legs. */
+export function buildDayMapRoutes(
   items: readonly ItineraryItem[],
   routeSegments: readonly RouteSegment[] = [],
   mode: MapRouteMode = 'schematic',
-): [number, number][] {
-  const groundItems = items.filter(
-    (item) =>
-      item.latitude !== null &&
-      item.longitude !== null &&
-      item.type !== 'FLIGHT' &&
-      item.type !== 'LOCAL_TRANSIT',
-  );
-  if (groundItems.length < 2) {
-    return [];
-  }
+  departureStay: ItineraryItem | null = null,
+  arrivalStay: ItineraryItem | null = null,
+): DayMapRoutes {
+  const geolocated = items
+    .filter((item) => item.latitude !== null && item.longitude !== null)
+    .sort((a, b) => a.sort_order - b.sort_order);
+
+  // Keep explicit STAY items in chronological sort_order so Flight -> Hotel -> Dinner renders in sequence.
+  const stops = geolocated.filter((item) => item.type !== 'LOCAL_TRANSIT');
+  const explicitStays = geolocated.filter((item) => item.type === 'STAY');
+  const effectiveDepartureStay =
+    departureStay && departureStay.latitude !== null && departureStay.longitude !== null
+      ? departureStay
+      : null;
+  const effectiveArrivalStay =
+    arrivalStay && arrivalStay.latitude !== null && arrivalStay.longitude !== null
+      ? arrivalStay
+      : (explicitStays[explicitStays.length - 1] ?? effectiveDepartureStay);
+
+  const resolveFlightRole = (
+    item: ItineraryItem,
+    idxInStops: number | null,
+  ): 'ARRIVAL' | 'DEPARTURE' => {
+    const raw = item.details['airport_role'];
+    if (raw === 'ARRIVAL' || raw === 'DEPARTURE') {
+      return raw;
+    }
+    if (idxInStops !== null) {
+      if (idxInStops + 1 < stops.length) {
+        const nxt = stops[idxInStops + 1];
+        if (
+          nxt.type !== 'FLIGHT' &&
+          haversineDistanceKm(item.latitude!, item.longitude!, nxt.latitude!, nxt.longitude!) <=
+            MAX_AIRPORT_GROUND_LEG_KM
+        ) {
+          return 'ARRIVAL';
+        }
+      }
+      if (idxInStops > 0) {
+        const prv = stops[idxInStops - 1];
+        if (
+          prv.type !== 'FLIGHT' &&
+          haversineDistanceKm(prv.latitude!, prv.longitude!, item.latitude!, item.longitude!) <=
+            MAX_AIRPORT_GROUND_LEG_KM
+        ) {
+          return 'DEPARTURE';
+        }
+      }
+    }
+    if (explicitStays.length > 0) {
+      return 'ARRIVAL';
+    }
+    if (effectiveDepartureStay !== null) {
+      return 'DEPARTURE';
+    }
+    return 'ARRIVAL';
+  };
+
+  const isValidLeg = (
+    a: ItineraryItem,
+    b: ItineraryItem,
+    aIdx: number | null,
+    bIdx: number | null,
+  ): boolean => {
+    if (a.id === b.id) {
+      return false;
+    }
+    if (
+      Math.abs(a.latitude! - b.latitude!) < COORDINATE_EPSILON &&
+      Math.abs(a.longitude! - b.longitude!) < COORDINATE_EPSILON
+    ) {
+      return false;
+    }
+    if (a.type === 'FLIGHT' && b.type === 'FLIGHT') {
+      return false;
+    }
+    if (a.type === 'FLIGHT') {
+      if (resolveFlightRole(a, aIdx) === 'DEPARTURE') {
+        return false;
+      }
+      if (
+        haversineDistanceKm(a.latitude!, a.longitude!, b.latitude!, b.longitude!) >
+        MAX_AIRPORT_GROUND_LEG_KM
+      ) {
+        return false;
+      }
+    }
+    if (b.type === 'FLIGHT') {
+      if (resolveFlightRole(b, bIdx) === 'ARRIVAL') {
+        return false;
+      }
+      if (
+        haversineDistanceKm(a.latitude!, a.longitude!, b.latitude!, b.longitude!) >
+        MAX_AIRPORT_GROUND_LEG_KM
+      ) {
+        return false;
+      }
+    }
+    return true;
+  };
 
   const segmentsByPair = new Map<string, RouteSegment>();
   if (mode === 'road') {
@@ -449,30 +578,91 @@ export function buildMapRoutePath(
     }
   }
 
-  const coords: [number, number][] = [];
-  for (let i = 0; i < groundItems.length - 1; i++) {
-    const prev = groundItems[i];
-    const next = groundItems[i + 1];
-    const from: [number, number] = [prev.longitude!, prev.latitude!];
-    const to: [number, number] = [next.longitude!, next.latitude!];
-
+  const buildLegCoords = (a: ItineraryItem, b: ItineraryItem): [number, number][] => {
+    const from: [number, number] = [a.longitude!, a.latitude!];
+    const to: [number, number] = [b.longitude!, b.latitude!];
     if (mode === 'schematic') {
-      for (const pt of buildSchematicCurve(from, to)) {
-        appendUniquePoint(coords, pt);
+      return buildSchematicCurve(from, to);
+    }
+    const seg = segmentsByPair.get(`${a.id}->${b.id}`);
+    const decoded = seg?.geometry_polyline ? decodePolyline(seg.geometry_polyline) : [];
+    return decoded.length >= 2 ? decoded : [from, to];
+  };
+
+  const mainLegs: [number, number][][] = [];
+  const stayLegs: [number, number][][] = [];
+  const expectedPairs: string[] = [];
+  const seenPairs = new Set<string>();
+
+  const recordPair = (key: string): boolean => {
+    if (seenPairs.has(key)) {
+      return false;
+    }
+    seenPairs.add(key);
+    expectedPairs.push(key);
+    return true;
+  };
+
+  if (stops.length > 0) {
+    if (effectiveDepartureStay && isValidLeg(effectiveDepartureStay, stops[0], null, 0)) {
+      const key = `${effectiveDepartureStay.id}->${stops[0].id}`;
+      if (recordPair(key)) {
+        stayLegs.push(buildLegCoords(effectiveDepartureStay, stops[0]));
       }
-      continue;
     }
 
-    const seg = segmentsByPair.get(`${prev.id}->${next.id}`);
-    const decoded = seg?.geometry_polyline ? decodePolyline(seg.geometry_polyline) : [];
-    if (decoded.length >= 2) {
-      for (const pt of decoded) {
-        appendUniquePoint(coords, pt);
+    let currentLine: [number, number][] = [];
+    for (let i = 0; i < stops.length - 1; i++) {
+      const a = stops[i];
+      const b = stops[i + 1];
+      if (!isValidLeg(a, b, i, i + 1)) {
+        if (currentLine.length >= 2) {
+          mainLegs.push(currentLine);
+        }
+        currentLine = [];
+        continue;
       }
-    } else {
-      appendUniquePoint(coords, from);
-      appendUniquePoint(coords, to);
+      const key = `${a.id}->${b.id}`;
+      if (recordPair(key)) {
+        appendSegmentCoords(currentLine, buildLegCoords(a, b));
+      }
     }
+    if (currentLine.length >= 2) {
+      mainLegs.push(currentLine);
+    }
+
+    const lastIdx = stops.length - 1;
+    const lastStop = stops[lastIdx];
+    if (effectiveArrivalStay && isValidLeg(lastStop, effectiveArrivalStay, lastIdx, null)) {
+      const key = `${lastStop.id}->${effectiveArrivalStay.id}`;
+      if (recordPair(key)) {
+        stayLegs.push(buildLegCoords(lastStop, effectiveArrivalStay));
+      }
+    }
+  } else if (
+    effectiveDepartureStay &&
+    effectiveArrivalStay &&
+    isValidLeg(effectiveDepartureStay, effectiveArrivalStay, null, null)
+  ) {
+    const key = `${effectiveDepartureStay.id}->${effectiveArrivalStay.id}`;
+    if (recordPair(key)) {
+      stayLegs.push(buildLegCoords(effectiveDepartureStay, effectiveArrivalStay));
+    }
+  }
+
+  return { mainLegs, stayLegs, expectedPairs };
+}
+
+/** Build flat ground route [lng, lat] coordinates as Overview curves or cached road polylines. */
+export function buildMapRoutePath(
+  items: readonly ItineraryItem[],
+  routeSegments: readonly RouteSegment[] = [],
+  mode: MapRouteMode = 'schematic',
+): [number, number][] {
+  const { mainLegs } = buildDayMapRoutes(items, routeSegments, mode);
+  const coords: [number, number][] = [];
+  for (const line of mainLegs) {
+    appendSegmentCoords(coords, line);
   }
   return coords;
 }

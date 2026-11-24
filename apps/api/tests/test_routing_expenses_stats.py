@@ -344,3 +344,123 @@ async def test_flight_uses_user_home_country_and_expenses_normalize_home_currenc
     ).json()
     assert stats["home_currency"] == "JPY"
     assert stats["total_spend_home"] == "1000.00"
+
+
+@pytest.mark.asyncio
+async def test_airport_and_inherited_stay_ground_routing(
+    api_client: AsyncClient, dev_headers: dict[str, str]
+) -> None:
+    trip = (
+        await api_client.post(
+            "/api/v1/trips",
+            headers=dev_headers,
+            json={
+                "title": "Tokyo Transfers",
+                "country_codes": ["JP"],
+                "start_date": "2026-12-01",
+                "end_date": "2026-12-03",
+                "default_currency": "JPY",
+            },
+        )
+    ).json()
+    opt1_id = trip["days"][0]["active_option_id"]
+    opt2_id = trip["days"][1]["active_option_id"]
+    opt3_id = trip["days"][2]["active_option_id"]
+
+    mock_leg = RouteLegResult(
+        distance_km=15.0,
+        duration_min=25,
+        geometry_polyline="poly_leg",
+        is_approx=False,
+    )
+    with patch(
+        "app.services.routing.OsrmRoutingProvider.compute_leg",
+        new=AsyncMock(return_value=mock_leg),
+    ):
+        flight_arr = (
+            await api_client.post(
+                f"/api/v1/options/{opt1_id}/items",
+                headers=dev_headers,
+                json={
+                    "type": "FLIGHT",
+                    "title": "TPE -> NRT",
+                    "details": {"origin_iata": "TPE", "dest_iata": "NRT"},
+                },
+            )
+        ).json()
+        assert flight_arr["details"]["airport_role"] == "ARRIVAL"
+
+        stay = (
+            await api_client.post(
+                f"/api/v1/options/{opt1_id}/items",
+                headers=dev_headers,
+                json={
+                    "type": "STAY",
+                    "title": "Shinjuku Basecamp",
+                    "latitude": 35.6909,
+                    "longitude": 139.7003,
+                },
+            )
+        ).json()
+
+        # Single-stop Day 2 should round-trip from/to the inherited Day 1 stay.
+        spot2 = (
+            await api_client.post(
+                f"/api/v1/options/{opt2_id}/items",
+                headers=dev_headers,
+                json={
+                    "type": "SPOT",
+                    "title": "Mt. Fuji Viewpoint",
+                    "latitude": 35.3606,
+                    "longitude": 138.7274,
+                },
+            )
+        ).json()
+
+        # Day 3 connects inherited stay -> Ueno -> departure airport (no stay return).
+        spot3 = (
+            await api_client.post(
+                f"/api/v1/options/{opt3_id}/items",
+                headers=dev_headers,
+                json={
+                    "type": "SPOT",
+                    "title": "Ueno Park",
+                    "latitude": 35.7148,
+                    "longitude": 139.7745,
+                },
+            )
+        ).json()
+        flight_dep = (
+            await api_client.post(
+                f"/api/v1/options/{opt3_id}/items",
+                headers=dev_headers,
+                json={
+                    "type": "FLIGHT",
+                    "title": "NRT -> TPE",
+                    "details": {"origin_iata": "NRT", "dest_iata": "TPE"},
+                },
+            )
+        ).json()
+        assert flight_dep["details"]["airport_role"] == "DEPARTURE"
+
+    detail = (
+        await api_client.get(f"/api/v1/trips/{trip['id']}", headers=dev_headers)
+    ).json()
+
+    day1_pairs = [
+        (s["from_item_id"], s["to_item_id"])
+        for s in detail["days"][0]["options"][0]["route_segments"]
+    ]
+    assert day1_pairs == [(flight_arr["id"], stay["id"])]
+
+    day2_pairs = [
+        (s["from_item_id"], s["to_item_id"])
+        for s in detail["days"][1]["options"][0]["route_segments"]
+    ]
+    assert day2_pairs == [(stay["id"], spot2["id"]), (spot2["id"], stay["id"])]
+
+    day3_pairs = [
+        (s["from_item_id"], s["to_item_id"])
+        for s in detail["days"][2]["options"][0]["route_segments"]
+    ]
+    assert day3_pairs == [(stay["id"], spot3["id"]), (spot3["id"], flight_dep["id"])]

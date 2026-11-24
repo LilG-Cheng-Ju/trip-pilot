@@ -17,8 +17,9 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ItineraryItem, PublicTrip } from '../../core/models/tripilot.models';
 import {
   buildDayMapPins,
-  buildMapRoutePath,
+  buildDayMapRoutes,
   buildPinOrderMap,
+  DayMapRoutes,
   groupItemsIntoSlots,
   ItinerarySlot,
   toStayMapPin,
@@ -188,11 +189,9 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
         <aside class="desktop-map-pane">
           <app-itinerary-map
             [pins]="mapPins()"
-            [routePath]="mapRoutePath()"
+            [schematicRoutes]="schematicMapRoutes()"
             [departureStayPin]="departureStayMapPin()"
             [stayPin]="stayMapPin()"
-            [connectFromStay]="connectFromStay()"
-            [connectToStay]="connectToStay()"
             [selectedPinId]="selectedItemId()"
             (pinSelected)="selectedItemId.set($event)"
           />
@@ -215,11 +214,9 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
           [dayLabel]="selectedDayLabel()"
           [readOnly]="true"
           [pins]="mapPins()"
-          [routePath]="mapRoutePath()"
+          [schematicRoutes]="schematicMapRoutes()"
           [departureStayPin]="departureStayMapPin()"
           [stayPin]="stayMapPin()"
-          [connectFromStay]="connectFromStay()"
-          [connectToStay]="connectToStay()"
           [selectedPinId]="selectedItemId()"
           [selectedItem]="selectedMapItem()"
           [selectedPinOrder]="selectedMapItem() ? (pinOrderById().get(selectedMapItem()!.id) ?? null) : null"
@@ -637,19 +634,15 @@ export class PublicSharePageComponent implements OnInit {
     toStayMapPin(this.arrivalStay()),
   );
 
-  protected readonly connectFromStay = computed(() => {
-    const items = this.activeItems();
-    return items.length > 0 && items[0].type !== 'FLIGHT';
-  });
-
-  protected readonly connectToStay = computed(() => {
-    const items = this.activeItems();
-    return items.length > 0 && items[items.length - 1].type !== 'FLIGHT';
-  });
-
   // Public share stays lightweight: editorial Bezier curves render client-side with zero road geometry payload.
-  protected readonly mapRoutePath = computed<[number, number][]>(() =>
-    buildMapRoutePath(this.activeItems()),
+  protected readonly schematicMapRoutes = computed<DayMapRoutes>(() =>
+    buildDayMapRoutes(
+      this.activeItems(),
+      [],
+      'schematic',
+      this.departureStay(),
+      this.arrivalStay(),
+    ),
   );
 
   protected readonly mapPins = computed<MapPin[]>(() =>

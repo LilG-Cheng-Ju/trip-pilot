@@ -254,6 +254,7 @@ export const MESSAGES_ZH_TW: Record<TranslationKey, string> = {
   'map.modeSchematic': '示意',
   'map.modeRoad': '自駕',
   'map.modeAria': '地圖路線顯示模式',
+  'map.attribAria': '地圖圖資來源',
   'sync.syncing': '同步中...',
   'sync.offlineCache': '離線快取檢視',
   'sync.wakingServer': '正在連線伺服器（冷啟動約需數秒，請稍候）...',

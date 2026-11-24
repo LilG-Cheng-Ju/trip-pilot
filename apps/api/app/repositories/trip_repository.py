@@ -54,6 +54,15 @@ class TripRepository:
         )
         return await self.db.scalar(stmt)
 
+    async def get_trip_for_day(self, day_id: str, user_id: str) -> Trip | None:
+        stmt = (
+            select(Trip)
+            .join(TripDay, TripDay.trip_id == Trip.id)
+            .where(TripDay.id == day_id, Trip.user_id == user_id)
+            .options(_trip_detail_options())
+        )
+        return await self.db.scalar(stmt)
+
     async def get_option_for_user(
         self, option_id: str, user_id: str
     ) -> DayOption | None:

@@ -5,6 +5,8 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ItineraryItem } from '../../core/models/tripilot.models';
 import {
   buildGoogleMapsUrl,
+  DayMapRoutes,
+  EMPTY_DAY_MAP_ROUTES,
   getItemDetailString,
   MapRouteMode,
 } from '../../core/utils/travel-format.utils';
@@ -45,14 +47,13 @@ import { ItineraryMapComponent, MapPin, StayMapPin } from './itinerary-map.compo
       <div class="sheet-map-body">
         <app-itinerary-map
           [pins]="pins()"
-          [routePath]="routePath()"
-          [roadRoutePath]="roadRoutePath()"
+          [schematicRoutes]="schematicRoutes()"
+          [roadRoutes]="roadRoutes()"
+          [allowModeToggle]="allowModeToggle()"
           [routeMode]="routeMode()"
           (routeModeChange)="routeModeChange.emit($event)"
           [departureStayPin]="departureStayPin()"
           [stayPin]="stayPin()"
-          [connectFromStay]="connectFromStay()"
-          [connectToStay]="connectToStay()"
           [selectedPinId]="selectedPinId()"
           (pinSelected)="pinSelected.emit($event)"
         />
@@ -331,13 +332,12 @@ export class MobileMapSheetComponent {
   readonly dayLabel = input('');
   readonly readOnly = input(false);
   readonly pins = input<MapPin[]>([]);
-  readonly routePath = input<[number, number][]>([]);
-  readonly roadRoutePath = input<[number, number][]>([]);
+  readonly schematicRoutes = input<DayMapRoutes>(EMPTY_DAY_MAP_ROUTES);
+  readonly roadRoutes = input<DayMapRoutes>(EMPTY_DAY_MAP_ROUTES);
+  readonly allowModeToggle = input(false);
   readonly routeMode = input<MapRouteMode>('schematic');
   readonly departureStayPin = input<StayMapPin | null>(null);
   readonly stayPin = input<StayMapPin | null>(null);
-  readonly connectFromStay = input(true);
-  readonly connectToStay = input(true);
   readonly selectedPinId = input<string | null>(null);
   readonly selectedItem = input<ItineraryItem | null>(null);
   readonly selectedPinOrder = input<number | null>(null);

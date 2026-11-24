@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
+from app.core.constants import AIRPORT_COORD_MATCH_DEG
+
 EARTH_RADIUS_KM = 6371.0088
 
 
@@ -58,6 +60,31 @@ def haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
 def get_airport(iata: str) -> AirportEntry | None:
     """Look up an airport by its 3-letter IATA code."""
     return _load_airports().get(iata.strip().upper())
+
+
+def infer_flight_airport_role(
+    details: dict[str, object], lat: float | None, lng: float | None
+) -> str | None:
+    """Infer whether a flight map pin represents the arrival or departure airport."""
+    if lat is None or lng is None:
+        return None
+    origin_code = details.get("origin_iata")
+    dest_code = details.get("dest_iata")
+    origin = get_airport(origin_code) if isinstance(origin_code, str) else None
+    dest = get_airport(dest_code) if isinstance(dest_code, str) else None
+    if (
+        dest
+        and abs(lat - dest.latitude) <= AIRPORT_COORD_MATCH_DEG
+        and abs(lng - dest.longitude) <= AIRPORT_COORD_MATCH_DEG
+    ):
+        return "ARRIVAL"
+    if (
+        origin
+        and abs(lat - origin.latitude) <= AIRPORT_COORD_MATCH_DEG
+        and abs(lng - origin.longitude) <= AIRPORT_COORD_MATCH_DEG
+    ):
+        return "DEPARTURE"
+    return None
 
 
 def compute_flight_distance_km(origin_iata: str, dest_iata: str) -> float | None:

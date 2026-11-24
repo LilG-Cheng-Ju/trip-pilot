@@ -1,4 +1,14 @@
-import { Component, computed, ElementRef, inject, OnInit, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  computed,
+  effect,
+  ElementRef,
+  inject,
+  OnInit,
+  signal,
+  untracked,
+  viewChild,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
@@ -10,9 +20,10 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ItineraryItem } from '../../core/models/tripilot.models';
 import {
   buildDayMapPins,
+  buildDayMapRoutes,
   buildGoogleMapsUrl,
-  buildMapRoutePath,
   buildPinOrderMap,
+  DayMapRoutes,
   getItemDetailString,
   groupItemsIntoSlots,
   ItinerarySlot,
@@ -303,14 +314,13 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
         <aside class="desktop-map-pane">
           <app-itinerary-map
             [pins]="mapPins()"
-            [routePath]="mapRoutePath()"
-            [roadRoutePath]="mapRoadRoutePath()"
+            [schematicRoutes]="schematicMapRoutes()"
+            [roadRoutes]="roadMapRoutes()"
+            [allowModeToggle]="true"
             [routeMode]="store.mapRouteMode()"
             (routeModeChange)="store.setMapRouteMode($event)"
             [departureStayPin]="departureStayMapPin()"
             [stayPin]="stayMapPin()"
-            [connectFromStay]="connectFromStay()"
-            [connectToStay]="connectToStay()"
             [selectedPinId]="store.selectedItemId()"
             (pinSelected)="store.selectItem($event)"
           />
@@ -334,14 +344,13 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
         <app-mobile-map-sheet
           [dayLabel]="selectedDayLabel()"
           [pins]="mapPins()"
-          [routePath]="mapRoutePath()"
-          [roadRoutePath]="mapRoadRoutePath()"
+          [schematicRoutes]="schematicMapRoutes()"
+          [roadRoutes]="roadMapRoutes()"
+          [allowModeToggle]="true"
           [routeMode]="store.mapRouteMode()"
           (routeModeChange)="store.setMapRouteMode($event)"
           [departureStayPin]="departureStayMapPin()"
           [stayPin]="stayMapPin()"
-          [connectFromStay]="connectFromStay()"
-          [connectToStay]="connectToStay()"
           [selectedPinId]="store.selectedItemId()"
           [selectedItem]="selectedMapItem()"
           [selectedPinOrder]="selectedMapItem() ? (pinOrderById().get(selectedMapItem()!.id) ?? null) : null"
@@ -1147,6 +1156,20 @@ export class ItineraryPageComponent implements OnInit {
   protected includeNotes = false;
   protected includeBackups = false;
 
+  constructor() {
+    // Automatically backfill OSRM segments when switching to Driving on legacy days.
+    effect(() => {
+      if (this.store.mapRouteMode() !== 'road') {
+        return;
+      }
+      const option = this.store.selectedOption();
+      const expected = this.roadMapRoutes().expectedPairs;
+      if (option && expected.length > 0) {
+        untracked(() => void this.store.ensureOptionRoadRoutes(option.id, expected));
+      }
+    });
+  }
+
   protected readonly canCloneCurrentOption = computed(
     () => (this.store.selectedOption()?.items.length ?? 0) > 0,
   );
@@ -1165,41 +1188,27 @@ export class ItineraryPageComponent implements OnInit {
     toStayMapPin(this.store.basecampStay()),
   );
 
-  protected readonly connectFromStay = computed(() => {
-    const slots = this.timelineSlots();
-    if (slots.length === 0) return false;
-    // Skip departure leg from hotel on arrival days that begin with a flight.
-    return slots[0].activeItem.type !== 'FLIGHT';
-  });
-
-  protected readonly connectToStay = computed(() => {
-    const slots = this.timelineSlots();
-    if (slots.length === 0) return false;
-    // Skip return leg to hotel on departure days that end with a flight.
-    return slots[slots.length - 1].activeItem.type !== 'FLIGHT';
-  });
-
-  /** Editorial curved map path connecting chronological ground stops client-side. */
-  protected readonly mapRoutePath = computed<[number, number][]>(() =>
-    buildMapRoutePath(
+  /** Overview curved map routes connecting daily stops, airports, and basecamp stays. */
+  protected readonly schematicMapRoutes = computed<DayMapRoutes>(() =>
+    buildDayMapRoutes(
       this.timelineSlots().map((slot) => slot.activeItem),
       [],
       'schematic',
+      this.store.departureStay(),
+      this.store.basecampStay(),
     ),
   );
 
-  /** Road route path decoded from cached OSRM polylines when road segments are available. */
-  protected readonly mapRoadRoutePath = computed<[number, number][]>(() => {
-    const segments = this.store.selectedOption()?.route_segments ?? [];
-    if (!segments.some((seg) => Boolean(seg.geometry_polyline))) {
-      return [];
-    }
-    return buildMapRoutePath(
+  /** Driving polylines decoded from cached OSRM segments with straight-line fallbacks. */
+  protected readonly roadMapRoutes = computed<DayMapRoutes>(() =>
+    buildDayMapRoutes(
       this.timelineSlots().map((slot) => slot.activeItem),
-      segments,
+      this.store.selectedOption()?.route_segments ?? [],
       'road',
-    );
-  });
+      this.store.departureStay(),
+      this.store.basecampStay(),
+    ),
+  );
 
   protected readonly mapPins = computed<MapPin[]>(() =>
     buildDayMapPins(

@@ -160,6 +160,7 @@ export const ItineraryStore = signalStore(
       cache = inject(OfflineCacheService),
     ) => {
       let loadTripSeq = 0;
+      const recalculatedOptionIds = new Set<string>();
 
       const commitTrip = (nextTrip: TripDetail): void => {
         cache.set(`trip.${nextTrip.id}`, nextTrip);
@@ -215,12 +216,69 @@ export const ItineraryStore = signalStore(
           patchState(store, { mapRouteMode });
         },
 
+        async ensureOptionRoadRoutes(
+          optionId: string,
+          expectedPairs: readonly string[],
+        ): Promise<void> {
+          if (
+            !optionId ||
+            expectedPairs.length === 0 ||
+            store.usingOfflineCache() ||
+            recalculatedOptionIds.has(optionId)
+          ) {
+            return;
+          }
+          const trip = store.trip();
+          if (!trip) {
+            return;
+          }
+          let targetOption: TripDetail['days'][number]['options'][number] | undefined;
+          for (const day of trip.days) {
+            targetOption = day.options.find((opt) => opt.id === optionId);
+            if (targetOption) break;
+          }
+          if (!targetOption) {
+            return;
+          }
+
+          const cachedPairs = new Set(
+            targetOption.route_segments.map((s) => `${s.from_item_id}->${s.to_item_id}`),
+          );
+          if (expectedPairs.every((pair) => cachedPairs.has(pair))) {
+            return;
+          }
+
+          recalculatedOptionIds.add(optionId);
+          try {
+            const updatedOption = await api.recalculateOptionRoute(optionId);
+            const latest = store.trip();
+            if (!latest || latest.id !== trip.id) {
+              return;
+            }
+            const mergedTrip: TripDetail = {
+              ...latest,
+              days: latest.days.map((day) => ({
+                ...day,
+                options: day.options.map((opt) =>
+                  opt.id === updatedOption.id ? updatedOption : opt,
+                ),
+              })),
+            };
+            commitTrip(mergedTrip);
+          } catch {
+            // Keep client-side fallback polylines if background OSRM backfill fails.
+          }
+        },
+
         toggleMobileMap(): void {
           patchState(store, { mobileMapOpen: !store.mobileMapOpen() });
         },
 
         async loadTrip(tripId: string): Promise<void> {
           const seq = ++loadTripSeq;
+          if (store.trip()?.id !== tripId) {
+            recalculatedOptionIds.clear();
+          }
           const cached = cache.get<TripDetail>(`trip.${tripId}`);
           const hasCurrent = store.trip()?.id === tripId;
 
@@ -401,6 +459,7 @@ export const ItineraryStore = signalStore(
           if (!trip) {
             return;
           }
+          recalculatedOptionIds.clear();
 
           // Optimistic 0ms UI flip so cards & map switch immediately before OSRM finishes.
           let targetGroupId: string | null = null;
@@ -466,6 +525,7 @@ export const ItineraryStore = signalStore(
           if (!trip) {
             return;
           }
+          recalculatedOptionIds.clear();
           try {
             const updatedDay = await api.setActiveOption(dayId, optionId);
             const nextTrip: TripDetail = {
@@ -488,6 +548,7 @@ export const ItineraryStore = signalStore(
           if (!option || !trip) {
             return;
           }
+          recalculatedOptionIds.clear();
           try {
             const created = await api.addItem(option.id, payload);
             const nextTrip: TripDetail = {
@@ -525,6 +586,7 @@ export const ItineraryStore = signalStore(
           if (!trip) {
             return;
           }
+          recalculatedOptionIds.clear();
           let prevItem: ItineraryItem | undefined;
           for (const day of trip.days) {
             for (const opt of day.options) {
@@ -563,6 +625,7 @@ export const ItineraryStore = signalStore(
           if (!trip) {
             return;
           }
+          recalculatedOptionIds.clear();
           let deletedItem: ItineraryItem | undefined;
           for (const day of trip.days) {
             for (const opt of day.options) {
@@ -609,6 +672,7 @@ export const ItineraryStore = signalStore(
           if (!option || !trip) {
             return;
           }
+          recalculatedOptionIds.clear();
           // Group items by slot (choice_group_id) so moving skips hidden alternatives.
           const slots = groupItemsIntoSlots(option.items);
 
@@ -695,6 +759,7 @@ export const ItineraryStore = signalStore(
 
         reset(): void {
           loadTripSeq += 1;
+          recalculatedOptionIds.clear();
           patchState(store, initialState);
         },
       };

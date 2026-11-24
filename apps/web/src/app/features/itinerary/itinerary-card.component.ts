@@ -36,7 +36,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
         <div class="connector-line" aria-hidden="true"></div>
         <div class="connector-pill">
           <span class="ms-icon sm" aria-hidden="true">subway</span>
-          <span class="connector-title">{{ item().title }}</span>
+          <span class="connector-title" [title]="item().title">{{ item().title }}</span>
           @if (detail('duration_minutes')) {
             <span class="tabular-nums connector-dur">· {{ detail('duration_minutes') }} min</span>
           }
@@ -55,24 +55,6 @@ import { ItemExpenseSummary } from '../../state/expense.store';
             >
               <span class="ms-icon sm" aria-hidden="true">payments</span>
             </button>
-            <button
-              type="button"
-              class="connector-order-btn"
-              [disabled]="!canMoveUp()"
-              (click)="moveUp.emit(item())"
-              [attr.aria-label]="'item.moveUp' | t"
-            >
-              <span class="ms-icon sm" aria-hidden="true">keyboard_arrow_up</span>
-            </button>
-            <button
-              type="button"
-              class="connector-order-btn"
-              [disabled]="!canMoveDown()"
-              (click)="moveDown.emit(item())"
-              [attr.aria-label]="'item.moveDown' | t"
-            >
-              <span class="ms-icon sm" aria-hidden="true">keyboard_arrow_down</span>
-            </button>
             <div class="overflow-anchor">
               <button
                 type="button"
@@ -86,6 +68,27 @@ import { ItemExpenseSummary } from '../../state/expense.store';
               </button>
               @if (menuOpen()) {
                 <div class="action-menu" role="menu">
+                  <button
+                    type="button"
+                    class="action-menu-item"
+                    role="menuitem"
+                    [disabled]="!canMoveUp()"
+                    (click)="onMoveUp()"
+                  >
+                    <span class="ms-icon sm" aria-hidden="true">keyboard_arrow_up</span>
+                    <span>{{ 'item.moveUp' | t }}</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="action-menu-item"
+                    role="menuitem"
+                    [disabled]="!canMoveDown()"
+                    (click)="onMoveDown()"
+                  >
+                    <span class="ms-icon sm" aria-hidden="true">keyboard_arrow_down</span>
+                    <span>{{ 'item.moveDown' | t }}</span>
+                  </button>
+                  <div class="action-menu-divider"></div>
                   <button type="button" class="action-menu-item" role="menuitem" (click)="onEdit()">
                     <span class="ms-icon sm" aria-hidden="true">edit</span>
                     <span>{{ 'common.edit' | t }}</span>
@@ -466,6 +469,8 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       display: flex;
       flex-direction: column;
       align-items: center;
+      width: 100%;
+      min-width: 0;
       margin: 2px 0;
     }
     .connector-line {
@@ -476,10 +481,11 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     .connector-pill {
       display: inline-flex;
       align-items: center;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       max-width: 100%;
+      min-width: 0;
       gap: 6px;
-      padding: 3px 6px 3px 10px;
+      padding: 4px 6px 4px 10px;
       border-radius: 9px;
       background: var(--color-surface);
       border: 1px solid var(--color-border);
@@ -487,11 +493,20 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       font-size: 0.76rem;
       font-weight: 600;
     }
+    .connector-title {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
     .connector-dur {
+      flex-shrink: 0;
+      white-space: nowrap;
       color: var(--color-text-muted);
     }
     .connector-link {
       display: inline-flex;
+      flex-shrink: 0;
       color: var(--color-primary);
       text-decoration: none;
     }
@@ -499,6 +514,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      flex-shrink: 0;
       width: 30px;
       height: 22px;
       padding: 0;
@@ -513,11 +529,11 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       border-color: var(--color-accent);
       color: var(--color-text-on-primary);
     }
-    .connector-menu-btn,
-    .connector-order-btn {
+    .connector-menu-btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      flex-shrink: 0;
       width: 22px;
       height: 22px;
       padding: 0;
@@ -527,12 +543,10 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       color: var(--color-text-secondary);
       cursor: pointer;
     }
-    .connector-menu-btn:hover,
-    .connector-order-btn:hover:not(:disabled) {
+    .connector-menu-btn:hover {
       border-color: var(--color-primary);
       color: var(--color-primary);
     }
-    .connector-order-btn:disabled,
     .order-btn:disabled {
       opacity: 0.35;
       cursor: not-allowed;
@@ -572,13 +586,6 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       display: inline-flex;
       align-items: center;
       gap: 6px;
-    }
-    .ref-chip {
-      padding: 2px 8px;
-      border-radius: var(--radius-pill);
-      background: rgba(255, 255, 255, 0.14);
-      font-family: var(--font-mono);
-      font-size: 0.75rem;
     }
     .flight-route {
       display: grid;
@@ -783,12 +790,14 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     }
     .overflow-anchor {
       position: relative;
+      flex-shrink: 0;
     }
     .action-menu {
       position: absolute;
       top: calc(100% + 6px);
       right: 0;
       min-width: 158px;
+      max-width: calc(100vw - 24px);
       padding: 6px;
       border-radius: var(--radius-md);
       background: var(--color-surface);
@@ -799,6 +808,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       display: flex;
       flex-direction: column;
       gap: 2px;
+      white-space: nowrap;
     }
     .action-menu-item {
       display: flex;
@@ -816,13 +826,17 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       text-align: left;
       cursor: pointer;
     }
-    .action-menu-item:hover {
+    .action-menu-item:hover:not(:disabled) {
       background: var(--color-bg);
+    }
+    .action-menu-item:disabled {
+      opacity: 0.38;
+      cursor: not-allowed;
     }
     .action-menu-item.danger {
       color: var(--color-alert);
     }
-    .action-menu-item.danger:hover {
+    .action-menu-item.danger:hover:not(:disabled) {
       background: var(--color-alert-soft);
     }
     .action-menu-divider {
@@ -905,9 +919,6 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     }
     .footer-pills::-webkit-scrollbar {
       height: 4px;
-    }
-    .footer-pills::-webkit-scrollbar-track {
-      background: transparent;
     }
     .footer-pills::-webkit-scrollbar-thumb {
       background: rgba(20, 24, 31, 0.18);
@@ -1084,6 +1095,22 @@ export class ItineraryCardComponent {
   protected onEdit(): void {
     this.menuOpen.set(false);
     this.edited.emit(this.item());
+  }
+
+  protected onMoveUp(): void {
+    if (!this.canMoveUp()) {
+      return;
+    }
+    this.menuOpen.set(false);
+    this.moveUp.emit(this.item());
+  }
+
+  protected onMoveDown(): void {
+    if (!this.canMoveDown()) {
+      return;
+    }
+    this.menuOpen.set(false);
+    this.moveDown.emit(this.item());
   }
 
   protected onAddAlternative(): void {

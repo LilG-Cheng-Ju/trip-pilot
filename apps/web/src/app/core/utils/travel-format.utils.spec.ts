@@ -6,6 +6,7 @@ import {
   addDaysToIsoDate,
   appendCreatedItem,
   buildDayMapPins,
+  buildDayMapRoutes,
   buildGoogleMapsUrl,
   buildMapRoutePath,
   buildPinOrderMap,
@@ -228,5 +229,104 @@ describe('travel-format.utils', () => {
     expect(schematicPath[schematicPath.length - 1]).toEqual([-127.0, 44.0]);
     const mid = schematicPath[12];
     expect(mid[1]).not.toBeCloseTo((38.5 + 43.252) / 2, 2);
+  });
+
+  it('connects airport transfers and curved/road basecamp stay legs including single-stop days', () => {
+    const arrivalFlight = makeItem({
+      id: 'flt-arr',
+      type: 'FLIGHT',
+      sort_order: 0,
+      latitude: 35.772,
+      longitude: 140.3929,
+      details: { origin_iata: 'TPE', dest_iata: 'NRT', airport_role: 'ARRIVAL' },
+    });
+    const stay = makeItem({
+      id: 'stay-1',
+      type: 'STAY',
+      sort_order: 1,
+      latitude: 35.6909,
+      longitude: 139.7003,
+    });
+    const dinner = makeItem({
+      id: 'food-dinner',
+      type: 'FOOD',
+      sort_order: 2,
+      latitude: 35.6938,
+      longitude: 139.7034,
+    });
+    const day1Overview = buildDayMapRoutes(
+      [arrivalFlight, stay, dinner],
+      [],
+      'schematic',
+      null,
+      stay,
+    );
+    // Flight -> Hotel -> Dinner follows chronological order in mainLegs, then returns to Hotel in stayLegs.
+    expect(day1Overview.mainLegs).toHaveLength(1);
+    expect(day1Overview.mainLegs[0].length).toBeGreaterThan(40);
+    expect(day1Overview.stayLegs).toHaveLength(1);
+    expect(day1Overview.expectedPairs).toEqual([
+      'flt-arr->stay-1',
+      'stay-1->food-dinner',
+      'food-dinner->stay-1',
+    ]);
+
+    const fuji = makeItem({
+      id: 'spot-fuji',
+      type: 'SPOT',
+      sort_order: 0,
+      latitude: 35.3606,
+      longitude: 138.7274,
+    });
+    const singleOverview = buildDayMapRoutes([fuji], [], 'schematic', stay, stay);
+    expect(singleOverview.mainLegs).toHaveLength(0);
+    expect(singleOverview.stayLegs).toHaveLength(2);
+    expect(singleOverview.expectedPairs).toEqual(['stay-1->spot-fuji', 'spot-fuji->stay-1']);
+    // Outbound and return Bezier curves should bow to opposite sides of the chord.
+    expect(singleOverview.stayLegs[0][12][1]).not.toBeCloseTo(
+      singleOverview.stayLegs[1][12][1],
+      3,
+    );
+
+    const singleRoad = buildDayMapRoutes(
+      [fuji],
+      [
+        {
+          id: 'seg-a',
+          from_item_id: 'stay-1',
+          to_item_id: 'spot-fuji',
+          profile: 'DRIVING',
+          distance_km: 110,
+          duration_min: 100,
+          geometry_polyline: '_p~iF~ps|U_ulLnnqC_mqNvxq`@',
+          is_approx: false,
+        },
+      ],
+      'road',
+      stay,
+      stay,
+    );
+    expect(singleRoad.stayLegs[0]).toHaveLength(3);
+    expect(singleRoad.stayLegs[1]).toHaveLength(2);
+
+    const depFlight = makeItem({
+      id: 'flt-dep',
+      type: 'FLIGHT',
+      sort_order: 1,
+      latitude: 35.772,
+      longitude: 140.3929,
+      details: { origin_iata: 'NRT', dest_iata: 'TPE', airport_role: 'DEPARTURE' },
+    });
+    const ueno = makeItem({
+      id: 'spot-ueno',
+      type: 'SPOT',
+      sort_order: 0,
+      latitude: 35.7148,
+      longitude: 139.7745,
+    });
+    const lastDay = buildDayMapRoutes([ueno, depFlight], [], 'schematic', stay, stay);
+    expect(lastDay.stayLegs).toHaveLength(1);
+    expect(lastDay.mainLegs).toHaveLength(1);
+    expect(lastDay.expectedPairs).toEqual(['stay-1->spot-ueno', 'spot-ueno->flt-dep']);
   });
 });
