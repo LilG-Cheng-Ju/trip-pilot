@@ -20,12 +20,23 @@ export class I18nService {
   readonly locale = this.activeLocale.asReadonly();
   readonly dictionary = computed(() => DICTIONARIES[this.activeLocale()]);
 
+  constructor() {
+    this.syncDocumentLang(this.activeLocale());
+  }
+
   setLocale(locale: SupportedLocale): void {
     this.activeLocale.set(locale);
+    this.syncDocumentLang(locale);
     try {
       localStorage.setItem(LOCALE_STORAGE_KEY, locale);
     } catch {
       // Ignore storage access errors in restricted browsing modes.
+    }
+  }
+
+  private syncDocumentLang(locale: SupportedLocale): void {
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = locale;
     }
   }
 

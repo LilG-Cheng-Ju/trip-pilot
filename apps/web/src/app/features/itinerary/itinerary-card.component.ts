@@ -683,6 +683,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       border-color: var(--color-accent);
     }
     .head-action-btn {
+      position: relative;
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -726,6 +727,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       color: var(--color-text-on-primary);
     }
     .head-menu-btn {
+      position: relative;
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -945,19 +947,6 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       background: rgba(255, 255, 255, 0.1);
       color: var(--color-text-on-primary);
     }
-    .expense-chip {
-      border: 1px solid rgba(200, 155, 91, 0.5);
-      background: var(--color-accent-soft);
-      color: var(--color-accent-ink);
-    }
-    .expense-chip:hover {
-      border-color: var(--color-accent);
-    }
-    .expense-chip.dark {
-      border-color: rgba(200, 155, 91, 0.6);
-      background: rgba(200, 155, 91, 0.2);
-      color: var(--color-accent-light);
-    }
     .order-controls {
       display: flex;
       align-items: center;
@@ -965,6 +954,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       margin-left: auto;
     }
     .order-btn {
+      position: relative;
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -980,6 +970,13 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     .order-btn:hover {
       border-color: var(--color-primary);
       color: var(--color-primary);
+    }
+    .head-action-btn::after,
+    .head-menu-btn::after,
+    .order-btn::after {
+      content: '';
+      position: absolute;
+      inset: -5px;
     }
     .order-btn.dark {
       border-color: rgba(255, 255, 255, 0.24);

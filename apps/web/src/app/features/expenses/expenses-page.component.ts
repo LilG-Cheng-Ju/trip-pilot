@@ -12,6 +12,7 @@ import {
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ExpenseCategory } from '../../core/models/tripilot.models';
 import { EXPENSE_CATEGORIES, expenseCategoryKey } from '../../core/utils/travel-format.utils';
+import { AppModalComponent } from '../../shared/modal.component';
 import { TripSubnavComponent } from '../../shared/trip-subnav.component';
 import { ExpenseStore } from '../../state/expense.store';
 import { ItineraryStore } from '../../state/itinerary.store';
@@ -19,7 +20,7 @@ import { ItineraryStore } from '../../state/itinerary.store';
 /** Low-friction per-trip expense ledger with instant currency conversion. */
 @Component({
   selector: 'app-expenses-page',
-  imports: [FormsModule, TranslatePipe, TripSubnavComponent],
+  imports: [FormsModule, TranslatePipe, AppModalComponent, TripSubnavComponent],
   template: `
     <div class="page">
       @if (itineraryStore.trip(); as trip) {
@@ -258,9 +259,11 @@ import { ItineraryStore } from '../../state/itinerary.store';
                     <button
                       type="button"
                       class="del-btn"
-                      (click)="expenseStore.deleteExpense(tripId(), exp.id)"
+                      [attr.aria-label]="'common.delete' | t"
+                      [title]="'common.delete' | t"
+                      (click)="pendingDeleteExpense.set({ id: exp.id, title: exp.title })"
                     >
-                      ×
+                      <span class="ms-icon sm" aria-hidden="true">delete</span>
                     </button>
                   </div>
                 </article>
@@ -269,6 +272,28 @@ import { ItineraryStore } from '../../state/itinerary.store';
           }
         </section>
       </div>
+
+      <app-modal
+        [open]="pendingDeleteExpense() !== null"
+        [title]="'confirm.deleteExpenseTitle' | t"
+        (closed)="pendingDeleteExpense.set(null)"
+      >
+        @if (pendingDeleteExpense(); as target) {
+          <div class="modal-form">
+            <p class="confirm-copy">
+              {{ 'confirm.deleteExpenseBody' | t: { name: target.title } }}
+            </p>
+            <div class="modal-actions">
+              <button type="button" class="pill-btn" (click)="pendingDeleteExpense.set(null)">
+                {{ 'common.cancel' | t }}
+              </button>
+              <button type="button" class="btn-danger" (click)="executeDeleteExpense()">
+                {{ 'common.delete' | t }}
+              </button>
+            </div>
+          </div>
+        }
+      </app-modal>
     </div>
   `,
   styles: `
@@ -698,6 +723,7 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
   protected readonly submitting = signal(false);
   protected readonly fetchingRate = signal(false);
   protected readonly rateSource = signal<string | null>(null);
+  protected readonly pendingDeleteExpense = signal<{ id: string; title: string } | null>(null);
   protected readonly categories = EXPENSE_CATEGORIES;
   protected readonly categoryKey = expenseCategoryKey;
 
@@ -810,6 +836,15 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.expenseStore.setItemFilter(null);
+  }
+
+  protected async executeDeleteExpense(): Promise<void> {
+    const target = this.pendingDeleteExpense();
+    if (!target) {
+      return;
+    }
+    this.pendingDeleteExpense.set(null);
+    await this.expenseStore.deleteExpense(this.tripId(), target.id);
   }
 
   protected clearItemFilter(): void {

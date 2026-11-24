@@ -97,6 +97,8 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
                 @for (day of trip.days; track day.id) {
                   <button
                     type="button"
+                    role="tab"
+                    [attr.aria-selected]="store.selectedDay()?.id === day.id"
                     class="day-chip tabular-nums"
                     [class.active]="store.selectedDay()?.id === day.id"
                     (click)="store.selectDay(day.day_index)"
@@ -279,7 +281,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
                           (addAlternative)="openAlternativeModal($event)"
                           (logExpense)="openQuickExpenseModal($event)"
                           (edited)="openEditItemModal($event)"
-                          (deleted)="store.deleteItem($event)"
+                          (deleted)="requestDeleteItem(slot.activeItem)"
                         />
                       </div>
                     }
@@ -465,6 +467,50 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
         }
       </app-modal>
 
+      <!-- Modal: Confirm Delete Itinerary Item -->
+      <app-modal
+        [open]="pendingDeleteItem() !== null"
+        [title]="'confirm.deleteItemTitle' | t"
+        (closed)="pendingDeleteItem.set(null)"
+      >
+        @if (pendingDeleteItem(); as target) {
+          <div class="modal-form">
+            <p class="confirm-copy">
+              {{ 'confirm.deleteItemBody' | t: { name: target.title } }}
+            </p>
+            <div class="add-actions">
+              <button type="button" class="pill-btn" (click)="pendingDeleteItem.set(null)">
+                {{ 'common.cancel' | t }}
+              </button>
+              <button type="button" class="btn-danger" (click)="executeDeleteItem()">
+                {{ 'common.delete' | t }}
+              </button>
+            </div>
+          </div>
+        }
+      </app-modal>
+
+      <!-- Modal: Confirm Revoke Share Link -->
+      <app-modal
+        [open]="pendingRevokeShare() !== null"
+        [title]="'confirm.revokeShareTitle' | t"
+        (closed)="pendingRevokeShare.set(null)"
+      >
+        @if (pendingRevokeShare()) {
+          <div class="modal-form">
+            <p class="confirm-copy">{{ 'confirm.revokeShareBody' | t }}</p>
+            <div class="add-actions">
+              <button type="button" class="pill-btn" (click)="pendingRevokeShare.set(null)">
+                {{ 'common.cancel' | t }}
+              </button>
+              <button type="button" class="btn-danger" (click)="executeRevokeShare()">
+                {{ 'share.revoke' | t }}
+              </button>
+            </div>
+          </div>
+        }
+      </app-modal>
+
       <!-- Modal: Read-Only Share Settings -->
       <app-modal
         [open]="showShareModal()"
@@ -497,7 +543,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
                 <button type="button" class="pill-btn" (click)="copyShareUrl(share.token)">
                   {{ copiedToken() === share.token ? ('common.copied' | t) : ('common.copy' | t) }}
                 </button>
-                <button type="button" class="pill-btn danger" (click)="store.revokeShare(trip.id, share.id)">
+                <button type="button" class="pill-btn danger" (click)="requestRevokeShare(trip.id, share.id)">
                   {{ 'share.revoke' | t }}
                 </button>
               </div>
@@ -771,6 +817,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       gap: 6px;
     }
     .plan-icon-btn {
+      position: relative;
       width: 28px;
       height: 28px;
       display: inline-flex;
@@ -781,6 +828,12 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       background: var(--color-surface);
       color: var(--color-text-secondary);
       cursor: pointer;
+    }
+    .plan-icon-btn::after,
+    .choice-add-btn::after {
+      content: '';
+      position: absolute;
+      inset: -5px;
     }
     .plan-icon-btn:hover {
       border-color: var(--color-primary);
@@ -947,6 +1000,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       color: var(--color-text-on-primary);
     }
     .choice-add-btn {
+      position: relative;
       display: grid;
       place-items: center;
       width: 28px;
@@ -1066,6 +1120,11 @@ export class ItineraryPageComponent implements OnInit {
     dayId: string;
     optionId: string;
     label: string;
+  } | null>(null);
+  protected readonly pendingDeleteItem = signal<ItineraryItem | null>(null);
+  protected readonly pendingRevokeShare = signal<{
+    tripId: string;
+    shareId: string;
   } | null>(null);
   protected readonly showShareModal = signal(false);
   protected readonly copiedToken = signal<string | null>(null);
@@ -1309,6 +1368,32 @@ export class ItineraryPageComponent implements OnInit {
     }
     this.pendingDeleteOption.set(null);
     await this.store.deleteOption(target.dayId, target.optionId);
+  }
+
+  protected requestDeleteItem(item: ItineraryItem): void {
+    this.pendingDeleteItem.set(item);
+  }
+
+  protected async executeDeleteItem(): Promise<void> {
+    const target = this.pendingDeleteItem();
+    if (!target) {
+      return;
+    }
+    this.pendingDeleteItem.set(null);
+    await this.store.deleteItem(target.id);
+  }
+
+  protected requestRevokeShare(tripId: string, shareId: string): void {
+    this.pendingRevokeShare.set({ tripId, shareId });
+  }
+
+  protected async executeRevokeShare(): Promise<void> {
+    const target = this.pendingRevokeShare();
+    if (!target) {
+      return;
+    }
+    this.pendingRevokeShare.set(null);
+    await this.store.revokeShare(target.tripId, target.shareId);
   }
 
   protected openShareModal(tripId: string): void {

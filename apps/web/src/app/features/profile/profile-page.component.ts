@@ -12,12 +12,13 @@ import { SUPPORTED_CURRENCIES } from '../../core/constants/travel-options';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { AppCountryPickerComponent } from '../../shared/country-picker.component';
+import { AppModalComponent } from '../../shared/modal.component';
 import { AuthStore } from '../../state/auth.store';
 
 /** User travel preferences (searchable country & currency dropdowns) and PAT manager. */
 @Component({
   selector: 'app-profile-page',
-  imports: [FormsModule, TranslatePipe, AppCountryPickerComponent],
+  imports: [FormsModule, TranslatePipe, AppCountryPickerComponent, AppModalComponent],
   template: `
     <div class="page">
       <div class="page-head">
@@ -113,7 +114,11 @@ import { AuthStore } from '../../state/auth.store';
                   {{ tok.token_prefix }}… · {{ tok.scopes.join(', ') }}
                 </p>
               </div>
-              <button type="button" class="pill-btn danger" (click)="authStore.revokeToken(tok.id)">
+              <button
+                type="button"
+                class="pill-btn danger"
+                (click)="pendingRevokeToken.set({ id: tok.id, name: tok.name })"
+              >
                 {{ 'share.revoke' | t }}
               </button>
             </div>
@@ -150,6 +155,28 @@ import { AuthStore } from '../../state/auth.store';
           </div>
         }
       </section>
+
+      <app-modal
+        [open]="pendingRevokeToken() !== null"
+        [title]="'confirm.revokeTokenTitle' | t"
+        (closed)="pendingRevokeToken.set(null)"
+      >
+        @if (pendingRevokeToken(); as target) {
+          <div class="modal-form">
+            <p class="confirm-copy">
+              {{ 'confirm.revokeTokenBody' | t: { name: target.name } }}
+            </p>
+            <div class="modal-actions">
+              <button type="button" class="pill-btn" (click)="pendingRevokeToken.set(null)">
+                {{ 'common.cancel' | t }}
+              </button>
+              <button type="button" class="btn-danger" (click)="executeRevokeToken()">
+                {{ 'share.revoke' | t }}
+              </button>
+            </div>
+          </div>
+        }
+      </app-modal>
     </div>
   `,
   styles: `
@@ -416,6 +443,7 @@ export class ProfilePageComponent implements OnInit {
   protected readonly savedNotice = signal(false);
   protected readonly copied = signal(false);
   protected readonly copiedKey = signal<string | null>(null);
+  protected readonly pendingRevokeToken = signal<{ id: string; name: string } | null>(null);
   protected readonly tokenNameError = signal(false);
   protected readonly tokenApiError = signal<string | null>(null);
   protected readonly generatingToken = signal(false);
@@ -438,6 +466,15 @@ export class ProfilePageComponent implements OnInit {
       this.homeCountry = profile.home_country_code;
       this.homeCurrency = profile.home_currency;
     }
+  }
+
+  protected async executeRevokeToken(): Promise<void> {
+    const target = this.pendingRevokeToken();
+    if (!target) {
+      return;
+    }
+    this.pendingRevokeToken.set(null);
+    await this.authStore.revokeToken(target.id);
   }
 
   protected async savePreferences(): Promise<void> {

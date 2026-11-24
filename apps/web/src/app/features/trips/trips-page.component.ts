@@ -52,6 +52,7 @@ type DateEndMode = 'end' | 'duration' | 'open';
           <button
             type="button"
             role="tab"
+            [attr.aria-selected]="tripStore.activeTab() === tab.id"
             class="tab-pill"
             [class.active]="tripStore.activeTab() === tab.id"
             (click)="tripStore.setTab(tab.id)"
