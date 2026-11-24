@@ -238,10 +238,10 @@ class RouteSegment(Base):
         String(36), ForeignKey("day_options.id", ondelete="CASCADE"), index=True
     )
     from_item_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("itinerary_items.id", ondelete="CASCADE")
+        String(36), ForeignKey("itinerary_items.id", ondelete="CASCADE"), index=True
     )
     to_item_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("itinerary_items.id", ondelete="CASCADE")
+        String(36), ForeignKey("itinerary_items.id", ondelete="CASCADE"), index=True
     )
     profile: Mapped[str] = mapped_column(
         String(24), nullable=False, default=RouteProfile.DRIVING.value
@@ -269,10 +269,16 @@ class Expense(Base):
         String(36), ForeignKey("trips.id", ondelete="CASCADE"), index=True
     )
     trip_day_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("trip_days.id", ondelete="SET NULL"), nullable=True
+        String(36),
+        ForeignKey("trip_days.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     itinerary_item_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("itinerary_items.id", ondelete="SET NULL"), nullable=True
+        String(36),
+        ForeignKey("itinerary_items.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     category: Mapped[str] = mapped_column(

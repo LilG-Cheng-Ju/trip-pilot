@@ -20,10 +20,17 @@ from app.core.database import get_db
 from app.schemas.expense import ExpenseCreate
 from app.schemas.trip import (
     DayOptionCloneRequest,
+    DayOptionCreate,
+    DayOptionResponse,
+    DayOptionUpdate,
     ItineraryItemCreate,
+    ItineraryItemResponse,
     ItineraryItemUpdate,
     TripCreate,
+    TripDayResponse,
     TripDayUpdate,
+    TripDetailResponse,
+    TripSummaryResponse,
 )
 from app.services.fx_service import get_fx_provider
 from app.services.places import get_place_search_provider, resolve_google_maps_url
@@ -40,12 +47,17 @@ _TOOL_SCOPES: dict[str, str] = {
     "list_trips": "trips:read",
     "get_trip": "trips:read",
     "create_trip": "trips:write",
+    "append_day": "trips:write",
     "update_day_title": "trips:write",
+    "create_day_option": "trips:write",
+    "clone_day_option": "trips:write",
+    "rename_day_option": "trips:write",
+    "delete_day_option": "trips:write",
+    "set_active_option": "trips:write",
     "add_itinerary_item": "trips:write",
     "update_itinerary_item": "trips:write",
     "delete_itinerary_item": "trips:write",
     "select_choice_item": "trips:write",
-    "clone_day_option": "trips:write",
     "search_places": "trips:read",
     "resolve_google_maps_url": "trips:read",
     "list_expenses": "expenses:read",
@@ -257,6 +269,61 @@ _TOOL_DEFINITIONS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "append_day",
+        "description": "Append one new day (with a default Plan A) to the end of a trip.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"trip_id": {"type": "string"}},
+            "required": ["trip_id"],
+        },
+    },
+    {
+        "name": "create_day_option",
+        "description": "Create a blank Plan B / alternative day option on a trip day.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "day_id": {"type": "string"},
+                "label": {"type": "string"},
+                "summary_notes": {"type": "string"},
+            },
+            "required": ["day_id", "label"],
+        },
+    },
+    {
+        "name": "rename_day_option",
+        "description": "Rename an existing day option (e.g. rename Plan A to 'Sunny Outdoor').",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "option_id": {"type": "string"},
+                "label": {"type": "string"},
+            },
+            "required": ["option_id", "label"],
+        },
+    },
+    {
+        "name": "delete_day_option",
+        "description": "Delete a day option (rejected if it is the last remaining option on the day).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"option_id": {"type": "string"}},
+            "required": ["option_id"],
+        },
+    },
+    {
+        "name": "set_active_option",
+        "description": "Set which Plan A/B day option is active for a trip day.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "day_id": {"type": "string"},
+                "option_id": {"type": "string"},
+            },
+            "required": ["day_id", "option_id"],
+        },
+    },
+    {
         "name": "get_travel_stats",
         "description": "Get travel dashboard statistics filtered by optional year and scope (all|domestic|international).",
         "inputSchema": {
@@ -302,64 +369,13 @@ async def _dispatch_tool(
     if name == "list_trips":
         trips = await trip_svc.list_trips(user_id)
         return [
-            {
-                "id": t.id,
-                "title": t.title,
-                "status": t.status,
-                "start_date": t.start_date.isoformat(),
-                "end_date": t.end_date.isoformat(),
-                "country_codes": t.country_codes,
-                "default_currency": t.default_currency,
-            }
+            TripSummaryResponse.model_validate(t).model_dump(mode="json")
             for t in trips
         ]
 
     if name == "get_trip":
         trip = await trip_svc.get_trip_detail(str(args["trip_id"]), user_id)
-        return {
-            "id": trip.id,
-            "title": trip.title,
-            "start_date": trip.start_date.isoformat(),
-            "end_date": trip.end_date.isoformat(),
-            "country_codes": trip.country_codes,
-            "default_currency": trip.default_currency,
-            "days": [
-                {
-                    "id": d.id,
-                    "day_index": d.day_index,
-                    "date": d.date.isoformat(),
-                    "title": d.title,
-                    "active_option_id": d.active_option_id,
-                    "options": [
-                        {
-                            "id": opt.id,
-                            "label": opt.label,
-                            "cached_ground_distance_km": opt.cached_ground_distance_km,
-                            "items": [
-                                {
-                                    "id": it.id,
-                                    "type": it.type,
-                                    "title": it.title,
-                                    "start_time": it.start_time,
-                                    "end_time": it.end_time,
-                                    "address": it.address,
-                                    "latitude": it.latitude,
-                                    "longitude": it.longitude,
-                                    "google_maps_url": it.google_maps_url,
-                                    "notes": it.notes,
-                                    "details": it.details,
-                                    "choice_group_id": it.choice_group_id,
-                                    "is_selected": it.is_selected,
-                                }
-                                for it in opt.items
-                            ],
-                        }
-                        for opt in d.options
-                    ],
-                }
-                for d in trip.days
-            ],
-        }
+        return TripDetailResponse.model_validate(trip).model_dump(mode="json")
 
     if name == "create_trip":
         payload = TripCreate(
@@ -371,13 +387,46 @@ async def _dispatch_tool(
             destination_summary=args.get("destination_summary"),
         )
         trip = await trip_svc.create_trip(user_id, payload)
-        return {"id": trip.id, "title": trip.title, "days_count": len(trip.days)}
+        return TripDetailResponse.model_validate(trip).model_dump(mode="json")
+
+    if name == "append_day":
+        day = await trip_svc.append_day(str(args["trip_id"]), user_id)
+        return TripDayResponse.model_validate(day).model_dump(mode="json")
 
     if name == "update_day_title":
         day = await trip_svc.update_day(
             str(args["day_id"]), user_id, TripDayUpdate(title=args.get("title"))
         )
-        return {"id": day.id, "day_index": day.day_index, "title": day.title}
+        return TripDayResponse.model_validate(day).model_dump(mode="json")
+
+    if name == "create_day_option":
+        opt = await trip_svc.add_day_option(
+            str(args["day_id"]),
+            user_id,
+            DayOptionCreate(
+                label=str(args["label"]),
+                summary_notes=args.get("summary_notes"),
+            ),
+        )
+        return DayOptionResponse.model_validate(opt).model_dump(mode="json")
+
+    if name == "rename_day_option":
+        opt = await trip_svc.update_day_option(
+            str(args["option_id"]),
+            user_id,
+            DayOptionUpdate(label=str(args["label"])),
+        )
+        return DayOptionResponse.model_validate(opt).model_dump(mode="json")
+
+    if name == "delete_day_option":
+        day = await trip_svc.delete_day_option(str(args["option_id"]), user_id)
+        return TripDayResponse.model_validate(day).model_dump(mode="json")
+
+    if name == "set_active_option":
+        day = await trip_svc.set_active_option(
+            str(args["day_id"]), user_id, str(args["option_id"])
+        )
+        return TripDayResponse.model_validate(day).model_dump(mode="json")
 
     if name == "add_itinerary_item":
         option_id = str(args["option_id"])
@@ -385,7 +434,7 @@ async def _dispatch_tool(
         item = await trip_svc.add_item(
             option_id, user_id, ItineraryItemCreate(**item_fields)
         )
-        return {"id": item.id, "title": item.title, "type": item.type}
+        return ItineraryItemResponse.model_validate(item).model_dump(mode="json")
 
     if name == "update_itinerary_item":
         item_id = str(args["item_id"])
@@ -393,7 +442,7 @@ async def _dispatch_tool(
         item = await trip_svc.update_item(
             item_id, user_id, ItineraryItemUpdate(**patch_fields)
         )
-        return {"id": item.id, "title": item.title, "details": item.details}
+        return ItineraryItemResponse.model_validate(item).model_dump(mode="json")
 
     if name == "delete_itinerary_item":
         await trip_svc.delete_item(str(args["item_id"]), user_id)
@@ -401,10 +450,7 @@ async def _dispatch_tool(
 
     if name == "select_choice_item":
         opt = await trip_svc.select_choice_item(str(args["item_id"]), user_id)
-        return {
-            "option_id": opt.id,
-            "cached_ground_distance_km": opt.cached_ground_distance_km,
-        }
+        return DayOptionResponse.model_validate(opt).model_dump(mode="json")
 
     if name == "clone_day_option":
         opt = await trip_svc.clone_day_option(
@@ -412,7 +458,7 @@ async def _dispatch_tool(
             user_id,
             DayOptionCloneRequest(label=str(args["label"])),
         )
-        return {"id": opt.id, "label": opt.label}
+        return DayOptionResponse.model_validate(opt).model_dump(mode="json")
 
     if name == "search_places":
         provider = get_place_search_provider()
@@ -583,7 +629,8 @@ Headers:
 - `Content-Type: application/json`
 
 Available MCP tools:
-- Trips & Days: `list_trips`, `get_trip`, `create_trip`, `update_day_title`, `clone_day_option`
+- Trips & Days: `list_trips`, `get_trip`, `create_trip`, `append_day`, `update_day_title`
+- Day Options (Plan A/B): `create_day_option`, `clone_day_option`, `rename_day_option`, `delete_day_option`, `set_active_option`
 - Itinerary Items: `add_itinerary_item`, `update_itinerary_item`, `delete_itinerary_item`, `select_choice_item`
 - Places: `search_places`, `resolve_google_maps_url`
 - Expenses & FX: `list_expenses`, `add_expense`, `get_fx_rate`

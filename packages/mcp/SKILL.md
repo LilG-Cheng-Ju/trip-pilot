@@ -52,8 +52,8 @@ Use Tripilot's Remote MCP endpoint (`POST <API_URL>/mcp`), local MCP tools, or `
 
 ## Recipe 2: Whole-Day Plans vs. Slot-Level Alternatives
 
-- **Whole-day variant (e.g., Rainy Day Plan B)**: Call `clone_day_option(option_id=..., label="Plan B · 雨天")` and edit the cloned option.
-- **Single-slot multi-choice (e.g., 3 lunch candidates)**: Add the primary choice normally, then add each alternative with `alternative_for_item_id=<primary_item.id>`.
+- **Whole-day variant (e.g., Rainy Day Plan B)**: Call `create_day_option(day_id=..., label="Plan B · 雨天")` to start blank, or `clone_day_option(option_id=..., label="Plan B · 雨天")` to copy an existing plan. Use `rename_day_option`, `set_active_option`, or `delete_day_option` (guarded against removing the last remaining option) to manage variants.
+- **Single-slot multi-choice (e.g., 3 lunch candidates)**: Add the primary choice normally, then add each alternative with `alternative_for_item_id=<primary_item.id>`, and switch with `select_choice_item`.
 
 ---
 

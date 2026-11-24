@@ -58,7 +58,7 @@ async def list_trips(status: str | None = None) -> list[dict[str, Any]]:
 
 
 @mcp.tool()
-async def get_trip_itinerary(
+async def get_trip(
     trip_id: str,
     day_index: int | None = None,
 ) -> dict[str, Any]:
@@ -147,7 +147,34 @@ async def create_day_option(
 
 
 @mcp.tool()
-async def set_active_day_option(
+async def clone_day_option(
+    option_id: str,
+    label: str,
+) -> dict[str, Any]:
+    """Deep-clone an existing DayOption into a new Plan B / alternative day plan."""
+    async with TripilotClient() as client:
+        return await client.clone_day_option(option_id=option_id, label=label)
+
+
+@mcp.tool()
+async def rename_day_option(
+    option_id: str,
+    label: str,
+) -> dict[str, Any]:
+    """Rename an existing DayOption."""
+    async with TripilotClient() as client:
+        return await client.update_day_option(option_id=option_id, label=label)
+
+
+@mcp.tool()
+async def delete_day_option(option_id: str) -> dict[str, Any]:
+    """Delete a DayOption (rejected if it is the last remaining option on the day)."""
+    async with TripilotClient() as client:
+        return await client.delete_day_option(option_id=option_id)
+
+
+@mcp.tool()
+async def set_active_option(
     trip_day_id: str,
     day_option_id: str,
 ) -> dict[str, Any]:
@@ -303,7 +330,14 @@ async def delete_itinerary_item(item_id: str) -> dict[str, Any]:
 
 
 @mcp.tool()
-async def log_expense(
+async def list_expenses(trip_id: str) -> dict[str, Any]:
+    """List all expenses and category totals for a trip."""
+    async with TripilotClient() as client:
+        return await client.list_expenses(trip_id=trip_id)
+
+
+@mcp.tool()
+async def add_expense(
     trip_id: str,
     title: str,
     category: str,
@@ -346,14 +380,30 @@ async def log_expense(
 
 
 @mcp.tool()
-async def get_travel_stats(year: int | None = None) -> dict[str, Any]:
+async def get_fx_rate(
+    from_currency: str,
+    to_currency: str = "TWD",
+) -> dict[str, Any]:
+    """Get the cached live exchange rate between two ISO-4217 currency codes."""
+    async with TripilotClient() as client:
+        return await client.get_fx_rate(
+            from_currency=from_currency, to_currency=to_currency
+        )
+
+
+@mcp.tool()
+async def get_travel_stats(
+    year: int | None = None,
+    scope: str = "all",
+) -> dict[str, Any]:
     """Retrieve annual (when year is provided) or lifetime travel statistics.
 
     Args:
         year: Optional 4-digit calendar year (e.g. 2026). Omit for lifetime totals.
+        scope: Filter scope: "all", "domestic", or "international".
     """
     async with TripilotClient() as client:
-        return await client.get_stats(year=year)
+        return await client.get_stats(year=year, scope=scope)
 
 
 @mcp.tool()
@@ -368,7 +418,7 @@ async def search_airports(query: str) -> list[dict[str, Any]]:
 
 
 @mcp.tool()
-async def update_day_theme(
+async def update_day_title(
     trip_day_id: str,
     title: str | None = None,
     notes: str | None = None,
@@ -424,7 +474,7 @@ async def search_places(
 
 
 @mcp.tool()
-async def resolve_place_url(url: str) -> dict[str, Any]:
+async def resolve_google_maps_url(url: str) -> dict[str, Any]:
     """Resolve a Google Maps URL (full or maps.app.goo.gl) into name and coordinates.
 
     Args:

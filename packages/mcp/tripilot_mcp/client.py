@@ -186,6 +186,22 @@ class TripilotClient:
             json_body={"label": label},
         )
 
+    async def update_day_option(
+        self,
+        option_id: str,
+        label: str,
+    ) -> dict[str, Any]:
+        """Rename an existing DayOption."""
+        return await self._request(
+            "PATCH",
+            f"/options/{option_id}",
+            json_body={"label": label},
+        )
+
+    async def delete_day_option(self, option_id: str) -> dict[str, Any]:
+        """Delete a DayOption (rejected if it is the last remaining option)."""
+        return await self._request("DELETE", f"/options/{option_id}")
+
     async def set_active_option(
         self,
         day_id: str,
@@ -260,9 +276,25 @@ class TripilotClient:
             "POST", f"/trips/{trip_id}/expenses", json_body=payload
         )
 
-    async def get_stats(self, year: int | None = None) -> dict[str, Any]:
+    async def get_fx_rate(
+        self,
+        from_currency: str,
+        to_currency: str = "TWD",
+    ) -> dict[str, Any]:
+        """Fetch live cached exchange rate between two ISO-4217 currency codes."""
+        return await self._request(
+            "GET",
+            "/fx/rate",
+            params={"from": from_currency.upper(), "to": to_currency.upper()},
+        )
+
+    async def get_stats(
+        self, year: int | None = None, scope: str = "all"
+    ) -> dict[str, Any]:
         """Fetch annual (when year is given) or lifetime travel statistics."""
-        params = {"year": year} if year is not None else None
+        params: dict[str, Any] = {"scope": scope}
+        if year is not None:
+            params["year"] = year
         return await self._request("GET", "/stats", params=params)
 
     async def search_airports(

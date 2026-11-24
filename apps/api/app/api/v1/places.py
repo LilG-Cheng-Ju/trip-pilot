@@ -69,7 +69,7 @@ async def resolve_place_url(
     resolved = await resolve_google_maps_url(payload.url)
     if resolved is None:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Could not extract coordinates from the provided Google Maps URL",
         )
     return _to_response(resolved)

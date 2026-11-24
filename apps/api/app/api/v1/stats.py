@@ -1,6 +1,7 @@
 """Annual and lifetime travel statistics aggregation endpoint."""
 
 from collections import defaultdict
+from datetime import date
 from decimal import Decimal
 from typing import Annotated
 
@@ -34,6 +35,15 @@ async def get_travel_stats(
     scope: Annotated[StatsScope, Query()] = "all",
 ) -> TravelStatsResponse:
     """Aggregate travel metrics across non-archived trips using active day options."""
+    years_stmt = select(Trip.start_date).where(
+        Trip.user_id == auth_ctx.user.id,
+        Trip.status != TripStatus.ARCHIVED.value,
+    )
+    available_years = sorted(
+        {d.year for d in (await db.scalars(years_stmt)).all()},
+        reverse=True,
+    )
+
     stmt = (
         select(Trip)
         .where(
@@ -47,16 +57,14 @@ async def get_travel_stats(
             selectinload(Trip.expenses),
         )
     )
-    all_trips = list((await db.scalars(stmt)).all())
-    available_years = sorted(
-        {t.start_date.year for t in all_trips},
-        reverse=True,
-    )
+    if year is not None:
+        stmt = stmt.where(
+            Trip.start_date >= date(year, 1, 1),
+            Trip.start_date <= date(year, 12, 31),
+        )
 
     home_country = auth_ctx.user.home_country_code.upper()
-    trips = all_trips
-    if year is not None:
-        trips = [t for t in trips if t.start_date.year == year]
+    trips = list((await db.scalars(stmt)).all())
     if scope == "domestic":
         trips = [t for t in trips if not _is_international_trip(t, home_country)]
     elif scope == "international":
