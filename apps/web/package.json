@@ -1,6 +1,6 @@
 {
   "name": "tripilot-web",
-  "version": "0.7.0-beta",
+  "version": "0.7.1-beta",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
@@ -11,6 +11,7 @@
   "private": true,
   "packageManager": "npm@10.9.9",
   "dependencies": {
+    "@angular/cdk": "^22.3.0",
     "@angular/common": "^22.3.0",
     "@angular/compiler": "^22.3.0",
     "@angular/core": "^22.3.0",

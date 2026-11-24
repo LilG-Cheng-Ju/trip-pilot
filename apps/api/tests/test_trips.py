@@ -563,3 +563,311 @@ async def test_delete_day_reindexes_shifts_dates_and_unlinks_expenses(
         "/api/v1/days/non-existent-day", headers=dev_headers
     )
     assert missing.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_add_item_chronological_start_time_insertion(
+    api_client: AsyncClient, dev_headers: dict[str, str]
+) -> None:
+    trip = (
+        await api_client.post(
+            "/api/v1/trips",
+            headers=dev_headers,
+            json={
+                "title": "Chronological Sort Trip",
+                "country_codes": ["JP"],
+                "start_date": "2027-01-10",
+                "end_date": "2027-01-14",
+            },
+        )
+    ).json()
+    opt_earliest = trip["days"][0]["active_option_id"]
+    opt_middle = trip["days"][1]["active_option_id"]
+    opt_before_untimed = trip["days"][2]["active_option_id"]
+    opt_equal = trip["days"][3]["active_option_id"]
+    opt_all_untimed = trip["days"][4]["active_option_id"]
+
+    async def _post_item(
+        option_id: str, title: str, start_time: str | None = None
+    ) -> dict[str, object]:
+        payload: dict[str, object] = {"type": "SPOT", "title": title}
+        if start_time is not None:
+            payload["start_time"] = start_time
+        resp = await api_client.post(
+            f"/api/v1/options/{option_id}/items",
+            headers=dev_headers,
+            json=payload,
+        )
+        assert resp.status_code == 201
+        return dict(resp.json())
+
+    # Case 1: Insert 08:30 before [10:00, 14:00].
+    await _post_item(opt_earliest, "Morning 10:00", "10:00")
+    await _post_item(opt_earliest, "Afternoon 14:00", "14:00")
+    early = await _post_item(opt_earliest, "Early 08:30", "08:30")
+    assert early["sort_order"] == 0
+
+    # Case 2: Insert 11:30 between [10:00, 14:00, untimed_end].
+    await _post_item(opt_middle, "Morning 10:00", "10:00")
+    await _post_item(opt_middle, "Afternoon 14:00", "14:00")
+    await _post_item(opt_middle, "Untimed End", None)
+    mid = await _post_item(opt_middle, "Mid 11:30", "11:30")
+    assert mid["sort_order"] == 1
+
+    # Case 3: Insert 18:00 after 14:00 and before untimed_end.
+    await _post_item(opt_before_untimed, "Morning 10:00", "10:00")
+    await _post_item(opt_before_untimed, "Afternoon 14:00", "14:00")
+    await _post_item(opt_before_untimed, "Untimed End", None)
+    evening = await _post_item(opt_before_untimed, "Evening 18:00", "18:00")
+    assert evening["sort_order"] == 2
+
+    # Case 4: Equal start_time preserves arrival order after existing equal-time items.
+    await _post_item(opt_equal, "Ten A", "10:00")
+    await _post_item(opt_equal, "Fourteen", "14:00")
+    ten_b = await _post_item(opt_equal, "Ten B", "10:00")
+    ten_c = await _post_item(opt_equal, "Ten C", "10:00")
+    assert ten_b["sort_order"] == 1
+    assert ten_c["sort_order"] == 2
+
+    # Case 5: All untimed items append new timed item, then H:MM normalizes cleanly.
+    await _post_item(opt_all_untimed, "Untimed A", None)
+    await _post_item(opt_all_untimed, "Untimed B", "")
+    nine = await _post_item(opt_all_untimed, "Nine", "09:00")
+    assert nine["sort_order"] == 2
+    eight_thirty = await _post_item(opt_all_untimed, "Eight Thirty", "8:30")
+    assert eight_thirty["sort_order"] == 2
+
+    refreshed = (
+        await api_client.get(f"/api/v1/trips/{trip['id']}", headers=dev_headers)
+    ).json()
+    days = refreshed["days"]
+
+    assert [
+        (i["title"], i["sort_order"]) for i in days[0]["options"][0]["items"]
+    ] == [
+        ("Early 08:30", 0),
+        ("Morning 10:00", 1),
+        ("Afternoon 14:00", 2),
+    ]
+    assert [
+        (i["title"], i["sort_order"]) for i in days[1]["options"][0]["items"]
+    ] == [
+        ("Morning 10:00", 0),
+        ("Mid 11:30", 1),
+        ("Afternoon 14:00", 2),
+        ("Untimed End", 3),
+    ]
+    assert [
+        (i["title"], i["sort_order"]) for i in days[2]["options"][0]["items"]
+    ] == [
+        ("Morning 10:00", 0),
+        ("Afternoon 14:00", 1),
+        ("Evening 18:00", 2),
+        ("Untimed End", 3),
+    ]
+    assert [
+        (i["title"], i["sort_order"]) for i in days[3]["options"][0]["items"]
+    ] == [
+        ("Ten A", 0),
+        ("Ten B", 1),
+        ("Ten C", 2),
+        ("Fourteen", 3),
+    ]
+    assert [
+        (i["title"], i["sort_order"]) for i in days[4]["options"][0]["items"]
+    ] == [
+        ("Untimed A", 0),
+        ("Untimed B", 1),
+        ("Eight Thirty", 2),
+        ("Nine", 3),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_add_item_explicit_sort_order_and_alternatives_preserve_order(
+    api_client: AsyncClient, dev_headers: dict[str, str]
+) -> None:
+    trip = (
+        await api_client.post(
+            "/api/v1/trips",
+            headers=dev_headers,
+            json={
+                "title": "Override & Alternative Order Trip",
+                "country_codes": ["JP"],
+                "start_date": "2027-02-01",
+                "end_date": "2027-02-01",
+            },
+        )
+    ).json()
+    opt_id = trip["days"][0]["active_option_id"]
+
+    item_10 = (
+        await api_client.post(
+            f"/api/v1/options/{opt_id}/items",
+            headers=dev_headers,
+            json={"type": "SPOT", "title": "Ten Spot", "start_time": "10:00"},
+        )
+    ).json()
+    item_14 = (
+        await api_client.post(
+            f"/api/v1/options/{opt_id}/items",
+            headers=dev_headers,
+            json={"type": "SPOT", "title": "Fourteen Spot", "start_time": "14:00"},
+        )
+    ).json()
+
+    # Explicit sort_order overrides chronological auto-sort.
+    item_explicit = (
+        await api_client.post(
+            f"/api/v1/options/{opt_id}/items",
+            headers=dev_headers,
+            json={
+                "type": "SPOT",
+                "title": "Explicit End 08:30",
+                "start_time": "08:30",
+                "sort_order": 2,
+            },
+        )
+    ).json()
+    assert item_explicit["sort_order"] == 2
+
+    # Adding a slot alternative must not alter existing primary item order.
+    alt = (
+        await api_client.post(
+            f"/api/v1/options/{opt_id}/items",
+            headers=dev_headers,
+            json={
+                "type": "SPOT",
+                "title": "Ten Alt 07:00",
+                "start_time": "07:00",
+                "alternative_for_item_id": item_10["id"],
+            },
+        )
+    ).json()
+    assert alt["sort_order"] == item_10["sort_order"]
+    assert alt["is_selected"] is False
+
+    before_insert = (
+        await api_client.get(f"/api/v1/trips/{trip['id']}", headers=dev_headers)
+    ).json()["days"][0]["options"][0]["items"]
+    primary_before = [i for i in before_insert if i["is_selected"]]
+    assert [(i["id"], i["sort_order"]) for i in primary_before] == [
+        (item_10["id"], 0),
+        (item_14["id"], 1),
+        (item_explicit["id"], 2),
+    ]
+
+    # Inserting 09:00 shifts the entire 10:00 choice group together to sort_order=1.
+    item_09 = (
+        await api_client.post(
+            f"/api/v1/options/{opt_id}/items",
+            headers=dev_headers,
+            json={"type": "SPOT", "title": "Nine Spot", "start_time": "09:00"},
+        )
+    ).json()
+    assert item_09["sort_order"] == 0
+
+    after_insert = (
+        await api_client.get(f"/api/v1/trips/{trip['id']}", headers=dev_headers)
+    ).json()["days"][0]["options"][0]["items"]
+    sort_by_title = {i["title"]: i["sort_order"] for i in after_insert}
+    assert sort_by_title == {
+        "Nine Spot": 0,
+        "Ten Spot": 1,
+        "Ten Alt 07:00": 1,
+        "Fourteen Spot": 2,
+        "Explicit End 08:30": 3,
+    }
+
+
+@pytest.mark.asyncio
+async def test_add_item_middle_insertion_recalculates_routes(
+    api_client: AsyncClient, dev_headers: dict[str, str]
+) -> None:
+    trip = (
+        await api_client.post(
+            "/api/v1/trips",
+            headers=dev_headers,
+            json={
+                "title": "Chronological Route Recalc Trip",
+                "country_codes": ["JP"],
+                "start_date": "2027-03-01",
+                "end_date": "2027-03-01",
+            },
+        )
+    ).json()
+    opt_id = trip["days"][0]["active_option_id"]
+
+    mock_leg = RouteLegResult(
+        distance_km=4.5,
+        duration_min=12,
+        geometry_polyline="poly",
+        is_approx=False,
+    )
+    with patch(
+        "app.services.routing.OsrmRoutingProvider.compute_leg",
+        new=AsyncMock(return_value=mock_leg),
+    ):
+        spot_a = (
+            await api_client.post(
+                f"/api/v1/options/{opt_id}/items",
+                headers=dev_headers,
+                json={
+                    "type": "SPOT",
+                    "title": "Tokyo Tower",
+                    "start_time": "10:00",
+                    "latitude": 35.65858,
+                    "longitude": 139.74543,
+                },
+            )
+        ).json()
+        spot_c = (
+            await api_client.post(
+                f"/api/v1/options/{opt_id}/items",
+                headers=dev_headers,
+                json={
+                    "type": "SPOT",
+                    "title": "Senso-ji",
+                    "start_time": "16:00",
+                    "latitude": 35.71476,
+                    "longitude": 139.79665,
+                },
+            )
+        ).json()
+
+        before = (
+            await api_client.get(f"/api/v1/trips/{trip['id']}", headers=dev_headers)
+        ).json()["days"][0]["options"][0]
+        assert [
+            (seg["from_item_id"], seg["to_item_id"]) for seg in before["route_segments"]
+        ] == [(spot_a["id"], spot_c["id"])]
+
+        spot_b = (
+            await api_client.post(
+                f"/api/v1/options/{opt_id}/items",
+                headers=dev_headers,
+                json={
+                    "type": "SPOT",
+                    "title": "Tokyo Station",
+                    "start_time": "12:00",
+                    "latitude": 35.68123,
+                    "longitude": 139.76712,
+                },
+            )
+        ).json()
+
+    after = (
+        await api_client.get(f"/api/v1/trips/{trip['id']}", headers=dev_headers)
+    ).json()["days"][0]["options"][0]
+    assert [(i["id"], i["sort_order"]) for i in after["items"]] == [
+        (spot_a["id"], 0),
+        (spot_b["id"], 1),
+        (spot_c["id"], 2),
+    ]
+    assert [
+        (seg["from_item_id"], seg["to_item_id"]) for seg in after["route_segments"]
+    ] == [
+        (spot_a["id"], spot_b["id"]),
+        (spot_b["id"], spot_c["id"]),
+    ]
+    assert after["cached_ground_distance_km"] == 9.0

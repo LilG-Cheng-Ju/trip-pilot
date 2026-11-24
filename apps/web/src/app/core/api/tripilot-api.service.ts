@@ -314,8 +314,8 @@ export class TripilotApiService {
     return firstValueFrom(this.http.get<TravelStats>(`${this.baseUrl}/stats`, { params }));
   }
 
-  searchAirports(query: string): Promise<AirportEntry[]> {
-    const params = new HttpParams().set('q', query);
+  searchAirports(query: string, limit = 10): Promise<AirportEntry[]> {
+    const params = new HttpParams().set('q', query).set('limit', String(limit));
     return firstValueFrom(
       this.http.get<AirportEntry[]>(`${this.baseUrl}/airports/search`, { params }),
     );

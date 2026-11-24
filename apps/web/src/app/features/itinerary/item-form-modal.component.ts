@@ -24,6 +24,7 @@ import {
 } from '../../core/models/tripilot.models';
 import { readInputValue, readNumberValue } from '../../core/utils/form-events.utils';
 import { extractItemAttachments } from '../../core/utils/travel-format.utils';
+import { AppAirportPickerComponent } from '../../shared/airport-picker.component';
 import { AppModalComponent } from '../../shared/modal.component';
 import { AppTimeInputComponent } from '../../shared/time-input.component';
 
@@ -36,7 +37,7 @@ export interface ItemFormSubmitEvent {
 @Component({
   selector: 'app-item-form-modal',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslatePipe, AppModalComponent, AppTimeInputComponent],
+  imports: [TranslatePipe, AppAirportPickerComponent, AppModalComponent, AppTimeInputComponent],
   template: `
     <app-modal [open]="open()" [title]="modalTitle() | t" (closed)="closed.emit()">
       <form class="modal-form" (submit)="$event.preventDefault(); submit()" novalidate>
@@ -82,39 +83,31 @@ export interface ItemFormSubmitEvent {
         </div>
 
         @if (itemType() === 'FLIGHT') {
-          <div class="flight-grid">
-            <label class="field">
-              <span>{{ 'itinerary.form.flightNo' | t }}</span>
-              <input
-                type="text"
-                [value]="flightNo()"
-                (input)="flightNo.set(readInputValue($event))"
-                name="flightNo"
-                placeholder="NH852"
-              />
-            </label>
-            <label class="field">
-              <span>{{ 'itinerary.form.originIata' | t }}</span>
-              <input
-                type="text"
-                [value]="originIata()"
-                (input)="originIata.set(readInputValue($event))"
-                name="originIata"
-                maxlength="3"
-                placeholder="TSA"
-              />
-            </label>
-            <label class="field">
-              <span>{{ 'itinerary.form.destIata' | t }}</span>
-              <input
-                type="text"
-                [value]="destIata()"
-                (input)="destIata.set(readInputValue($event))"
-                name="destIata"
-                maxlength="3"
-                placeholder="HND"
-              />
-            </label>
+          <label class="field">
+            <span>{{ 'itinerary.form.flightNo' | t }}</span>
+            <input
+              type="text"
+              [value]="flightNo()"
+              (input)="flightNo.set(readInputValue($event))"
+              name="flightNo"
+              placeholder="NH852"
+            />
+          </label>
+          <div class="two-col flight-airports">
+            <app-airport-picker
+              inputId="flight-origin-iata"
+              [label]="'itinerary.form.originIata' | t"
+              [placeholder]="'airportPicker.placeholder' | t"
+              [value]="originIata()"
+              (valueChange)="originIata.set($event)"
+            />
+            <app-airport-picker
+              inputId="flight-dest-iata"
+              [label]="'itinerary.form.destIata' | t"
+              [placeholder]="'airportPicker.placeholder' | t"
+              [value]="destIata()"
+              (valueChange)="destIata.set($event)"
+            />
           </div>
         } @else if (itemType() === 'LOCAL_TRANSIT') {
           <label class="field">
@@ -401,10 +394,10 @@ export interface ItemFormSubmitEvent {
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       gap: var(--space-3);
     }
-    .flight-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr);
-      gap: var(--space-3);
+    @media (max-width: 480px) {
+      .flight-airports {
+        grid-template-columns: minmax(0, 1fr);
+      }
     }
     .field {
       display: flex;

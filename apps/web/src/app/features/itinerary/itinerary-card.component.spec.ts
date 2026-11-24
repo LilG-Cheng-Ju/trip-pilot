@@ -108,5 +108,16 @@ describe('ItineraryCardComponent', () => {
 
     expect(movedDown).toEqual([transit]);
     expect(host.querySelector('.action-menu')).toBeNull();
+
+    // Direct inline moveUp/moveDown buttons are also exposed identically to regular cards
+    const inlineOrderBtns = Array.from(
+      host.querySelectorAll('.connector-order .order-btn'),
+    ) as HTMLButtonElement[];
+    expect(inlineOrderBtns).toHaveLength(2);
+    expect(inlineOrderBtns[0].disabled).toBe(true);
+    expect(inlineOrderBtns[1].disabled).toBe(false);
+
+    inlineOrderBtns[1].click();
+    expect(movedDown).toEqual([transit, transit]);
   });
 });

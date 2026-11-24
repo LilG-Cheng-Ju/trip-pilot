@@ -113,6 +113,117 @@ describe('travel-format.utils', () => {
     expect(slots[0].choices.map((c) => c.id)).toEqual(['anchor-1', 'alt-1']);
   });
 
+  it('inserts server-placed primary items at sort_order and shifts subsequent items without mutation', () => {
+    const morning = makeItem({ id: 'm', title: 'Shrine', start_time: '09:00', sort_order: 0 });
+    const dinner = makeItem({ id: 'd', title: 'Dinner', start_time: '18:00', sort_order: 1 });
+    const lunch = makeItem({ id: 'l', title: 'Lunch', start_time: '12:00', sort_order: 1 });
+
+    const result = appendCreatedItem([morning, dinner], lunch);
+    expect(result.map((it) => ({ id: it.id, sort_order: it.sort_order }))).toEqual([
+      { id: 'm', sort_order: 0 },
+      { id: 'l', sort_order: 1 },
+      { id: 'd', sort_order: 2 },
+    ]);
+    // Input items must remain unmutated.
+    expect(dinner.sort_order).toBe(1);
+  });
+
+  it('computes chronological slots (first_later, last_timed + 1, append) when optimistic/unsorted', () => {
+    const morning = makeItem({ id: 'm', start_time: '09:00', sort_order: 0 });
+    const afternoon = makeItem({ id: 'a', start_time: '15:00', sort_order: 1 });
+    const untimed = makeItem({ id: 'u', start_time: null, sort_order: 2 });
+
+    // Before first_later_idx (15:00 > 12:00)
+    const noon = makeItem({ id: 'noon', start_time: '12:00', sort_order: -1 });
+    const withNoon = appendCreatedItem([morning, afternoon, untimed], noon);
+    expect(withNoon.map((it) => ({ id: it.id, sort_order: it.sort_order }))).toEqual([
+      { id: 'm', sort_order: 0 },
+      { id: 'noon', sort_order: 1 },
+      { id: 'a', sort_order: 2 },
+      { id: 'u', sort_order: 3 },
+    ]);
+
+    // Tie preserves existing order and inserts before later timed item (15:00)
+    const sameMorning = makeItem({ id: 'm2', start_time: '09:00', sort_order: 99 });
+    const withTie = appendCreatedItem([morning, afternoon, untimed], sameMorning);
+    expect(withTie.map((it) => it.id)).toEqual(['m', 'm2', 'a', 'u']);
+
+    // After last_timed_idx + 1 (before trailing untimed items)
+    const evening = makeItem({ id: 'e', start_time: '19:30', sort_order: -1 });
+    const withEvening = appendCreatedItem([morning, afternoon, untimed], evening);
+    expect(withEvening.map((it) => ({ id: it.id, sort_order: it.sort_order }))).toEqual([
+      { id: 'm', sort_order: 0 },
+      { id: 'a', sort_order: 1 },
+      { id: 'e', sort_order: 2 },
+      { id: 'u', sort_order: 3 },
+    ]);
+
+    // Appends at primaryCount when item is untimed or no timed items exist
+    const untimedNew = makeItem({ id: 'u2', start_time: null, sort_order: -1 });
+    const withUntimed = appendCreatedItem([morning, afternoon, untimed], untimedNew);
+    expect(withUntimed.map((it) => ({ id: it.id, sort_order: it.sort_order }))).toEqual([
+      { id: 'm', sort_order: 0 },
+      { id: 'a', sort_order: 1 },
+      { id: 'u', sort_order: 2 },
+      { id: 'u2', sort_order: 3 },
+    ]);
+
+    const singleUntimed = makeItem({ id: 'u', start_time: null, sort_order: 0 });
+    const timedOnUntimedDay = makeItem({ id: 't1', start_time: '10:00', sort_order: -1 });
+    const withOnlyUntimed = appendCreatedItem([singleUntimed], timedOnUntimedDay);
+    expect(withOnlyUntimed.map((it) => ({ id: it.id, sort_order: it.sort_order }))).toEqual([
+      { id: 'u', sort_order: 0 },
+      { id: 't1', sort_order: 1 },
+    ]);
+  });
+
+  it('keeps slot alternatives attached safely without shifting primary order', () => {
+    const morning = makeItem({ id: 'm', start_time: '09:00', sort_order: 0 });
+    const lunchA = makeItem({
+      id: 'l1',
+      start_time: '12:00',
+      sort_order: 1,
+      choice_group_id: 'g-lunch',
+      is_selected: true,
+    });
+    const lunchB = makeItem({
+      id: 'l2',
+      start_time: '12:30',
+      sort_order: 1,
+      choice_group_id: 'g-lunch',
+      is_selected: false,
+    });
+    const dinner = makeItem({ id: 'd', start_time: '19:00', sort_order: 2 });
+
+    // Adding a third alternative to g-lunch keeps primary order [0, 1, 2] intact.
+    const lunchC = makeItem({
+      id: 'l3',
+      start_time: '12:15',
+      sort_order: 1,
+      choice_group_id: 'g-lunch',
+      is_selected: false,
+    });
+    const withAlt = appendCreatedItem([morning, lunchA, lunchB, dinner], lunchC, 'l1');
+    expect(withAlt.map((it) => ({ id: it.id, sort_order: it.sort_order }))).toEqual([
+      { id: 'm', sort_order: 0 },
+      { id: 'l1', sort_order: 1 },
+      { id: 'l2', sort_order: 1 },
+      { id: 'l3', sort_order: 1 },
+      { id: 'd', sort_order: 2 },
+    ]);
+
+    // Inserting a primary item before g-lunch shifts g-lunch and dinner cleanly.
+    const cafe = makeItem({ id: 'c', start_time: '10:30', sort_order: -1 });
+    const withPrimary = appendCreatedItem([morning, lunchA, lunchB, dinner], cafe);
+    expect(withPrimary.map((it) => ({ id: it.id, sort_order: it.sort_order }))).toEqual([
+      { id: 'm', sort_order: 0 },
+      { id: 'c', sort_order: 1 },
+      { id: 'l1', sort_order: 2 },
+      { id: 'l2', sort_order: 2 },
+      { id: 'd', sort_order: 3 },
+    ]);
+  });
+
   it('promotes the first remaining sibling when deleting the selected choice item', () => {
     const firstAlt = makeItem({
       id: 'alt-1',

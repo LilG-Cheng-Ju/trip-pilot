@@ -1,4 +1,11 @@
 import {
+  CdkDrag,
+  CdkDragDrop,
+  CdkDragPlaceholder,
+  CdkDropList,
+} from '@angular/cdk/drag-drop';
+import { CdkScrollable } from '@angular/cdk/scrolling';
+import {
   ChangeDetectionStrategy,
   Component,
   computed,
@@ -56,6 +63,10 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     RouterLink,
+    CdkDropList,
+    CdkDrag,
+    CdkDragPlaceholder,
+    CdkScrollable,
     TranslatePipe,
     AppConfirmModalComponent,
     AppModalComponent,
@@ -143,7 +154,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
             </div>
           </div>
 
-          <div class="timeline-scroll">
+          <div #timelineScroll class="timeline-scroll" cdkScrollable>
             @if (store.error(); as err) {
               <div class="error-banner" role="alert">
                 <span>{{ err }}</span>
@@ -269,9 +280,22 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
                 @if (timelineSlots().length === 0) {
                   <div class="empty-day">{{ 'itinerary.emptyDay' | t }}</div>
                 } @else {
-                  <div class="timeline-list">
+                  <div
+                    class="timeline-list"
+                    cdkDropList
+                    [cdkDropListData]="timelineSlots()"
+                    (cdkDropListDropped)="onSlotDropped($event)"
+                  >
                     @for (slot of timelineSlots(); track slot.key; let first = $first, last = $last) {
-                      <div class="slot-group" [class.has-choices]="slot.choices.length > 1">
+                      <div
+                        class="slot-group"
+                        [class.has-choices]="slot.choices.length > 1"
+                        [attr.data-slot-item-id]="slot.activeItem.id"
+                        cdkDrag
+                        [cdkDragData]="slot"
+                        [cdkDragStartDelay]="{ touch: 180, mouse: 0 }"
+                      >
+                        <div class="slot-drag-placeholder" *cdkDragPlaceholder></div>
                         @if (slot.choices.length > 1) {
                           <div class="choice-bar">
                             <div class="choice-pills">
@@ -337,7 +361,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
             [departureStayPin]="departureStayMapPin()"
             [stayPin]="stayMapPin()"
             [selectedPinId]="store.selectedItemId()"
-            (pinSelected)="store.selectItem($event)"
+            (pinSelected)="onMapPinSelected($event)"
           />
         </aside>
       </div>
@@ -369,7 +393,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
           [selectedPinId]="store.selectedItemId()"
           [selectedItem]="selectedMapItem()"
           [selectedPinOrder]="selectedMapItem() ? (pinOrderById().get(selectedMapItem()!.id) ?? null) : null"
-          (pinSelected)="store.selectItem($event)"
+          (pinSelected)="onMapPinSelected($event)"
           (clearSelection)="store.selectItem(null)"
           (logExpense)="openQuickExpenseModal($event)"
           (closed)="store.setMobileMapOpen(false)"
@@ -962,6 +986,13 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       flex-direction: column;
       gap: var(--space-3);
     }
+    .slot-drag-placeholder {
+      min-height: 76px;
+      border-radius: var(--radius-md);
+      border: 1.5px dashed var(--color-accent);
+      background: var(--color-accent-soft);
+      opacity: 0.7;
+    }
     .slot-group.has-choices {
       padding: 8px;
       border-radius: var(--radius-md);
@@ -1285,7 +1316,29 @@ export class ItineraryPageComponent implements OnInit {
   }
 
   private readonly dayStrip = viewChild<ElementRef<HTMLDivElement>>('dayStrip');
+  private readonly timelineScroll = viewChild<ElementRef<HTMLDivElement>>('timelineScroll');
   protected readonly dayStripScrollStepPx = DAY_STRIP_SCROLL_STEP_PX;
+
+  protected onSlotDropped(event: CdkDragDrop<ItinerarySlot[]>): void {
+    if (event.previousIndex === event.currentIndex) {
+      return;
+    }
+    void this.store.reorderSlotIndex(event.previousIndex, event.currentIndex);
+  }
+
+  protected onMapPinSelected(itemId: string): void {
+    this.store.selectItem(itemId);
+    const container = this.timelineScroll()?.nativeElement;
+    if (!container) {
+      return;
+    }
+    const target = Array.from(
+      container.querySelectorAll<HTMLElement>('[data-slot-item-id]'),
+    ).find((el) => el.getAttribute('data-slot-item-id') === itemId);
+    if (target && typeof target.scrollIntoView === 'function') {
+      target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
 
   protected openQuickExpenseModal(item: ItineraryItem): void {
     this.quickExpenseItem.set(item);

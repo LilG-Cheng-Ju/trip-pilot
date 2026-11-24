@@ -1,3 +1,4 @@
+import { moveItemInArray } from '@angular/cdk/drag-drop';
 import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 
@@ -728,27 +729,28 @@ export const ItineraryStore = signalStore(
           }
         },
 
-        async moveItem(item: ItineraryItem, direction: -1 | 1): Promise<void> {
+        async reorderSlotIndex(fromIndex: number, toIndex: number): Promise<void> {
           const option = store.selectedOption();
           const trip = store.trip();
           if (!option || !trip) {
             return;
           }
-          recalculatedOptionIds.clear();
-          // Group items by slot (choice_group_id) so moving skips hidden alternatives.
+          // Group items by slot (choice_group_id) so dragging/moving skips hidden alternatives.
           const slots = groupItemsIntoSlots(option.items);
-
-          const targetKey = item.choice_group_id ?? item.id;
-          const currentIndex = slots.findIndex((s) => s.key === targetKey);
-          const targetIndex = currentIndex + direction;
-          if (currentIndex < 0 || targetIndex < 0 || targetIndex >= slots.length) {
+          if (
+            fromIndex === toIndex ||
+            fromIndex < 0 ||
+            toIndex < 0 ||
+            fromIndex >= slots.length ||
+            toIndex >= slots.length
+          ) {
             return;
           }
-          [slots[currentIndex], slots[targetIndex]] = [
-            slots[targetIndex],
-            slots[currentIndex],
-          ];
-          const reorderedItems = slots.flatMap((s) => s.choices);
+          recalculatedOptionIds.clear();
+
+          const nextSlots = [...slots];
+          moveItemInArray(nextSlots, fromIndex, toIndex);
+          const reorderedItems = nextSlots.flatMap((s) => s.choices);
           const reorderedIds = reorderedItems.map((c) => c.id);
 
           // Optimistic 0ms reorder; rollback on API error.
@@ -787,6 +789,23 @@ export const ItineraryStore = signalStore(
             patchState(store, { trip: previousTrip });
             recordError(err, 'Failed to reorder items');
           }
+        },
+
+        async moveItem(itemOrId: ItineraryItem | string, direction: -1 | 1): Promise<void> {
+          const option = store.selectedOption();
+          if (!option) {
+            return;
+          }
+          const slots = groupItemsIntoSlots(option.items);
+          const targetKey =
+            typeof itemOrId === 'string'
+              ? (option.items.find((it) => it.id === itemOrId)?.choice_group_id ?? itemOrId)
+              : (itemOrId.choice_group_id ?? itemOrId.id);
+          const currentIndex = slots.findIndex((s) => s.key === targetKey);
+          if (currentIndex < 0) {
+            return;
+          }
+          await this.reorderSlotIndex(currentIndex, currentIndex + direction);
         },
 
         async loadShares(tripId: string): Promise<void> {

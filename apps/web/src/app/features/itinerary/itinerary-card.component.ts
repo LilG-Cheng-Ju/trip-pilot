@@ -55,6 +55,26 @@ import { ItemExpenseSummary } from '../../state/expense.store';
             >
               <span class="ms-icon sm" aria-hidden="true">payments</span>
             </button>
+            <div class="order-controls connector-order">
+              <button
+                type="button"
+                class="order-btn connector-order-btn"
+                [disabled]="!canMoveUp()"
+                (click)="moveUp.emit(item())"
+                [attr.aria-label]="'item.moveUp' | t"
+              >
+                <span class="ms-icon sm" aria-hidden="true">keyboard_arrow_up</span>
+              </button>
+              <button
+                type="button"
+                class="order-btn connector-order-btn"
+                [disabled]="!canMoveDown()"
+                (click)="moveDown.emit(item())"
+                [attr.aria-label]="'item.moveDown' | t"
+              >
+                <span class="ms-icon sm" aria-hidden="true">keyboard_arrow_down</span>
+              </button>
+            </div>
             <div class="overflow-anchor">
               <button
                 type="button"
@@ -510,42 +530,59 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       color: var(--color-primary);
       text-decoration: none;
     }
-    .connector-spend-btn {
+    .connector-spend-btn,
+    .connector-menu-btn,
+    .head-action-btn,
+    .head-menu-btn,
+    .order-btn {
+      position: relative;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      flex-shrink: 0;
-      width: 30px;
-      height: 22px;
       padding: 0;
-      border: 1px solid rgba(200, 155, 91, 0.55);
-      border-radius: 6px;
-      background: var(--color-accent-soft);
-      color: var(--color-accent-ink);
+      border: 1px solid var(--color-border);
+      background: var(--color-bg);
       cursor: pointer;
     }
-    .connector-spend-btn:hover {
+    .connector-spend-btn,
+    .connector-menu-btn {
+      flex-shrink: 0;
+      height: 22px;
+      border-radius: 6px;
+    }
+    .connector-spend-btn {
+      width: 30px;
+      border-color: rgba(200, 155, 91, 0.55);
+      background: var(--color-accent-soft);
+      color: var(--color-accent-ink);
+    }
+    .connector-spend-btn:hover,
+    .head-action-btn.expense-trigger:hover {
       background: var(--color-accent);
       border-color: var(--color-accent);
       color: var(--color-text-on-primary);
     }
     .connector-menu-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
       width: 22px;
-      height: 22px;
-      padding: 0;
-      border: 1px solid var(--color-border);
-      border-radius: 6px;
-      background: var(--color-bg);
       color: var(--color-text-secondary);
-      cursor: pointer;
     }
-    .connector-menu-btn:hover {
+    .connector-menu-btn:hover,
+    .head-menu-btn:hover,
+    .order-btn:hover:not(:disabled) {
       border-color: var(--color-primary);
       color: var(--color-primary);
+    }
+    .connector-order {
+      margin-left: 0;
+      flex-shrink: 0;
+    }
+    .connector-order-btn {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+    }
+    .connector-order-btn::after {
+      inset: -3px;
     }
     .order-btn:disabled {
       opacity: 0.35;
@@ -722,19 +759,11 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       border-color: var(--color-accent);
     }
     .head-action-btn {
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
       width: 36px;
       height: 28px;
-      padding: 0;
-      border: 1px solid var(--color-border);
       border-radius: 7px;
-      background: var(--color-bg);
       color: var(--color-primary);
       text-decoration: none;
-      cursor: pointer;
       transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
     }
     .head-action-btn:hover {
@@ -746,12 +775,8 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       background: var(--color-accent-soft);
       color: var(--color-accent-ink);
     }
-    .head-action-btn.expense-trigger:hover {
-      border-color: var(--color-accent);
-      background: var(--color-accent);
-      color: var(--color-text-on-primary);
-    }
-    .head-action-btn.dark {
+    .head-action-btn.dark,
+    .head-menu-btn.dark {
       border-color: rgba(255, 255, 255, 0.24);
       background: rgba(255, 255, 255, 0.1);
       color: var(--color-text-on-primary);
@@ -766,27 +791,10 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       color: var(--color-text-on-primary);
     }
     .head-menu-btn {
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
       width: 28px;
       height: 28px;
-      padding: 0;
-      border: 1px solid var(--color-border);
       border-radius: 7px;
-      background: var(--color-bg);
       color: var(--color-text-secondary);
-      cursor: pointer;
-    }
-    .head-menu-btn:hover {
-      border-color: var(--color-primary);
-      color: var(--color-primary);
-    }
-    .head-menu-btn.dark {
-      border-color: rgba(255, 255, 255, 0.24);
-      background: rgba(255, 255, 255, 0.1);
-      color: var(--color-text-on-primary);
     }
     .overflow-anchor {
       position: relative;
@@ -996,22 +1004,10 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       margin-left: auto;
     }
     .order-btn {
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
       width: 28px;
       height: 28px;
-      padding: 0;
-      border: 1px solid var(--color-border);
       border-radius: 8px;
-      background: var(--color-bg);
       color: var(--color-text-muted);
-      cursor: pointer;
-    }
-    .order-btn:hover:not(:disabled) {
-      border-color: var(--color-primary);
-      color: var(--color-primary);
     }
     .head-action-btn::after,
     .head-menu-btn::after,

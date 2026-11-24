@@ -322,6 +322,9 @@ export const MESSAGES_EN = {
   'profile.tokenCreateError': 'Failed to generate token. Please check the API server.',
   'countryPicker.searchPlaceholder': 'Search country or code (e.g. Czechia, JP)',
   'countryPicker.empty': 'No matching country',
+  'airportPicker.placeholder': 'IATA or city (e.g. NRT, Tokyo)',
+  'airportPicker.searching': 'Searching airports...',
+  'airportPicker.empty': 'No matching airports — manual 3-letter IATA stays valid.',
 } as const;
 
 export type TranslationKey = keyof typeof MESSAGES_EN;

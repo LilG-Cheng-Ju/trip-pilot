@@ -107,7 +107,7 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
             </div>
           </div>
 
-          <div class="timeline-scroll">
+          <div #timelineScroll class="timeline-scroll">
             @if (selectedDay(); as day) {
               @if (day.title) {
                 <div class="day-theme-bar">
@@ -152,7 +152,11 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
               } @else {
                 <div class="timeline">
                   @for (slot of timelineSlots(); track slot.key) {
-                    <div class="slot-group" [class.has-choices]="slot.choices.length > 1">
+                    <div
+                      class="slot-group"
+                      [class.has-choices]="slot.choices.length > 1"
+                      [attr.data-slot-item-id]="slot.activeItem.id"
+                    >
                       @if (slot.choices.length > 1) {
                         <div class="choice-pills">
                           @for (choice of slot.choices; track choice.id) {
@@ -193,7 +197,7 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
             [departureStayPin]="departureStayMapPin()"
             [stayPin]="stayMapPin()"
             [selectedPinId]="selectedItemId()"
-            (pinSelected)="selectedItemId.set($event)"
+            (pinSelected)="onMapPinSelected($event)"
           />
         </aside>
       </div>
@@ -220,7 +224,7 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
           [selectedPinId]="selectedItemId()"
           [selectedItem]="selectedMapItem()"
           [selectedPinOrder]="selectedMapItem() ? (pinOrderById().get(selectedMapItem()!.id) ?? null) : null"
-          (pinSelected)="selectedItemId.set($event)"
+          (pinSelected)="onMapPinSelected($event)"
           (clearSelection)="selectedItemId.set(null)"
           (closed)="mobileMapOpen.set(false)"
         />
@@ -542,6 +546,7 @@ export class PublicSharePageComponent implements OnInit {
   protected readonly i18n = inject(I18nService);
 
   private readonly dayStrip = viewChild<ElementRef<HTMLDivElement>>('dayStrip');
+  private readonly timelineScroll = viewChild<ElementRef<HTMLDivElement>>('timelineScroll');
   protected readonly dayStripScrollStepPx = DAY_STRIP_SCROLL_STEP_PX;
 
   protected readonly trip = signal<PublicTrip | null>(null);
@@ -715,5 +720,19 @@ export class PublicSharePageComponent implements OnInit {
   protected selectChoicePreview(slotKey: string, choiceId: string): void {
     this.previewChoiceByGroup.update((curr) => ({ ...curr, [slotKey]: choiceId }));
     this.selectedItemId.set(null);
+  }
+
+  protected onMapPinSelected(itemId: string): void {
+    this.selectedItemId.set(itemId);
+    const container = this.timelineScroll()?.nativeElement;
+    if (!container) {
+      return;
+    }
+    const target = Array.from(
+      container.querySelectorAll<HTMLElement>('[data-slot-item-id]'),
+    ).find((el) => el.getAttribute('data-slot-item-id') === itemId);
+    if (target && typeof target.scrollIntoView === 'function') {
+      target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
   }
 }

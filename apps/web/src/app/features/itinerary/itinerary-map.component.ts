@@ -315,11 +315,14 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
       }
     });
 
-    // Update marker highlight styles in-place on selection changes without DOM rebuilds.
+    // Update marker highlight styles in-place and pan if selection sits outside viewport.
     effect(() => {
       const selected = this.selectedPinId();
       if (this.map && this.styleLoaded) {
         this.updateMarkerSelection(selected);
+      }
+      if (selected && this.map) {
+        this.panToSelectedIfOutOfBounds(selected);
       }
     });
   }
@@ -434,6 +437,45 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
   private updateMarkerSelection(selectedId: string | null): void {
     for (const [id, tracked] of this.markerEls.entries()) {
       this.applyMarkerStyle(tracked, id === selectedId);
+    }
+  }
+
+  private findSelectedPinCoords(selectedId: string): { lng: number; lat: number } | null {
+    const pin = untracked(() => this.pins().find((p) => p.id === selectedId));
+    if (pin && Number.isFinite(pin.lng) && Number.isFinite(pin.lat)) {
+      return pin;
+    }
+    const stay = untracked(() => this.stayPin());
+    if (stay && stay.id === selectedId && Number.isFinite(stay.lng) && Number.isFinite(stay.lat)) {
+      return stay;
+    }
+    const depStay = untracked(() => this.departureStayPin());
+    if (
+      depStay &&
+      depStay.id === selectedId &&
+      Number.isFinite(depStay.lng) &&
+      Number.isFinite(depStay.lat)
+    ) {
+      return depStay;
+    }
+    return null;
+  }
+
+  private panToSelectedIfOutOfBounds(selectedId: string): void {
+    if (
+      !this.map ||
+      typeof this.map.getBounds !== 'function' ||
+      typeof this.map.easeTo !== 'function'
+    ) {
+      return;
+    }
+    const pin = this.findSelectedPinCoords(selectedId);
+    if (!pin) {
+      return;
+    }
+    const bounds = this.map.getBounds();
+    if (bounds && typeof bounds.contains === 'function' && !bounds.contains([pin.lng, pin.lat])) {
+      this.map.easeTo({ center: [pin.lng, pin.lat], duration: 450 });
     }
   }
 

@@ -1,8 +1,11 @@
 import { TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 
 import { TripilotApiService } from '../core/api/tripilot-api.service';
 import {
+  DayOption,
   ExpenseItem,
+  ItineraryItem,
   TripDay,
   TripDetail,
   TripExpensesSummary,
@@ -10,6 +13,28 @@ import {
 import { ExpenseStore } from './expense.store';
 import { ItineraryStore } from './itinerary.store';
 import { TripStore } from './trip.store';
+
+function makeItem(overrides: Partial<ItineraryItem>): ItineraryItem {
+  return {
+    id: 'item-1',
+    day_option_id: 'opt-d1',
+    type: 'SPOT',
+    sort_order: 0,
+    title: 'Spot',
+    start_time: null,
+    end_time: null,
+    timezone: null,
+    address: null,
+    latitude: null,
+    longitude: null,
+    google_maps_url: null,
+    notes: null,
+    details: {},
+    choice_group_id: null,
+    is_selected: true,
+    ...overrides,
+  };
+}
 
 function makeDay(id: string, dayIndex: number, date: string): TripDay {
   return {
@@ -184,5 +209,109 @@ describe('CRUD SignalStores', () => {
     expect(summary.by_category).toEqual({ SHOPPING: '440.00' });
     expect(summary.items[0].title).toBe('Matcha Gift');
     expect(summary.items[0].trip_day_id).toBe('d2');
+  });
+
+  it('ItineraryStore.reorderSlotIndex reorders slots optimistically, normalizes sort_order, and rolls back on error', async () => {
+    const itemA = makeItem({ id: 'a', title: 'Shrine', sort_order: 0 });
+    const itemB1 = makeItem({
+      id: 'b1',
+      title: 'Ramen A',
+      sort_order: 1,
+      choice_group_id: 'g-lunch',
+      is_selected: true,
+    });
+    const itemB2 = makeItem({
+      id: 'b2',
+      title: 'Ramen B',
+      sort_order: 2,
+      choice_group_id: 'g-lunch',
+      is_selected: false,
+    });
+    const itemC = makeItem({ id: 'c', title: 'Tower', sort_order: 3 });
+
+    const baseTrip = makeTripDetail();
+    baseTrip.days[0].options[0].items = [itemA, itemB1, itemB2, itemC];
+
+    let shouldFail = false;
+    const reorderCalls: { optionId: string; itemIds: string[] }[] = [];
+    apiMock['getTrip'] = async () => structuredClone(baseTrip);
+    apiMock['reorderItems'] = async (
+      optionId: string,
+      itemIds: string[],
+    ): Promise<DayOption> => {
+      reorderCalls.push({ optionId, itemIds });
+      if (shouldFail) {
+        throw new Error('Network unavailable');
+      }
+      const byId = new Map([itemA, itemB1, itemB2, itemC].map((it) => [it.id, it]));
+      return {
+        ...baseTrip.days[0].options[0],
+        items: itemIds.map((id, idx) => ({ ...byId.get(id)!, sort_order: idx })),
+      };
+    };
+
+    const itineraryStore = TestBed.inject(ItineraryStore);
+    await itineraryStore.loadTrip('trip-1');
+
+    // Drag slot 0 (Shrine) after slot 2 (Tower) -> [g-lunch(b1,b2), c, a]
+    await itineraryStore.reorderSlotIndex(0, 2);
+    expect(reorderCalls).toEqual([{ optionId: 'opt-d1', itemIds: ['b1', 'b2', 'c', 'a'] }]);
+    expect(
+      itineraryStore
+        .selectedOption()!
+        .items.map((it) => ({ id: it.id, sort_order: it.sort_order })),
+    ).toEqual([
+      { id: 'b1', sort_order: 0 },
+      { id: 'b2', sort_order: 1 },
+      { id: 'c', sort_order: 2 },
+      { id: 'a', sort_order: 3 },
+    ]);
+
+    // No-op / out-of-bounds does not call API
+    await itineraryStore.reorderSlotIndex(1, 1);
+    await itineraryStore.reorderSlotIndex(-1, 2);
+    await itineraryStore.reorderSlotIndex(0, 9);
+    expect(reorderCalls).toHaveLength(1);
+
+    // Error triggers rollback and sets store error
+    shouldFail = true;
+    await itineraryStore.reorderSlotIndex(2, 0);
+    expect(itineraryStore.error()).toBe('Network unavailable');
+    expect(itineraryStore.selectedOption()!.items.map((it) => it.id)).toEqual([
+      'b1',
+      'b2',
+      'c',
+      'a',
+    ]);
+  });
+
+  it('ItineraryStore.moveItem delegates directly to reorderSlotIndex', async () => {
+    const itemA = makeItem({ id: 'a', sort_order: 0 });
+    const itemB = makeItem({ id: 'b', sort_order: 1 });
+    const itemC = makeItem({ id: 'c', sort_order: 2 });
+
+    const baseTrip = makeTripDetail();
+    baseTrip.days[0].options[0].items = [itemA, itemB, itemC];
+    apiMock['getTrip'] = async () => structuredClone(baseTrip);
+    apiMock['reorderItems'] = async (
+      _optionId: string,
+      itemIds: string[],
+    ): Promise<DayOption> => {
+      const byId = new Map([itemA, itemB, itemC].map((it) => [it.id, it]));
+      return {
+        ...baseTrip.days[0].options[0],
+        items: itemIds.map((id, idx) => ({ ...byId.get(id)!, sort_order: idx })),
+      };
+    };
+
+    const itineraryStore = TestBed.inject(ItineraryStore);
+    await itineraryStore.loadTrip('trip-1');
+
+    const spy = vi.spyOn(itineraryStore, 'reorderSlotIndex');
+    await itineraryStore.moveItem(itemB, -1);
+    expect(spy).toHaveBeenCalledWith(1, 0);
+
+    await itineraryStore.moveItem('c', -1);
+    expect(spy).toHaveBeenCalledWith(2, 1);
   });
 });

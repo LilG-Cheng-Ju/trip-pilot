@@ -324,4 +324,7 @@ export const MESSAGES_ZH_TW: Record<TranslationKey, string> = {
   'profile.tokenCreateError': '產生 Token 失敗，請確認後端服務正常。',
   'countryPicker.searchPlaceholder': '搜尋國家名稱或代碼（如 捷克、JP）',
   'countryPicker.empty': '找不到相符國家',
+  'airportPicker.placeholder': '輸入代碼或城市（如 NRT、Tokyo）',
+  'airportPicker.searching': '搜尋機場中...',
+  'airportPicker.empty': '找不到相符機場 — 仍可直接輸入 3 碼 IATA 代碼。',
 };

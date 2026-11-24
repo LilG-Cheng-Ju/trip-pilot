@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 
 import { I18nService } from '../../core/i18n/i18n.service';
 import { DayMapRoutes, EMPTY_DAY_MAP_ROUTES } from '../../core/utils/travel-format.utils';
@@ -91,5 +92,42 @@ describe('ItineraryMapComponent', () => {
 
     expect(attribBtn.getAttribute('aria-expanded')).toBe('false');
     expect(host.querySelector('.map-attrib-links')).toBeNull();
+  });
+
+  it('calls map.easeTo when selectedPinId is outside bounds and skips when inside bounds', async () => {
+    const fixture = TestBed.createComponent(ItineraryMapComponent);
+    const pins = [
+      { id: 'spot-in', order: 1, title: 'Senso-ji', lat: 35.7148, lng: 139.7967, type: 'SPOT' },
+      { id: 'spot-out', order: 2, title: 'Hakone', lat: 35.2324, lng: 139.1069, type: 'SPOT' },
+    ];
+    fixture.componentRef.setInput('pins', pins);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    let inBounds = false;
+    const easeTo = vi.fn();
+    const contains = vi.fn(() => inBounds);
+    (fixture.componentInstance as unknown as { map: unknown }).map = {
+      getBounds: () => ({ contains }),
+      easeTo,
+      remove: vi.fn(),
+    };
+
+    // Out-of-bounds selection triggers smooth pan
+    inBounds = false;
+    fixture.componentRef.setInput('selectedPinId', 'spot-out');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(contains).toHaveBeenCalledWith([139.1069, 35.2324]);
+    expect(easeTo).toHaveBeenCalledTimes(1);
+    expect(easeTo).toHaveBeenCalledWith({ center: [139.1069, 35.2324], duration: 450 });
+
+    // In-bounds selection does not pan
+    inBounds = true;
+    fixture.componentRef.setInput('selectedPinId', 'spot-in');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(contains).toHaveBeenCalledWith([139.7967, 35.7148]);
+    expect(easeTo).toHaveBeenCalledTimes(1);
   });
 });

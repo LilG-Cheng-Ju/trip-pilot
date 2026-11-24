@@ -178,21 +178,135 @@ export function getSelectedDayItems(day: TripDay): ItineraryItem[] {
   return opt.items.filter((item) => item.is_selected);
 }
 
-/** Return the selected item's sibling group updated when appending a newly created alternative. */
+const TIME_HH_MM_RE = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/;
+
+function parseTimeSeconds(value: string | null | undefined): number | null {
+  if (!value) {
+    return null;
+  }
+  const match = TIME_HH_MM_RE.exec(value.trim());
+  if (!match) {
+    return null;
+  }
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const seconds = match[3] !== undefined ? Number(match[3]) : 0;
+  if (
+    hours < 0 ||
+    hours > 23 ||
+    minutes < 0 ||
+    minutes > 59 ||
+    seconds < 0 ||
+    seconds > 59
+  ) {
+    return null;
+  }
+  return hours * 3600 + minutes * 60 + seconds;
+}
+
+/**
+ * Insert a created item while keeping choice-group alternatives attached and
+ * mirroring backend chronological placement for primary items without mutating inputs.
+ */
 export function appendCreatedItem(
   items: readonly ItineraryItem[],
   created: ItineraryItem,
   alternativeForId?: string | null,
 ): ItineraryItem[] {
-  const updated =
-    alternativeForId && created.choice_group_id
-      ? items.map((it) =>
-          it.id === alternativeForId
-            ? { ...it, choice_group_id: created.choice_group_id }
-            : it,
-        )
-      : [...items];
-  return [...updated, created];
+  const isAlternative =
+    Boolean(alternativeForId) ||
+    (!created.is_selected &&
+      Boolean(created.choice_group_id) &&
+      items.some((it) => it.choice_group_id === created.choice_group_id));
+
+  if (isAlternative) {
+    const anchor = alternativeForId
+      ? items.find((it) => it.id === alternativeForId)
+      : undefined;
+    const resolvedGroupId = created.choice_group_id ?? anchor?.choice_group_id ?? null;
+
+    const updated =
+      alternativeForId && resolvedGroupId
+        ? items.map((it) =>
+            it.id === alternativeForId ? { ...it, choice_group_id: resolvedGroupId } : it,
+          )
+        : [...items];
+
+    const altCopy: ItineraryItem = {
+      ...created,
+      ...(resolvedGroupId ? { choice_group_id: resolvedGroupId } : {}),
+    };
+
+    let insertAfterIdx = -1;
+    for (let i = 0; i < updated.length; i++) {
+      if (
+        (resolvedGroupId && updated[i].choice_group_id === resolvedGroupId) ||
+        (alternativeForId && updated[i].id === alternativeForId)
+      ) {
+        insertAfterIdx = i;
+      }
+    }
+    if (insertAfterIdx < 0) {
+      return [...updated, altCopy];
+    }
+    return [
+      ...updated.slice(0, insertAfterIdx + 1),
+      altCopy,
+      ...updated.slice(insertAfterIdx + 1),
+    ];
+  }
+
+  // Group into slots so existing alternative items travel with their primary slot.
+  const slots = groupItemsIntoSlots(items);
+  const primaryCount = slots.length;
+  const hasServerSortOrder =
+    Number.isInteger(created.sort_order) &&
+    created.sort_order >= 0 &&
+    created.sort_order <= primaryCount;
+
+  let insertSlotIdx: number;
+  if (hasServerSortOrder) {
+    insertSlotIdx = created.sort_order;
+  } else {
+    const createdSeconds = parseTimeSeconds(created.start_time);
+    if (createdSeconds === null) {
+      insertSlotIdx = primaryCount;
+    } else {
+      let firstLaterIdx = -1;
+      let lastTimedIdx = -1;
+      for (let i = 0; i < slots.length; i++) {
+        const slotSeconds = parseTimeSeconds(slots[i].activeItem.start_time);
+        if (slotSeconds !== null) {
+          lastTimedIdx = i;
+          if (firstLaterIdx === -1 && slotSeconds > createdSeconds) {
+            firstLaterIdx = i;
+          }
+        }
+      }
+      insertSlotIdx =
+        firstLaterIdx !== -1
+          ? firstLaterIdx
+          : lastTimedIdx !== -1
+            ? lastTimedIdx + 1
+            : primaryCount;
+    }
+  }
+
+  const createdCopy: ItineraryItem = { ...created, sort_order: insertSlotIdx };
+  const result: ItineraryItem[] = [];
+  for (let i = 0; i < insertSlotIdx; i++) {
+    for (const choice of slots[i].choices) {
+      result.push({ ...choice, sort_order: i });
+    }
+  }
+  result.push(createdCopy);
+  for (let i = insertSlotIdx; i < slots.length; i++) {
+    const nextSlotOrder = i + 1;
+    for (const choice of slots[i].choices) {
+      result.push({ ...choice, sort_order: nextSlotOrder });
+    }
+  }
+  return result;
 }
 
 /** Remove an item and promote the first remaining sibling when the active choice is deleted. */

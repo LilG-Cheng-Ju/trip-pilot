@@ -1,8 +1,9 @@
 """Business logic for Trips, multi-option Days (Plan A/B), Items, and Sharing."""
 
+import re
 import secrets
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
 
 from fastapi import HTTPException, status
 from sqlalchemy import delete, or_, select, update
@@ -51,6 +52,57 @@ def _require_found[T](entity: T | None, detail: str) -> T:
 
 def _norm_iata(value: object) -> str | None:
     return value.strip().upper() if isinstance(value, str) and value.strip() else None
+
+
+_START_TIME_RE = re.compile(r"^(\d{1,2}):(\d{2})(?::(\d{2}))?$")
+
+
+def _parse_start_time(value: str | None) -> time | None:
+    """Parse an HH:MM (or H:MM / HH:MM:SS) string into a comparable time."""
+    if not value:
+        return None
+    match = _START_TIME_RE.fullmatch(value.strip())
+    if match is None:
+        return None
+    hour = int(match.group(1))
+    minute = int(match.group(2))
+    second = int(match.group(3)) if match.group(3) is not None else 0
+    if not (0 <= hour <= 23 and 0 <= minute <= 59 and 0 <= second <= 59):
+        return None
+    return time(hour, minute, second)
+
+
+def _group_existing_slots(items: list[ItineraryItem]) -> list[list[ItineraryItem]]:
+    """Group ordered items by choice_group_id so slot alternatives move together."""
+    slots: list[list[ItineraryItem]] = []
+    slots_by_group: dict[str, list[ItineraryItem]] = {}
+    for item in items:
+        if not item.choice_group_id:
+            slots.append([item])
+            continue
+        group_slot = slots_by_group.get(item.choice_group_id)
+        if group_slot is None:
+            group_slot = []
+            slots_by_group[item.choice_group_id] = group_slot
+            slots.append(group_slot)
+        group_slot.append(item)
+    return slots
+
+
+def _compute_chronological_insert_index(
+    slots: list[list[ItineraryItem]], new_start_time: time
+) -> int:
+    """Compute the deterministic chronological insertion index across slots."""
+    last_timed_idx: int | None = None
+    for idx, slot in enumerate(slots):
+        primary = next((member for member in slot if member.is_selected), slot[0])
+        existing_time = _parse_start_time(primary.start_time)
+        if existing_time is None:
+            continue
+        if existing_time > new_start_time:
+            return idx
+        last_timed_idx = idx
+    return last_timed_idx + 1 if last_timed_idx is not None else len(slots)
 
 
 def _resolve_flight_airport_coords(
@@ -550,6 +602,31 @@ class TripService:
             await self.repo.get_day_for_user(day_id, user_id), "Trip day not found"
         )
 
+    async def _resolve_chronological_sort_order(
+        self, option_id: str, new_start_time: time
+    ) -> int:
+        existing_items = list(
+            (
+                await self.db.scalars(
+                    select(ItineraryItem)
+                    .where(ItineraryItem.day_option_id == option_id)
+                    .order_by(
+                        ItineraryItem.sort_order,
+                        ItineraryItem.created_at,
+                        ItineraryItem.id,
+                    )
+                )
+            ).all()
+        )
+        slots = _group_existing_slots(existing_items)
+        insert_idx = _compute_chronological_insert_index(slots, new_start_time)
+        # Re-normalize slots to 0..N so shifting never leaves gaps or splits choices.
+        for idx, slot in enumerate(slots):
+            target_order = idx if idx < insert_idx else idx + 1
+            for slot_item in slot:
+                slot_item.sort_order = target_order
+        return insert_idx
+
     async def add_item(
         self, option_id: str, user_id: str, payload: ItineraryItemCreate
     ) -> ItineraryItem:
@@ -560,9 +637,6 @@ class TripService:
             )
         choice_group_id = payload.choice_group_id
         is_selected = payload.is_selected
-        sort_order = (
-            payload.sort_order if payload.sort_order is not None else len(option.items)
-        )
 
         # Attach to an existing item's slot-level choice group (creating one if needed).
         if payload.alternative_for_item_id:
@@ -580,6 +654,14 @@ class TripService:
             choice_group_id = anchor.choice_group_id
             sort_order = anchor.sort_order
             is_selected = False
+        elif payload.sort_order is not None:
+            sort_order = payload.sort_order
+        elif (parsed_start := _parse_start_time(payload.start_time)) is not None:
+            sort_order = await self._resolve_chronological_sort_order(
+                option.id, parsed_start
+            )
+        else:
+            sort_order = len(option.items)
 
         enriched_details = _enrich_flight_details(payload.type.value, payload.details)
         lat = payload.latitude
@@ -618,6 +700,7 @@ class TripService:
                 option, [*option.items, item], user_id
             )
         await self.db.commit()
+        self.db.expire(option, ["items", "route_segments"])
         await self.db.refresh(item)
         return item
 
