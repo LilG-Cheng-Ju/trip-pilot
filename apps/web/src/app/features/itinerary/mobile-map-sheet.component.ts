@@ -37,6 +37,7 @@ import { ItineraryMapComponent, MapPin, StayMapPin } from './itinerary-map.compo
         <app-itinerary-map
           [pins]="pins()"
           [routePath]="routePath()"
+          [departureStayPin]="departureStayPin()"
           [stayPin]="stayPin()"
           [connectFromStay]="connectFromStay()"
           [connectToStay]="connectToStay()"
@@ -107,14 +108,16 @@ import { ItineraryMapComponent, MapPin, StayMapPin } from './itinerary-map.compo
                   </span>
                 </button>
               }
-              <button
-                type="button"
-                class="mini-btn accent"
-                (click)="logExpense.emit(spot)"
-              >
-                <span class="ms-icon sm" aria-hidden="true">payments</span>
-                <span>{{ 'item.spendShort' | t }}</span>
-              </button>
+              @if (!readOnly()) {
+                <button
+                  type="button"
+                  class="mini-btn accent"
+                  (click)="logExpense.emit(spot)"
+                >
+                  <span class="ms-icon sm" aria-hidden="true">payments</span>
+                  <span>{{ 'item.spendShort' | t }}</span>
+                </button>
+              }
             </div>
           </div>
         }
@@ -309,8 +312,10 @@ import { ItineraryMapComponent, MapPin, StayMapPin } from './itinerary-map.compo
 })
 export class MobileMapSheetComponent {
   readonly dayLabel = input('');
+  readonly readOnly = input(false);
   readonly pins = input<MapPin[]>([]);
   readonly routePath = input<[number, number][]>([]);
+  readonly departureStayPin = input<StayMapPin | null>(null);
   readonly stayPin = input<StayMapPin | null>(null);
   readonly connectFromStay = input(true);
   readonly connectToStay = input(true);

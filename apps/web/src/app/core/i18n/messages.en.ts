@@ -138,6 +138,8 @@ export const MESSAGES_EN = {
   'expenses.amountPlaceholder': 'Amount',
   'expenses.rateLabel': 'Rate',
   'expenses.moreOptions': 'More options',
+  'expenses.showMoreOptions': 'Show more options',
+  'expenses.showLessOptions': 'Show less options',
   'expenses.paymentMethod': 'Payment Method (optional)',
   'expenses.empty': 'No expenses recorded yet. Add your first one above!',
   'expenses.cat.FLIGHT': 'Flight',

@@ -140,6 +140,8 @@ export const MESSAGES_ZH_TW: Record<TranslationKey, string> = {
   'expenses.amountPlaceholder': '金額',
   'expenses.rateLabel': '匯率',
   'expenses.moreOptions': '更多選填',
+  'expenses.showMoreOptions': '顯示更多選項',
+  'expenses.showLessOptions': '顯示更少選項',
   'expenses.paymentMethod': '付款方式（選填，如 刷卡 / 現金）',
   'expenses.empty': '尚無花費紀錄。',
   'expenses.cat.FLIGHT': '航班',

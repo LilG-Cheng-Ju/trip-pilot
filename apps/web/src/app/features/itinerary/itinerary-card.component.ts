@@ -103,23 +103,8 @@ import { ItemExpenseSummary } from '../../state/expense.store';
             </span>
           </div>
 
-          <div class="head-actions" (click)="$event.stopPropagation()">
-            @if (expenseSummary(); as exp) {
-              @if (tripId()) {
-                <a
-                  class="head-expense-pill dark tabular-nums"
-                  [routerLink]="['/trips', tripId(), 'expenses']"
-                  [queryParams]="{ itemId: item().id }"
-                  [title]="
-                    'expenses.itemSummary'
-                      | t: { count: exp.count, currency: exp.currencyHome, total: formatAmount(exp.totalHome) }
-                  "
-                >
-                  {{ exp.currencyHome }} {{ formatAmount(exp.totalHome) }}
-                </a>
-              }
-            }
-            @if (!readOnly()) {
+          @if (!readOnly()) {
+            <div class="head-actions" (click)="$event.stopPropagation()">
               <button
                 type="button"
                 class="head-action-btn dark accent-dark"
@@ -159,8 +144,8 @@ import { ItemExpenseSummary } from '../../state/expense.store';
                   </div>
                 }
               </div>
-            }
-          </div>
+            </div>
+          }
         </div>
 
         <div class="flight-route tabular-nums">
@@ -210,6 +195,22 @@ import { ItemExpenseSummary } from '../../state/expense.store';
                   <span class="ms-icon sm" aria-hidden="true">attach_file</span>
                   <span class="chip-truncate">{{ att.name }}</span>
                 </a>
+              }
+              @if (expenseSummary(); as exp) {
+                @if (tripId()) {
+                  <a
+                    class="head-expense-pill dark tabular-nums"
+                    [routerLink]="['/trips', tripId(), 'expenses']"
+                    [queryParams]="{ itemId: item().id }"
+                    [title]="
+                      'expenses.itemSummary'
+                        | t: { count: exp.count, currency: exp.currencyHome, total: formatAmount(exp.totalHome) }
+                    "
+                  >
+                    <span class="ms-icon sm" aria-hidden="true">payments</span>
+                    <span>{{ exp.currencyHome }} {{ formatAmount(exp.totalHome) }}</span>
+                  </a>
+                }
               }
             </div>
 
@@ -262,22 +263,6 @@ import { ItemExpenseSummary } from '../../state/expense.store';
           </div>
 
           <div class="head-actions" (click)="$event.stopPropagation()">
-            @if (expenseSummary(); as exp) {
-              @if (tripId()) {
-                <a
-                  class="head-expense-pill tabular-nums"
-                  [routerLink]="['/trips', tripId(), 'expenses']"
-                  [queryParams]="{ itemId: item().id }"
-                  [title]="
-                    'expenses.itemSummary'
-                      | t: { count: exp.count, currency: exp.currencyHome, total: formatAmount(exp.totalHome) }
-                  "
-                >
-                  {{ exp.currencyHome }} {{ formatAmount(exp.totalHome) }}
-                </a>
-              }
-            }
-
             @if (mapsUrl()) {
               <a
                 class="head-action-btn"
@@ -410,6 +395,22 @@ import { ItemExpenseSummary } from '../../state/expense.store';
                   <span class="ms-icon sm" aria-hidden="true">attach_file</span>
                   <span class="chip-truncate">{{ att.name }}</span>
                 </a>
+              }
+              @if (expenseSummary(); as exp) {
+                @if (tripId()) {
+                  <a
+                    class="head-expense-pill tabular-nums"
+                    [routerLink]="['/trips', tripId(), 'expenses']"
+                    [queryParams]="{ itemId: item().id }"
+                    [title]="
+                      'expenses.itemSummary'
+                        | t: { count: exp.count, currency: exp.currencyHome, total: formatAmount(exp.totalHome) }
+                    "
+                  >
+                    <span class="ms-icon sm" aria-hidden="true">payments</span>
+                    <span>{{ exp.currencyHome }} {{ formatAmount(exp.totalHome) }}</span>
+                  </a>
+                }
               }
             </div>
 
@@ -1011,7 +1012,11 @@ export class ItineraryCardComponent {
   );
 
   protected hasFooterPills(): boolean {
-    return this.hasDetailChips() || this.attachments().length > 0;
+    return (
+      this.hasDetailChips() ||
+      this.attachments().length > 0 ||
+      Boolean(this.expenseSummary())
+    );
   }
 
   protected onFooterWheel(event: WheelEvent): void {

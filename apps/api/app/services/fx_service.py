@@ -54,7 +54,7 @@ class OpenErApiProvider:
         if cached_entry and now - cached_entry[0] < self.ttl_seconds:
             rate = cached_entry[1].get(dst)
             if rate is not None:
-                return round(rate, 6), "open_er_api", True
+                return round(rate, 4), "open_er_api", True
 
         try:
             client = get_shared_http_client()
@@ -71,14 +71,14 @@ class OpenErApiProvider:
                         if isinstance(v, (int, float))
                     }
                     self._cache[src] = (now, numeric_rates)
-                    return round(numeric_rates[dst], 6), "open_er_api", False
+                    return round(numeric_rates[dst], 4), "open_er_api", False
         except Exception:
             pass
 
         # Fallback via USD cross-rate so offline expense logging never breaks.
         if src in _FALLBACK_USD_RATES and dst in _FALLBACK_USD_RATES:
             cross = _FALLBACK_USD_RATES[dst] / _FALLBACK_USD_RATES[src]
-            return round(cross, 6), "fallback", False
+            return round(cross, 4), "fallback", False
 
         return 1.0, "fallback", False
 

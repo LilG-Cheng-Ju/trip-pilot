@@ -6,7 +6,8 @@ export interface CurrencyOption {
 
 export interface QuickCurrencyOption {
   code: string;
-  label: string;
+  labelEn: string;
+  labelZh: string;
 }
 
 export interface CountryOption {
@@ -28,23 +29,23 @@ export const SUPPORTED_CURRENCIES: readonly CurrencyOption[] = [
 
 /** Common currency choices for multi-currency expense logging. */
 export const COMMON_CURRENCIES: readonly QuickCurrencyOption[] = [
-  { code: 'TWD', label: 'TWD · NT$' },
-  { code: 'JPY', label: 'JPY · ¥' },
-  { code: 'KRW', label: 'KRW · ₩' },
-  { code: 'USD', label: 'USD · $' },
-  { code: 'EUR', label: 'EUR · €' },
-  { code: 'GBP', label: 'GBP · £' },
-  { code: 'THB', label: 'THB · ฿' },
-  { code: 'SGD', label: 'SGD · S$' },
-  { code: 'HKD', label: 'HKD · HK$' },
-  { code: 'CNY', label: 'CNY · ¥' },
-  { code: 'AUD', label: 'AUD · A$' },
-  { code: 'CAD', label: 'CAD · C$' },
-  { code: 'CHF', label: 'CHF · Fr' },
-  { code: 'VND', label: 'VND · ₫' },
-  { code: 'MYR', label: 'MYR · RM' },
-  { code: 'PHP', label: 'PHP · ₱' },
-  { code: 'IDR', label: 'IDR · Rp' },
+  { code: 'TWD', labelEn: 'TWD · NT$', labelZh: '台幣 (TWD)' },
+  { code: 'JPY', labelEn: 'JPY · ¥', labelZh: '日圓 (JPY)' },
+  { code: 'KRW', labelEn: 'KRW · ₩', labelZh: '韓元 (KRW)' },
+  { code: 'USD', labelEn: 'USD · $', labelZh: '美金 (USD)' },
+  { code: 'EUR', labelEn: 'EUR · €', labelZh: '歐元 (EUR)' },
+  { code: 'GBP', labelEn: 'GBP · £', labelZh: '英鎊 (GBP)' },
+  { code: 'THB', labelEn: 'THB · ฿', labelZh: '泰銖 (THB)' },
+  { code: 'SGD', labelEn: 'SGD · S$', labelZh: '新幣 (SGD)' },
+  { code: 'HKD', labelEn: 'HKD · HK$', labelZh: '港幣 (HKD)' },
+  { code: 'CNY', labelEn: 'CNY · ¥', labelZh: '人民幣 (CNY)' },
+  { code: 'AUD', labelEn: 'AUD · A$', labelZh: '澳幣 (AUD)' },
+  { code: 'CAD', labelEn: 'CAD · C$', labelZh: '加幣 (CAD)' },
+  { code: 'CHF', labelEn: 'CHF · Fr', labelZh: '瑞郎 (CHF)' },
+  { code: 'VND', labelEn: 'VND · ₫', labelZh: '越南盾 (VND)' },
+  { code: 'MYR', labelEn: 'MYR · RM', labelZh: '馬幣 (MYR)' },
+  { code: 'PHP', labelEn: 'PHP · ₱', labelZh: '菲幣 (PHP)' },
+  { code: 'IDR', labelEn: 'IDR · Rp', labelZh: '印尼盾 (IDR)' },
 ];
 
 /** Broad global travel country list with bilingual labels and default currency. */

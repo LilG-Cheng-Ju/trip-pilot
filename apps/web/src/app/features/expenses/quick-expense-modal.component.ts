@@ -8,6 +8,7 @@ import {
   COMMON_CURRENCIES,
   QuickCurrencyOption,
 } from '../../core/constants/travel-options';
+import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ExpenseCategory, ItineraryItem } from '../../core/models/tripilot.models';
 import {
@@ -80,7 +81,9 @@ import { ExpenseStore } from '../../state/expense.store';
               (ngModelChange)="onCurrencyChange($event)"
             >
               @for (opt of currencyOptions(); track opt.code) {
-                <option [value]="opt.code">{{ opt.label }}</option>
+                <option [value]="opt.code">
+                  {{ i18n.locale() === 'zh-TW' ? opt.labelZh : opt.labelEn }}
+                </option>
               }
             </select>
           </label>
@@ -282,6 +285,7 @@ export class QuickExpenseModalComponent {
   private readonly api = inject(TripilotApiService);
   private readonly cache = inject(OfflineCacheService);
   private readonly expenseStore = inject(ExpenseStore);
+  protected readonly i18n = inject(I18nService);
 
   protected readonly categories = EXPENSE_CATEGORIES;
   protected readonly categoryKey = expenseCategoryKey;
@@ -297,7 +301,7 @@ export class QuickExpenseModalComponent {
         upper.length === ISO_CURRENCY_CODE_LENGTH &&
         !list.some((c) => c.code === upper)
       ) {
-        list.unshift({ code: upper, label: upper });
+        list.unshift({ code: upper, labelEn: upper, labelZh: upper });
       }
     }
     return list;
@@ -357,10 +361,12 @@ export class QuickExpenseModalComponent {
     this.fetchingRate.set(true);
     try {
       const res = await this.api.getExchangeRate(src, dst);
-      this.exchangeRate = res.rate;
-      this.cache.setFxRate(src, res.rate);
+      const rounded = Number(res.rate.toFixed(4));
+      this.exchangeRate = rounded;
+      this.cache.setFxRate(src, rounded);
     } catch {
-      this.exchangeRate = this.cache.getFxRate(src) ?? 1;
+      const cached = this.cache.getFxRate(src);
+      this.exchangeRate = cached ? Number(cached.toFixed(4)) : 1;
     } finally {
       this.fetchingRate.set(false);
     }

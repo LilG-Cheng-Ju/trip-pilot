@@ -7,6 +7,7 @@ import {
   input,
   OnDestroy,
   output,
+  untracked,
   viewChild,
 } from '@angular/core';
 import maplibregl from 'maplibre-gl';
@@ -48,7 +49,7 @@ const STAY_LEG_LAYER_ID = 'stay-leg-layer';
   template: `
     <div class="map-shell">
       <div #mapContainer class="map-canvas"></div>
-      @if (pins().length === 0 && !stayPin()) {
+      @if (pins().length === 0 && !stayPin() && !departureStayPin()) {
         <div class="map-empty">
           <span class="ms-icon lg" aria-hidden="true">map</span>
           <p>{{ emptyText() }}</p>
@@ -95,6 +96,7 @@ const STAY_LEG_LAYER_ID = 'stay-leg-layer';
 export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
   readonly pins = input<MapPin[]>([]);
   readonly routePath = input<[number, number][]>([]);
+  readonly departureStayPin = input<StayMapPin | null>(null);
   readonly stayPin = input<StayMapPin | null>(null);
   readonly connectFromStay = input(true);
   readonly connectToStay = input(true);
@@ -114,12 +116,13 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
     effect(() => {
       const currentPins = this.pins();
       const path = this.routePath();
+      const depStay = this.departureStayPin();
       const stay = this.stayPin();
       const fromStay = this.connectFromStay();
       const toStay = this.connectToStay();
       if (this.map && this.styleLoaded) {
-        this.renderPinsAndRoute(currentPins, path, stay, fromStay, toStay);
-        this.updateMarkerSelection(this.selectedPinId());
+        this.renderPinsAndRoute(currentPins, path, depStay, stay, fromStay, toStay);
+        this.updateMarkerSelection(untracked(() => this.selectedPinId()));
       }
     });
 
@@ -156,6 +159,7 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
         this.renderPinsAndRoute(
           this.pins(),
           this.routePath(),
+          this.departureStayPin(),
           this.stayPin(),
           this.connectFromStay(),
           this.connectToStay(),
@@ -243,6 +247,7 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
   private renderPinsAndRoute(
     pins: MapPin[],
     routePath: [number, number][],
+    departureStay: StayMapPin | null,
     stay: StayMapPin | null,
     fromStay: boolean,
     toStay: boolean,
@@ -251,32 +256,49 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
       return;
     }
     this.clearMarkers();
+    const activeSelectedId = untracked(() => this.selectedPinId());
 
-    // Render dedicated Burnished Gold hotel marker for the active basecamp Stay.
-    if (stay) {
+    const addStayMarker = (targetStay: StayMapPin, isDepartureOnly: boolean): void => {
       const stayEl = document.createElement('button');
       stayEl.type = 'button';
-      stayEl.title = stay.title;
-      stayEl.setAttribute('aria-label', stay.title);
+      stayEl.title = targetStay.title;
+      stayEl.setAttribute('aria-label', targetStay.title);
       stayEl.innerHTML =
         '<span class="ms-icon" style="font-size:18px;color:#FFFFFF;">hotel</span>';
       stayEl.style.display = 'grid';
       stayEl.style.placeItems = 'center';
       stayEl.style.borderRadius = '9999px';
-      stayEl.style.border = '2.5px solid #FFFFFF';
-      stayEl.style.background = 'var(--item-stay, #c4924c)';
+      stayEl.style.border = isDepartureOnly
+        ? '2.5px solid var(--color-primary, #162136)'
+        : '2.5px solid #FFFFFF';
+      stayEl.style.background = isDepartureOnly
+        ? 'var(--color-primary-soft, #253552)'
+        : 'var(--item-stay, #c4924c)';
       stayEl.style.cursor = 'pointer';
       stayEl.style.transition = 'width 140ms ease, height 140ms ease, box-shadow 140ms ease';
-      stayEl.addEventListener('click', () => this.pinSelected.emit(stay.id));
+      stayEl.addEventListener('click', () => this.pinSelected.emit(targetStay.id));
 
       const tracked: TrackedMarker = { el: stayEl, type: 'STAY', isStay: true };
-      this.applyMarkerStyle(tracked, stay.id === this.selectedPinId());
-      this.markerEls.set(stay.id, tracked);
+      this.applyMarkerStyle(tracked, targetStay.id === activeSelectedId);
+      this.markerEls.set(targetStay.id, tracked);
 
       const stayMarker = new maplibregl.Marker({ element: stayEl })
-        .setLngLat([stay.lng, stay.lat])
-        .addTo(this.map);
+        .setLngLat([targetStay.lng, targetStay.lat])
+        .addTo(this.map!);
       this.markers.push(stayMarker);
+    };
+
+    const isHotelChange =
+      departureStay !== null && stay !== null && departureStay.id !== stay.id;
+
+    // On hotel-change days, render both morning departure hotel and tonight's check-in hotel.
+    if (isHotelChange && departureStay) {
+      addStayMarker(departureStay, true);
+    }
+    if (stay) {
+      addStayMarker(stay, false);
+    } else if (departureStay) {
+      addStayMarker(departureStay, true);
     }
 
     for (const pin of pins) {
@@ -314,7 +336,7 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
       }
 
       const tracked: TrackedMarker = { el, type: pinType, isStay: false };
-      this.applyMarkerStyle(tracked, pin.id === this.selectedPinId());
+      this.applyMarkerStyle(tracked, pin.id === activeSelectedId);
       this.markerEls.set(pin.id, tracked);
 
       el.addEventListener('click', () => this.pinSelected.emit(pin.id));
@@ -362,20 +384,19 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
       });
     }
 
-    // Subtle champagne-gold dashed connectors between the basecamp hotel and day start/end.
+    // Subtle champagne-gold dashed connectors: morning leg from departureStay, evening leg to arrivalStay.
     const stayLegs: [number, number][][] = [];
-    const sameAsStay = (pt: [number, number]): boolean =>
-      stay !== null &&
-      Math.abs(pt[0] - stay.lng) < COORDINATE_EPSILON &&
-      Math.abs(pt[1] - stay.lat) < COORDINATE_EPSILON;
+    const samePoint = (pt: [number, number], target: StayMapPin | null): boolean =>
+      target !== null &&
+      Math.abs(pt[0] - target.lng) < COORDINATE_EPSILON &&
+      Math.abs(pt[1] - target.lat) < COORDINATE_EPSILON;
 
-    if (stay && lineCoords.length > 0) {
-      const stayCoord: [number, number] = [stay.lng, stay.lat];
-      if (fromStay && !sameAsStay(lineCoords[0])) {
-        stayLegs.push([stayCoord, lineCoords[0]]);
+    if (lineCoords.length > 0) {
+      if (fromStay && departureStay && !samePoint(lineCoords[0], departureStay)) {
+        stayLegs.push([[departureStay.lng, departureStay.lat], lineCoords[0]]);
       }
-      if (toStay && !sameAsStay(lineCoords[lineCoords.length - 1])) {
-        stayLegs.push([lineCoords[lineCoords.length - 1], stayCoord]);
+      if (toStay && stay && !samePoint(lineCoords[lineCoords.length - 1], stay)) {
+        stayLegs.push([lineCoords[lineCoords.length - 1], [stay.lng, stay.lat]]);
       }
     }
 
@@ -414,6 +435,7 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
 
     const allPoints: [number, number][] = [
       ...pins.map((p): [number, number] => [p.lng, p.lat]),
+      ...(departureStay ? [[departureStay.lng, departureStay.lat] as [number, number]] : []),
       ...(stay ? [[stay.lng, stay.lat] as [number, number]] : []),
     ];
 

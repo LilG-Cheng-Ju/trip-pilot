@@ -297,6 +297,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
           <app-itinerary-map
             [pins]="mapPins()"
             [routePath]="mapRoutePath()"
+            [departureStayPin]="departureStayMapPin()"
             [stayPin]="stayMapPin()"
             [connectFromStay]="connectFromStay()"
             [connectToStay]="connectToStay()"
@@ -324,6 +325,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
           [dayLabel]="selectedDayLabel()"
           [pins]="mapPins()"
           [routePath]="mapRoutePath()"
+          [departureStayPin]="departureStayMapPin()"
           [stayPin]="stayMapPin()"
           [connectFromStay]="connectFromStay()"
           [connectToStay]="connectToStay()"
@@ -1146,6 +1148,19 @@ export class ItineraryPageComponent implements OnInit {
     return option ? groupItemsIntoSlots(option.items) : [];
   });
 
+  protected readonly departureStayMapPin = computed<StayMapPin | null>(() => {
+    const stay = this.store.departureStay();
+    if (!stay || stay.latitude === null || stay.longitude === null) {
+      return null;
+    }
+    return {
+      id: stay.id,
+      title: stay.title,
+      lat: stay.latitude,
+      lng: stay.longitude,
+    };
+  });
+
   protected readonly stayMapPin = computed<StayMapPin | null>(() => {
     const stay = this.store.basecampStay();
     if (!stay || stay.latitude === null || stay.longitude === null) {
@@ -1231,7 +1246,11 @@ export class ItineraryPageComponent implements OnInit {
       return fromSlots;
     }
     const stay = this.store.basecampStay();
-    return stay && stay.id === selectedId ? stay : null;
+    if (stay && stay.id === selectedId) {
+      return stay;
+    }
+    const depStay = this.store.departureStay();
+    return depStay && depStay.id === selectedId ? depStay : null;
   });
 
   ngOnInit(): void {

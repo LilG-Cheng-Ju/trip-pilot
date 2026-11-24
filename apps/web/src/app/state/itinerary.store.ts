@@ -88,23 +88,45 @@ export const ItineraryStore = signalStore(
       return Boolean(day && option && day.active_option_id === option.id);
     });
 
-    // Inherit the most recent geolocated STAY from Day 1 through the selected day.
+    // Inherit the most recent geolocated STAY from previous days (morning departure hotel).
+    const departureStay = computed<ItineraryItem | null>(() => {
+      const trip = store.trip();
+      const currentDay = selectedDay();
+      if (!trip || !currentDay) {
+        return null;
+      }
+      let prevStay: ItineraryItem | null = null;
+      for (const day of trip.days) {
+        if (day.day_index >= currentDay.day_index) {
+          break;
+        }
+        const opt =
+          day.options.find((o) => o.id === day.active_option_id) ?? day.options[0];
+        if (!opt) continue;
+        for (const item of opt.items) {
+          if (
+            item.is_selected &&
+            item.type === 'STAY' &&
+            item.latitude !== null &&
+            item.longitude !== null
+          ) {
+            prevStay = item;
+          }
+        }
+      }
+      return prevStay;
+    });
+
+    // Inherit the most recent geolocated STAY through the selected day (tonight's hotel).
     const basecampStay = computed<ItineraryItem | null>(() => {
       const trip = store.trip();
       const currentDay = selectedDay();
       if (!trip || !currentDay) {
         return null;
       }
-      let latestStay: ItineraryItem | null = null;
-      for (const day of trip.days) {
-        if (day.day_index > currentDay.day_index) {
-          break;
-        }
-        const opt =
-          day.id === currentDay.id
-            ? selectedOption()
-            : (day.options.find((o) => o.id === day.active_option_id) ?? day.options[0]);
-        if (!opt) continue;
+      let latestStay: ItineraryItem | null = departureStay();
+      const opt = selectedOption();
+      if (opt) {
         for (const item of opt.items) {
           if (
             item.is_selected &&
@@ -124,6 +146,7 @@ export const ItineraryStore = signalStore(
       selectedOption,
       stopCount,
       isPreviewingActiveOption,
+      departureStay,
       basecampStay,
     };
   }),

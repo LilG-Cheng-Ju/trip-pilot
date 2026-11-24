@@ -9,6 +9,7 @@ import {
   COMMON_CURRENCIES,
   QuickCurrencyOption,
 } from '../../core/constants/travel-options';
+import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ExpenseCategory } from '../../core/models/tripilot.models';
 import { EXPENSE_CATEGORIES, expenseCategoryKey } from '../../core/utils/travel-format.utils';
@@ -103,7 +104,9 @@ import { ItineraryStore } from '../../state/itinerary.store';
                   (ngModelChange)="onCurrencyChange($event)"
                 >
                   @for (opt of currencyOptions(); track opt.code) {
-                    <option [value]="opt.code">{{ opt.code }}</option>
+                    <option [value]="opt.code">
+                      {{ i18n.locale() === 'zh-TW' ? opt.labelZh : opt.labelEn }}
+                    </option>
                   }
                 </select>
               </label>
@@ -163,7 +166,12 @@ import { ItineraryStore } from '../../state/itinerary.store';
             </div>
 
             <button type="button" class="more-toggle" (click)="showMore.set(!showMore())">
-              {{ showMore() ? '− ' : '+ ' }}{{ 'expenses.moreOptions' | t }}
+              <span>
+                {{ (showMore() ? 'expenses.showLessOptions' : 'expenses.showMoreOptions') | t }}
+              </span>
+              <span class="ms-icon sm" aria-hidden="true">
+                {{ showMore() ? 'expand_less' : 'expand_more' }}
+              </span>
             </button>
 
             @if (showMore()) {
@@ -573,6 +581,9 @@ import { ItineraryStore } from '../../state/itinerary.store';
       color: var(--color-text-on-primary);
     }
     .more-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
       align-self: flex-start;
       border: none;
       background: transparent;
@@ -713,6 +724,7 @@ import { ItineraryStore } from '../../state/itinerary.store';
 export class ExpensesPageComponent implements OnInit, OnDestroy {
   protected readonly expenseStore = inject(ExpenseStore);
   protected readonly itineraryStore = inject(ItineraryStore);
+  protected readonly i18n = inject(I18nService);
   private readonly api = inject(TripilotApiService);
   private readonly cache = inject(OfflineCacheService);
   private readonly route = inject(ActivatedRoute);
@@ -749,7 +761,7 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
         upper.length === ISO_CURRENCY_CODE_LENGTH &&
         !list.some((c) => c.code === upper)
       ) {
-        list.unshift({ code: upper, label: upper });
+        list.unshift({ code: upper, labelEn: upper, labelZh: upper });
       }
     }
     return list;
@@ -886,9 +898,10 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
     this.fetchingRate.set(true);
     try {
       const res = await this.api.getExchangeRate(src, dst);
-      this.exchangeRate = res.rate;
+      const rounded = Number(res.rate.toFixed(4));
+      this.exchangeRate = rounded;
       this.rateSource.set(res.source);
-      this.saveRate(src, res.rate);
+      this.saveRate(src, rounded);
     } catch {
       this.rateSource.set(null);
     } finally {
