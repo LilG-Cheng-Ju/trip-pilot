@@ -122,6 +122,13 @@
     </header>
   }
 
+  @if (!network.isOnline()) {
+    <div class="offline-bar" role="status" aria-live="polite">
+      <span class="ms-icon sm" aria-hidden="true">cloud_off</span>
+      <span>{{ 'sync.deviceOffline' | t }}</span>
+    </div>
+  }
+
   <main class="main-canvas">
     <router-outlet />
   </main>

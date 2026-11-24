@@ -1,4 +1,5 @@
 import {
+  ChangeDetectionStrategy,
   Component,
   computed,
   ElementRef,
@@ -7,7 +8,6 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 
 import {
   CountryOption,
@@ -16,11 +16,13 @@ import {
 } from '../core/constants/travel-options';
 import { I18nService } from '../core/i18n/i18n.service';
 import { TranslatePipe } from '../core/i18n/translate.pipe';
+import { readInputValue } from '../core/utils/form-events.utils';
 
 /** Reusable searchable country picker supporting single and multi-select modes. */
 @Component({
   selector: 'app-country-picker',
-  imports: [FormsModule, TranslatePipe],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [TranslatePipe],
   host: {
     '(document:click)': 'onDocumentClick($event)',
     '(document:keydown.escape)': 'onEscape()',
@@ -58,8 +60,8 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
             <span class="ms-icon sm search-icon">search</span>
             <input
               type="text"
-              [ngModel]="query()"
-              (ngModelChange)="query.set($event)"
+              [value]="query()"
+              (input)="query.set(readInputValue($event))"
               [placeholder]="'countryPicker.searchPlaceholder' | t"
               autofocus
             />
@@ -215,6 +217,7 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
 export class AppCountryPickerComponent {
   protected readonly i18n = inject(I18nService);
   private readonly hostRef = inject(ElementRef<HTMLElement>);
+  protected readonly readInputValue = readInputValue;
 
   readonly selectedCodes = input<string[]>([]);
   readonly multiple = input(false);

@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { COPY_FEEDBACK_DURATION_MS, MS_PER_DAY } from '../../core/constants/app-limits';
@@ -37,6 +37,7 @@ interface TripAttachmentEntry {
 /** At-a-glance trip summary: accommodations & hotel changes, flights, reserved transit, and attachments vault. */
 @Component({
   selector: 'app-trip-brief-page',
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, TranslatePipe, TripSubnavComponent],
   template: `
     <div class="page">

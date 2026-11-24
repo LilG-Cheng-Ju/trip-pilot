@@ -23,6 +23,24 @@
         "headers": [
           { "key": "Cache-Control", "value": "no-cache" }
         ]
+      },
+      {
+        "source": "/ngsw.json",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache" }
+        ]
+      },
+      {
+        "source": "/ngsw-worker.js",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache" }
+        ]
+      },
+      {
+        "source": "/manifest.webmanifest",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache" }
+        ]
       }
     ],
     "rewrites": [

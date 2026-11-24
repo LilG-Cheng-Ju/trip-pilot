@@ -255,6 +255,7 @@ export const MESSAGES_EN = {
   'map.attribAria': 'Map attribution',
   'sync.syncing': 'Syncing...',
   'sync.offlineCache': 'Offline cache (read-only)',
+  'sync.deviceOffline': 'Offline — showing cached data on this device',
   'sync.wakingServer': 'Connecting to server (cold start may take a few seconds)...',
   'detail.confirmation': 'Confirmation',
   'detail.bookingRef': 'Ref',

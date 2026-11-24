@@ -1,4 +1,11 @@
-import { Component, computed, ElementRef, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  ElementRef,
+  inject,
+  signal,
+} from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import {
   NavigationEnd,
@@ -14,8 +21,10 @@ import { SessionCleanupService } from './core/auth/session-cleanup.service';
 import { APP_VERSION, IS_BETA } from './core/config/app-version';
 import { I18nService } from './core/i18n/i18n.service';
 import { TranslatePipe } from './core/i18n/translate.pipe';
+import { NetworkStatusService } from './core/network/network-status.service';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, RouterLinkActive, RouterOutlet, TranslatePipe],
   selector: 'app-root',
   styleUrl: './app.css',
@@ -28,6 +37,7 @@ import { TranslatePipe } from './core/i18n/translate.pipe';
 export class App {
   protected readonly i18n = inject(I18nService);
   protected readonly auth = inject(AuthSessionService);
+  protected readonly network = inject(NetworkStatusService);
   private readonly sessionCleanup = inject(SessionCleanupService);
   private readonly router = inject(Router);
   private readonly hostRef = inject(ElementRef<HTMLElement>);

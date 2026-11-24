@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { App } from './app';
 import { APP_VERSION } from './core/config/app-version';
 import { I18nService } from './core/i18n/i18n.service';
+import { NetworkStatusService } from './core/network/network-status.service';
 
 describe('App', () => {
   beforeEach(async () => {
@@ -54,5 +55,32 @@ describe('App', () => {
     const dropdown = compiled.querySelector('.account-dropdown');
     expect(dropdown?.textContent).toContain('Settings');
     expect(dropdown?.textContent).toContain(`v${APP_VERSION}`);
+  });
+
+  it('should show and hide the offline banner when NetworkStatusService.isOnline toggles', async () => {
+    const i18n = TestBed.inject(I18nService);
+    const network = TestBed.inject(NetworkStatusService);
+    i18n.setLocale('en');
+    network.isOnline.set(true);
+
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.querySelector('.offline-bar')).toBeNull();
+
+    network.isOnline.set(false);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const offlineBar = compiled.querySelector('.offline-bar');
+    expect(offlineBar).toBeTruthy();
+    expect(offlineBar?.textContent).toContain('Offline — showing cached data on this device');
+
+    network.isOnline.set(true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(compiled.querySelector('.offline-bar')).toBeNull();
   });
 });

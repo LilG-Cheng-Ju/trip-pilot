@@ -1,8 +1,9 @@
-import { Component, ElementRef, input, output, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, input, output, viewChild } from '@angular/core';
 
 /** Click-anywhere time input with an enlarged Material clock button and clear action. */
 @Component({
   selector: 'app-time-input',
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="time-wrap" (click)="openPicker()">
       <input

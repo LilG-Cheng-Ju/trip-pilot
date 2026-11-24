@@ -257,6 +257,7 @@ export const MESSAGES_ZH_TW: Record<TranslationKey, string> = {
   'map.attribAria': '地圖圖資來源',
   'sync.syncing': '同步中...',
   'sync.offlineCache': '離線快取檢視',
+  'sync.deviceOffline': '目前離線 — 正顯示本機快取內容',
   'sync.wakingServer': '正在連線伺服器（冷啟動約需數秒，請稍候）...',
   'detail.confirmation': '確認碼',
   'detail.bookingRef': '訂位代號',

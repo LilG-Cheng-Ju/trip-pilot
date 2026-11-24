@@ -1,4 +1,5 @@
 import {
+  ChangeDetectionStrategy,
   Component,
   computed,
   effect,
@@ -9,7 +10,6 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import {
@@ -18,6 +18,7 @@ import {
 } from '../../core/constants/app-limits';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ItineraryItem } from '../../core/models/tripilot.models';
+import { readCheckedValue, readInputValue } from '../../core/utils/form-events.utils';
 import {
   buildDayMapPins,
   buildDayMapRoutes,
@@ -50,8 +51,8 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
 /** Mobile-first itinerary timeline with Day 1..N, Plan A/B, slot choices, and map sync. */
 @Component({
   selector: 'app-itinerary-page',
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    FormsModule,
     RouterLink,
     TranslatePipe,
     AppModalComponent,
@@ -160,9 +161,9 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
                 <input
                   type="text"
                   class="day-theme-input"
-                  [ngModel]="day.title || ''"
-                  (blur)="saveDayTheme(day.id, $any($event.target).value, day.title)"
-                  (keydown.enter)="$any($event.target).blur()"
+                  [value]="day.title || ''"
+                  (blur)="saveDayTheme(day.id, readInputValue($event), day.title)"
+                  (keydown.enter)="blurInput($event)"
                   [placeholder]="'itinerary.dayThemePlaceholder' | t"
                 />
               </div>
@@ -387,7 +388,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
         [title]="'itinerary.plan.modalTitle' | t"
         (closed)="showCloneModal.set(false)"
       >
-        <form class="modal-form" (ngSubmit)="submitCreateOption()" novalidate>
+        <form class="modal-form" (submit)="$event.preventDefault(); submitCreateOption()" novalidate>
           @if (canCloneCurrentOption()) {
             <div class="plan-mode-seg" role="radiogroup">
               <button
@@ -413,9 +414,9 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
             <span>{{ 'itinerary.plan.clonePrompt' | t }} <em class="req">*</em></span>
             <input
               type="text"
-              [(ngModel)]="cloneLabel"
+              [value]="cloneLabel()"
               name="cloneLabel"
-              (ngModelChange)="cloneLabelError.set(false)"
+              (input)="cloneLabel.set(readInputValue($event)); cloneLabelError.set(false)"
               [placeholder]="'itinerary.plan.placeholderClone' | t"
             />
             @if (cloneLabelError()) {
@@ -437,14 +438,14 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
         [title]="'itinerary.plan.rename' | t"
         (closed)="showRenameModal.set(false)"
       >
-        <form class="modal-form" (ngSubmit)="submitRenameOption()" novalidate>
+        <form class="modal-form" (submit)="$event.preventDefault(); submitRenameOption()" novalidate>
           <label class="field" [class.has-error]="renameLabelError()">
             <span>{{ 'itinerary.plan.clonePrompt' | t }} <em class="req">*</em></span>
             <input
               type="text"
-              [(ngModel)]="renameLabel"
+              [value]="renameLabel()"
               name="renameLabel"
-              (ngModelChange)="renameLabelError.set(false)"
+              (input)="renameLabel.set(readInputValue($event)); renameLabelError.set(false)"
               [placeholder]="'itinerary.plan.placeholderRename' | t"
             />
             @if (renameLabelError()) {
@@ -543,15 +544,30 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       >
         <div class="share-options">
           <label class="check-row">
-            <input type="checkbox" [(ngModel)]="hideSecrets" name="hideSecrets" />
+            <input
+              type="checkbox"
+              [checked]="hideSecrets()"
+              (change)="hideSecrets.set(readCheckedValue($event))"
+              name="hideSecrets"
+            />
             <span>{{ 'share.hideSecrets' | t }}</span>
           </label>
           <label class="check-row">
-            <input type="checkbox" [(ngModel)]="includeNotes" name="includeNotes" />
+            <input
+              type="checkbox"
+              [checked]="includeNotes()"
+              (change)="includeNotes.set(readCheckedValue($event))"
+              name="includeNotes"
+            />
             <span>{{ 'share.includeNotes' | t }}</span>
           </label>
           <label class="check-row">
-            <input type="checkbox" [(ngModel)]="includeBackups" name="includeBackups" />
+            <input
+              type="checkbox"
+              [checked]="includeBackups()"
+              (change)="includeBackups.set(readCheckedValue($event))"
+              name="includeBackups"
+            />
             <span>{{ 'share.includeBackups' | t }}</span>
           </label>
           <button type="button" class="add-item-btn" (click)="createShareLink(trip.id)">
@@ -618,7 +634,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       flex-shrink: 0;
     }
     .timeline-scroll {
-      padding: 10px var(--space-3) calc(var(--nav-bottom-height) + 64px);
+      padding: 10px var(--space-3) calc(var(--nav-bottom-height) + env(safe-area-inset-bottom, 0px) + 64px);
     }
     .desktop-map-pane {
       display: none;
@@ -675,7 +691,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       position: fixed;
       left: 50%;
       transform: translateX(-50%);
-      bottom: calc(var(--nav-bottom-height) + env(safe-area-inset-bottom) + 10px);
+      bottom: calc(var(--nav-bottom-height) + env(safe-area-inset-bottom, 0px) + 10px);
       z-index: 35;
       display: inline-flex;
       align-items: center;
@@ -1049,7 +1065,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
         padding: var(--space-3) var(--space-4) var(--space-2);
       }
       .timeline-scroll {
-        padding: var(--space-3) var(--space-4) calc(var(--nav-bottom-height) + 72px);
+        padding: var(--space-3) var(--space-4) calc(var(--nav-bottom-height) + env(safe-area-inset-bottom, 0px) + 72px);
       }
       .util-icon-btn {
         width: 34px;
@@ -1149,12 +1165,14 @@ export class ItineraryPageComponent implements OnInit {
   protected readonly showShareModal = signal(false);
   protected readonly copiedToken = signal<string | null>(null);
   protected readonly cloneLabelError = signal(false);
+  protected readonly readInputValue = readInputValue;
+  protected readonly readCheckedValue = readCheckedValue;
 
-  protected cloneLabel = 'Plan B';
-  protected renameLabel = '';
-  protected hideSecrets = true;
-  protected includeNotes = false;
-  protected includeBackups = false;
+  protected readonly cloneLabel = signal('Plan B');
+  protected readonly renameLabel = signal('');
+  protected readonly hideSecrets = signal(true);
+  protected readonly includeNotes = signal(false);
+  protected readonly includeBackups = signal(false);
 
   constructor() {
     // Automatically backfill OSRM segments when switching to Driving on legacy days.
@@ -1323,6 +1341,10 @@ export class ItineraryPageComponent implements OnInit {
     this.showItemModal.set(false);
   }
 
+  protected blurInput(event: Event): void {
+    (event.target as HTMLInputElement).blur();
+  }
+
   protected async saveDayTheme(
     dayId: string,
     nextValue: string,
@@ -1338,18 +1360,18 @@ export class ItineraryPageComponent implements OnInit {
   protected openCloneModal(): void {
     const count = this.store.selectedDay()?.options.length ?? 1;
     const nextLetter = String.fromCharCode(65 + Math.min(count, 25));
-    this.cloneLabel = `Plan ${nextLetter}`;
+    this.cloneLabel.set(`Plan ${nextLetter}`);
     this.newOptionMode.set('blank');
     this.cloneLabelError.set(false);
     this.showCloneModal.set(true);
   }
 
   protected async submitCreateOption(): Promise<void> {
-    if (!this.cloneLabel.trim()) {
+    const label = this.cloneLabel().trim();
+    if (!label) {
       this.cloneLabelError.set(true);
       return;
     }
-    const label = this.cloneLabel.trim();
     if (this.canCloneCurrentOption() && this.newOptionMode() === 'clone') {
       await this.store.cloneCurrentOption(label);
     } else {
@@ -1360,18 +1382,19 @@ export class ItineraryPageComponent implements OnInit {
 
   protected openRenameOptionModal(optionId: string, currentLabel: string): void {
     this.renamingOptionId.set(optionId);
-    this.renameLabel = currentLabel;
+    this.renameLabel.set(currentLabel);
     this.renameLabelError.set(false);
     this.showRenameModal.set(true);
   }
 
   protected async submitRenameOption(): Promise<void> {
     const optionId = this.renamingOptionId();
-    if (!optionId || !this.renameLabel.trim()) {
+    const label = this.renameLabel().trim();
+    if (!optionId || !label) {
       this.renameLabelError.set(true);
       return;
     }
-    await this.store.renameOption(optionId, this.renameLabel.trim());
+    await this.store.renameOption(optionId, label);
     this.showRenameModal.set(false);
   }
 
@@ -1429,10 +1452,10 @@ export class ItineraryPageComponent implements OnInit {
 
   protected async createShareLink(tripId: string): Promise<void> {
     await this.store.createShare(tripId, 'Shared Link', {
-      include_booking_refs: !this.hideSecrets,
-      include_notes: this.includeNotes,
+      include_booking_refs: !this.hideSecrets(),
+      include_notes: this.includeNotes(),
       include_expenses: false,
-      include_backup_options: this.includeBackups,
+      include_backup_options: this.includeBackups(),
     });
   }
 

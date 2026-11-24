@@ -334,7 +334,7 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
       text-overflow: ellipsis;
     }
     .timeline-scroll {
-      padding: 10px var(--space-3) 84px;
+      padding: 10px var(--space-3) calc(84px + env(safe-area-inset-bottom, 0px));
     }
     .day-theme-bar {
       display: flex;
@@ -457,7 +457,7 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
       position: fixed;
       left: 50%;
       transform: translateX(-50%);
-      bottom: calc(env(safe-area-inset-bottom) + 14px);
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
       z-index: 35;
       display: inline-flex;
       align-items: center;

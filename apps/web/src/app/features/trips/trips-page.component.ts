@@ -1,5 +1,4 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 
 import {
@@ -16,6 +15,7 @@ import {
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { TripSummary } from '../../core/models/tripilot.models';
+import { isIncompleteNumberInput, readInputValue } from '../../core/utils/form-events.utils';
 import {
   addDaysToIsoDate,
   formatLocalIsoDate,
@@ -30,8 +30,8 @@ type DateEndMode = 'end' | 'duration' | 'open';
 /** Multi-trip overview with Upcoming & Completed (reversible) tabs and Modal creation. */
 @Component({
   selector: 'app-trips-page',
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    FormsModule,
     RouterLink,
     TranslatePipe,
     AppModalComponent,
@@ -159,7 +159,7 @@ type DateEndMode = 'end' | 'duration' | 'open';
         [title]="'trips.new' | t"
         (closed)="showCreateModal.set(false)"
       >
-        <form class="modal-form" (ngSubmit)="submitTrip()" novalidate>
+        <form class="modal-form" (submit)="$event.preventDefault(); submitTrip()" novalidate>
           <div class="seg-row">
             <button
               type="button"
@@ -183,9 +183,9 @@ type DateEndMode = 'end' | 'duration' | 'open';
             <span>{{ 'trips.form.title' | t }} <em class="req">*</em></span>
             <input
               type="text"
-              [(ngModel)]="title"
+              [value]="title()"
               name="title"
-              (ngModelChange)="titleError.set(null)"
+              (input)="title.set(readInputValue($event)); titleError.set(null)"
               [placeholder]="scope() === 'domestic' ? '台南週末小旅行' : '捷克・奧地利 10 日'"
             />
             @if (titleError()) {
@@ -197,7 +197,8 @@ type DateEndMode = 'end' | 'duration' | 'open';
             <span>{{ 'trips.form.destination' | t }}</span>
             <input
               type="text"
-              [(ngModel)]="destination"
+              [value]="destination()"
+              (input)="destination.set(readInputValue($event))"
               name="destination"
               [placeholder]="scope() === 'domestic' ? '台南安平、中西區' : '布拉格、CK 小鎮、維也納'"
             />
@@ -220,9 +221,13 @@ type DateEndMode = 'end' | 'duration' | 'open';
 
             <label class="field">
               <span>{{ 'trips.form.currency' | t }}</span>
-              <select [(ngModel)]="defaultCurrency" name="currency">
+              <select
+                [value]="defaultCurrency()"
+                (change)="defaultCurrency.set(readInputValue($event))"
+                name="currency"
+              >
                 @for (cur of currencies; track cur.code) {
-                  <option [value]="cur.code">
+                  <option [value]="cur.code" [selected]="cur.code === defaultCurrency()">
                     {{ i18n.locale() === 'zh-TW' ? cur.labelZh : cur.labelEn }}
                   </option>
                 }
@@ -234,9 +239,9 @@ type DateEndMode = 'end' | 'duration' | 'open';
             <span>{{ 'trips.form.startDate' | t }} <em class="req">*</em></span>
             <input
               type="date"
-              [ngModel]="startDate()"
+              [value]="startDate()"
               name="startDate"
-              (ngModelChange)="startDate.set($event); dateError.set(null)"
+              (input)="startDate.set(readInputValue($event)); dateError.set(null)"
             />
           </label>
 
@@ -272,9 +277,9 @@ type DateEndMode = 'end' | 'duration' | 'open';
               <span>{{ 'trips.form.endDate' | t }}</span>
               <input
                 type="date"
-                [(ngModel)]="endDate"
+                [value]="endDate()"
                 name="endDate"
-                (ngModelChange)="dateError.set(null)"
+                (input)="endDate.set(readInputValue($event)); dateError.set(null)"
               />
             </label>
           } @else if (dateEndMode() === 'duration') {
@@ -293,8 +298,9 @@ type DateEndMode = 'end' | 'duration' | 'open';
                   [min]="minTripDurationDays"
                   [max]="maxTripDurationDays"
                   class="tabular-nums step-input"
-                  [ngModel]="durationDays()"
-                  (ngModelChange)="durationDays.set(+$event || minTripDurationDays)"
+                  [value]="durationDays()"
+                  (input)="onDurationDaysInput($event)"
+                  (blur)="normalizeDurationDays($event)"
                   name="durationDays"
                 />
                 <button
@@ -527,6 +533,7 @@ export class TripsPageComponent implements OnInit {
   private readonly router = inject(Router);
 
   protected readonly Math = Math;
+  protected readonly readInputValue = readInputValue;
   protected readonly currencies = SUPPORTED_CURRENCIES;
   protected readonly minTripDurationDays = MIN_TRIP_DURATION_DAYS;
   protected readonly maxTripDurationDays = MAX_TRIP_DURATION_DAYS;
@@ -551,11 +558,13 @@ export class TripsPageComponent implements OnInit {
     { id: 'completed', labelKey: 'trips.tab.completed' },
   ];
 
-  protected title = '';
-  protected destination = '';
-  protected defaultCurrency = 'JPY';
+  protected readonly title = signal('');
+  protected readonly destination = signal('');
+  protected readonly defaultCurrency = signal('JPY');
   protected readonly startDate = signal(formatLocalIsoDate());
-  protected endDate = addDaysToIsoDate(formatLocalIsoDate(), DEFAULT_TRIP_DURATION_DAYS - 1);
+  protected readonly endDate = signal(
+    addDaysToIsoDate(formatLocalIsoDate(), DEFAULT_TRIP_DURATION_DAYS - 1),
+  );
   protected readonly durationDays = signal(DEFAULT_TRIP_DURATION_DAYS);
 
   protected readonly computedEndDate = computed(() => {
@@ -583,10 +592,10 @@ export class TripsPageComponent implements OnInit {
     this.countryError.set(false);
     if (next === 'domestic') {
       const home = this.authStore.profile();
-      this.defaultCurrency = home?.home_currency || 'TWD';
+      this.defaultCurrency.set(home?.home_currency || 'TWD');
     } else if (this.selectedCountries().length === 0) {
       this.selectedCountries.set(['JP']);
-      this.defaultCurrency = 'JPY';
+      this.defaultCurrency.set('JPY');
     }
   }
 
@@ -595,7 +604,32 @@ export class TripsPageComponent implements OnInit {
     this.countryError.set(false);
     const first = codes[0] ? findCountry(codes[0]) : undefined;
     if (first) {
-      this.defaultCurrency = first.defaultCurrency;
+      this.defaultCurrency.set(first.defaultCurrency);
+    }
+  }
+
+  protected onDurationDaysInput(event: Event): void {
+    if (isIncompleteNumberInput(event)) {
+      return;
+    }
+    const raw = readInputValue(event);
+    if (raw === '') {
+      return;
+    }
+    const parsed = Number(raw);
+    if (Number.isFinite(parsed)) {
+      const clamped = Math.max(
+        this.minTripDurationDays,
+        Math.min(this.maxTripDurationDays, Math.trunc(parsed)),
+      );
+      this.durationDays.set(clamped);
+    }
+  }
+
+  protected normalizeDurationDays(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.value === '') {
+      input.value = String(this.durationDays());
     }
   }
 
@@ -632,8 +666,9 @@ export class TripsPageComponent implements OnInit {
     this.countryError.set(false);
     this.dateError.set(null);
 
+    const title = this.title().trim();
     let hasError = false;
-    if (!this.title.trim()) {
+    if (!title) {
       this.titleError.set('trips.err.titleRequired');
       hasError = true;
     }
@@ -649,7 +684,7 @@ export class TripsPageComponent implements OnInit {
 
     let resolvedEndDate = start;
     if (this.dateEndMode() === 'end') {
-      resolvedEndDate = this.endDate || start;
+      resolvedEndDate = this.endDate() || start;
       if (start && resolvedEndDate < start) {
         this.dateError.set('trips.err.endBeforeStart');
         hasError = true;
@@ -667,21 +702,21 @@ export class TripsPageComponent implements OnInit {
     const countryCodes =
       this.scope() === 'domestic' ? [homeCountry] : this.selectedCountries();
     const currencyCode =
-      this.scope() === 'domestic' ? homeCurrency : this.defaultCurrency;
+      this.scope() === 'domestic' ? homeCurrency : this.defaultCurrency();
 
     this.submitting.set(true);
     try {
       const id = await this.tripStore.createTrip({
-        title: this.title.trim(),
-        destination_summary: this.destination.trim() || null,
+        title,
+        destination_summary: this.destination().trim() || null,
         country_codes: countryCodes,
         start_date: start,
         end_date: resolvedEndDate,
         default_currency: currencyCode,
       });
       this.showCreateModal.set(false);
-      this.title = '';
-      this.destination = '';
+      this.title.set('');
+      this.destination.set('');
       await this.router.navigate(['/trips', id]);
     } catch {
       // Error state is recorded on TripStore and surfaced in the error banner.

@@ -1,6 +1,6 @@
 {
   "name": "tripilot-web",
-  "version": "0.6.5-beta",
+  "version": "0.6.7-beta",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
@@ -17,6 +17,7 @@
     "@angular/forms": "^22.3.0",
     "@angular/platform-browser": "^22.3.0",
     "@angular/router": "^22.3.0",
+    "@angular/service-worker": "^22.3.0",
     "@ngrx/signals": "^22.0.1",
     "maplibre-gl": "^5.1.0",
     "rxjs": "~7.8.0",

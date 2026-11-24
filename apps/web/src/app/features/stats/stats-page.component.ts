@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import { findCountry } from '../../core/constants/travel-options';
@@ -21,6 +21,7 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
 /** Annual and lifetime travel dashboard with scope tabs, spend structure, and country footprint. */
 @Component({
   selector: 'app-stats-page',
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, TranslatePipe],
   template: `
     <div class="page">

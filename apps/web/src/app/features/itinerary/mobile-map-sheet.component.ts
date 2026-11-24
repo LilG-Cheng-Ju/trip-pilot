@@ -142,7 +142,7 @@ import { ItineraryMapComponent, MapPin, StayMapPin } from './itinerary-map.compo
       position: fixed;
       left: 0;
       right: 0;
-      bottom: calc(var(--nav-bottom-height) + env(safe-area-inset-bottom));
+      bottom: calc(var(--nav-bottom-height) + env(safe-area-inset-bottom, 0px));
       height: 70dvh;
       z-index: 38;
       display: flex;
@@ -156,7 +156,6 @@ import { ItineraryMapComponent, MapPin, StayMapPin } from './itinerary-map.compo
     .mobile-map-sheet.no-bottom-nav {
       bottom: 0;
       height: 74dvh;
-      padding-bottom: env(safe-area-inset-bottom);
     }
     .sheet-bar {
       display: flex;
@@ -218,6 +217,9 @@ import { ItineraryMapComponent, MapPin, StayMapPin } from './itinerary-map.compo
       backdrop-filter: blur(12px);
       border: 1px solid var(--color-border);
       box-shadow: var(--shadow-float);
+    }
+    .mobile-map-sheet.no-bottom-nav .map-mini-card {
+      bottom: calc(16px + env(safe-area-inset-bottom, 0px));
     }
     .mini-head {
       display: flex;

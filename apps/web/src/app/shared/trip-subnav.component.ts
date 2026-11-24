@@ -1,4 +1,4 @@
-import { Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 
 import { TranslatePipe } from '../core/i18n/translate.pipe';
@@ -6,6 +6,7 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
 /** Unified header and 3-tab workspace switcher shared across Itinerary, Brief, and Expenses. */
 @Component({
   selector: 'app-trip-subnav',
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, RouterLinkActive, TranslatePipe],
   template: `
     <header class="trip-header">

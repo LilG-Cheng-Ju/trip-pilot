@@ -1,5 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+  untracked,
+} from '@angular/core';
 
 import { TripilotApiService } from '../../core/api/tripilot-api.service';
 import { OfflineCacheService } from '../../core/cache/offline-cache.service';
@@ -11,6 +20,7 @@ import {
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ExpenseCategory, ItineraryItem } from '../../core/models/tripilot.models';
+import { isIncompleteNumberInput, readInputValue } from '../../core/utils/form-events.utils';
 import {
   estimateOfflineFxRate,
   EXPENSE_CATEGORIES,
@@ -25,7 +35,7 @@ import { ExpenseStore } from '../../state/expense.store';
 @Component({
   selector: 'app-quick-expense-modal',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AppModalComponent, FormsModule, TranslatePipe],
+  imports: [AppModalComponent, TranslatePipe],
   template: `
     <app-modal
       [open]="open()"
@@ -40,7 +50,7 @@ import { ExpenseStore } from '../../state/expense.store';
         </div>
       }
 
-      <form class="form" (ngSubmit)="submit()">
+      <form class="form" (submit)="$event.preventDefault(); submit()">
         <label class="field">
           <span class="field-label">
             {{ 'expenses.field.title' | t }} <em class="req">*</em>
@@ -48,7 +58,8 @@ import { ExpenseStore } from '../../state/expense.store';
           <input
             type="text"
             class="input-control"
-            [(ngModel)]="title"
+            [value]="title()"
+            (input)="title.set(readInputValue($event))"
             name="title"
             [placeholder]="'expenses.itemPlaceholder' | t"
             required
@@ -65,7 +76,8 @@ import { ExpenseStore } from '../../state/expense.store';
               step="any"
               min="0.01"
               class="input-control tabular-nums"
-              [(ngModel)]="amount"
+              [value]="amountText()"
+              (input)="onAmountInput($event)"
               name="amount"
               placeholder="0"
               required
@@ -78,12 +90,12 @@ import { ExpenseStore } from '../../state/expense.store';
             </span>
             <select
               class="input-control"
-              [(ngModel)]="currency"
+              [value]="currency()"
               name="currency"
-              (ngModelChange)="onCurrencyChange($event)"
+              (change)="onCurrencyChange(readInputValue($event))"
             >
               @for (opt of currencyOptions(); track opt.code) {
-                <option [value]="opt.code">
+                <option [value]="opt.code" [selected]="opt.code === currency()">
                   {{ i18n.locale() === 'zh-TW' ? opt.labelZh : opt.labelEn }}
                 </option>
               }
@@ -91,7 +103,7 @@ import { ExpenseStore } from '../../state/expense.store';
           </label>
         </div>
 
-        @if (currency !== homeCurrency() && rateNeedsConfirm()) {
+        @if (currency() !== homeCurrency() && rateNeedsConfirm()) {
           <label class="field">
             <span class="field-label">{{ 'expenses.rateLabel' | t }}</span>
             <input
@@ -99,14 +111,15 @@ import { ExpenseStore } from '../../state/expense.store';
               step="any"
               min="0.000001"
               class="input-control tabular-nums"
-              [(ngModel)]="exchangeRate"
+              [value]="exchangeRateText()"
+              (input)="onRateInput($event)"
               name="exchangeRate"
             />
             <small class="rate-warn">{{ 'fx.manualConfirmHint' | t }}</small>
           </label>
         }
 
-        @if (previewHomeAmount() !== null && currency !== homeCurrency()) {
+        @if (previewHomeAmount() !== null && currency() !== homeCurrency()) {
           <div class="preview-line tabular-nums">
             <span>≈ {{ homeCurrency() }} {{ previewHomeAmount() }}</span>
           </div>
@@ -119,8 +132,8 @@ import { ExpenseStore } from '../../state/expense.store';
               <button
                 type="button"
                 class="cat-chip"
-                [class.active]="category === cat"
-                (click)="category = cat"
+                [class.active]="category() === cat"
+                (click)="category.set(cat)"
               >
                 {{ categoryKey(cat) | t }}
               </button>
@@ -134,7 +147,8 @@ import { ExpenseStore } from '../../state/expense.store';
             <input
               type="text"
               class="input-control"
-              [(ngModel)]="paymentMethod"
+              [value]="paymentMethod()"
+              (input)="paymentMethod.set(readInputValue($event))"
               name="paymentMethod"
               [placeholder]="'expenses.field.paymentPlaceholder' | t"
             />
@@ -145,7 +159,8 @@ import { ExpenseStore } from '../../state/expense.store';
             <input
               type="text"
               class="input-control"
-              [(ngModel)]="notes"
+              [value]="notes()"
+              (input)="notes.set(readInputValue($event))"
               name="notes"
               [placeholder]="'expenses.field.notesPlaceholder' | t"
             />
@@ -311,6 +326,7 @@ export class QuickExpenseModalComponent {
 
   protected readonly categories = EXPENSE_CATEGORIES;
   protected readonly categoryKey = expenseCategoryKey;
+  protected readonly readInputValue = readInputValue;
   protected readonly submitting = signal(false);
   protected readonly fetchingRate = signal(false);
   protected readonly rateNeedsConfirm = signal(false);
@@ -330,13 +346,32 @@ export class QuickExpenseModalComponent {
     return list;
   });
 
-  protected title = '';
-  protected amount: number | null = null;
-  protected currency = 'JPY';
-  protected exchangeRate = 1;
-  protected category: ExpenseCategory = 'FOOD';
-  protected paymentMethod = '';
-  protected notes = '';
+  protected readonly title = signal('');
+  protected readonly amountText = signal('');
+  protected readonly amount = computed<number | null>(() => {
+    const raw = this.amountText().trim();
+    if (!raw) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  });
+  protected readonly currency = signal('JPY');
+  protected readonly exchangeRateText = signal('1');
+  protected readonly exchangeRate = computed<number>(() => {
+    const n = Number(this.exchangeRateText());
+    return Number.isFinite(n) && n > 0 ? n : 1;
+  });
+  protected readonly category = signal<ExpenseCategory>('FOOD');
+  protected readonly paymentMethod = signal('');
+  protected readonly notes = signal('');
+
+  protected readonly previewHomeAmount = computed<string | null>(() => {
+    const amt = this.amount();
+    const rate = this.exchangeRate();
+    if (!amt || !rate) {
+      return null;
+    }
+    return Math.round(amt * rate).toLocaleString();
+  });
 
   constructor() {
     effect(() => {
@@ -344,24 +379,34 @@ export class QuickExpenseModalComponent {
         return;
       }
       const stop = this.item();
-      this.title = stop ? stop.title : '';
-      this.amount = null;
-      this.currency = (this.defaultCurrency() || 'JPY').toUpperCase();
-      this.category = stop ? mapItemTypeToExpenseCategory(stop.type) : 'FOOD';
-      this.paymentMethod = '';
-      this.notes = '';
-      void this.fetchLiveRate();
+      untracked(() => {
+        this.title.set(stop ? stop.title : '');
+        this.amountText.set('');
+        this.currency.set((this.defaultCurrency() || 'JPY').toUpperCase());
+        this.category.set(stop ? mapItemTypeToExpenseCategory(stop.type) : 'FOOD');
+        this.paymentMethod.set('');
+        this.notes.set('');
+        void this.fetchLiveRate();
+      });
     });
   }
 
-  protected previewHomeAmount(): string | null {
-    if (!this.amount || !this.exchangeRate) {
-      return null;
+  protected onAmountInput(event: Event): void {
+    if (isIncompleteNumberInput(event)) {
+      return;
     }
-    return Math.round(this.amount * this.exchangeRate).toLocaleString();
+    this.amountText.set(readInputValue(event));
+  }
+
+  protected onRateInput(event: Event): void {
+    if (isIncompleteNumberInput(event)) {
+      return;
+    }
+    this.exchangeRateText.set(readInputValue(event));
   }
 
   protected onCurrencyChange(code: string): void {
+    this.currency.set(code);
     const upper = code.trim().toUpperCase();
     if (upper.length === ISO_CURRENCY_CODE_LENGTH) {
       void this.fetchLiveRate(upper);
@@ -369,7 +414,7 @@ export class QuickExpenseModalComponent {
   }
 
   private async fetchLiveRate(overrideCode?: string): Promise<void> {
-    const src = (overrideCode || this.currency || 'JPY').trim().toUpperCase();
+    const src = (overrideCode || this.currency() || 'JPY').trim().toUpperCase();
     const dst = (this.homeCurrency() || 'TWD').trim().toUpperCase();
     if (
       src.length !== ISO_CURRENCY_CODE_LENGTH ||
@@ -378,7 +423,7 @@ export class QuickExpenseModalComponent {
       return;
     }
     if (src === dst) {
-      this.exchangeRate = 1;
+      this.exchangeRateText.set('1');
       this.rateNeedsConfirm.set(false);
       return;
     }
@@ -386,16 +431,16 @@ export class QuickExpenseModalComponent {
     try {
       const res = await this.api.getExchangeRate(src, dst);
       const rounded = roundFxRate(res.rate);
-      this.exchangeRate = rounded;
+      this.exchangeRateText.set(String(rounded));
       this.rateNeedsConfirm.set(false);
       this.cache.setFxRate(src, rounded);
     } catch {
       const cached = this.cache.getFxRate(src);
       if (cached !== null) {
-        this.exchangeRate = roundFxRate(cached);
+        this.exchangeRateText.set(String(roundFxRate(cached)));
         this.rateNeedsConfirm.set(false);
       } else {
-        this.exchangeRate = estimateOfflineFxRate(src, dst) ?? 1;
+        this.exchangeRateText.set(String(estimateOfflineFxRate(src, dst) ?? 1));
         this.rateNeedsConfirm.set(true);
       }
     } finally {
@@ -404,22 +449,24 @@ export class QuickExpenseModalComponent {
   }
 
   protected async submit(): Promise<void> {
-    if (!this.title.trim() || !this.amount || this.amount <= 0) {
+    const title = this.title().trim();
+    const amount = this.amount();
+    if (!title || !amount || amount <= 0) {
       return;
     }
-    const upperCurrency = (this.currency.trim() || 'JPY').toUpperCase();
+    const upperCurrency = (this.currency().trim() || 'JPY').toUpperCase();
     this.submitting.set(true);
     try {
       await this.expenseStore.addExpense(this.tripId(), {
         trip_day_id: this.tripDayId(),
         itinerary_item_id: this.item()?.id ?? null,
-        title: this.title.trim(),
-        category: this.category,
-        amount_original: this.amount,
+        title,
+        category: this.category(),
+        amount_original: amount,
         currency_original: upperCurrency,
-        exchange_rate: this.exchangeRate || 1,
-        payment_method: this.paymentMethod.trim() || null,
-        notes: this.notes.trim() || null,
+        exchange_rate: this.exchangeRate() || 1,
+        payment_method: this.paymentMethod().trim() || null,
+        notes: this.notes().trim() || null,
       });
       this.saved.emit();
       this.closed.emit();

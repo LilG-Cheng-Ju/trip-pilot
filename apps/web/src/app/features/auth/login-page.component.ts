@@ -1,5 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { AuthSessionService } from '../../core/auth/auth-session.service';
@@ -7,11 +6,13 @@ import { APP_VERSION, IS_BETA } from '../../core/config/app-version';
 import { MIN_PASSWORD_LENGTH } from '../../core/constants/app-limits';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { readInputValue } from '../../core/utils/form-events.utils';
 
 /** Full-bleed split-screen login page with scenic travel photography, Email/Password, and Google Sign-In. */
 @Component({
   selector: 'app-login-page',
-  imports: [FormsModule, TranslatePipe],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [TranslatePipe],
   template: `
     <div class="login-shell">
       <!-- Left Scenic Travel Visual (Unsplash royalty-free photography) -->
@@ -100,7 +101,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
               </button>
             </div>
 
-            <form class="email-form" (ngSubmit)="submitEmailAuth()">
+            <form class="email-form" (submit)="$event.preventDefault(); submitEmailAuth()">
               <label class="field">
                 <span class="field-label">
                   {{ 'login.emailLabel' | t }} <em class="req">*</em>
@@ -108,7 +109,8 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
                 <input
                   type="email"
                   class="input-control"
-                  [(ngModel)]="email"
+                  [value]="email()"
+                  (input)="email.set(readInputValue($event))"
                   name="email"
                   autocomplete="email"
                   placeholder="name@example.com"
@@ -123,7 +125,8 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
                 <input
                   type="password"
                   class="input-control"
-                  [(ngModel)]="password"
+                  [value]="password()"
+                  (input)="password.set(readInputValue($event))"
                   name="password"
                   [autocomplete]="authMode() === 'signin' ? 'current-password' : 'new-password'"
                   [placeholder]="'login.passwordPlaceholder' | t"
@@ -503,9 +506,10 @@ export class LoginPageComponent {
   protected readonly authMode = signal<'signin' | 'signup'>('signin');
   protected readonly signingIn = signal(false);
   protected readonly error = signal<string | null>(null);
+  protected readonly readInputValue = readInputValue;
 
-  protected email = '';
-  protected password = '';
+  protected readonly email = signal('');
+  protected readonly password = signal('');
 
   protected switchMode(mode: 'signin' | 'signup'): void {
     this.authMode.set(mode);
@@ -513,16 +517,18 @@ export class LoginPageComponent {
   }
 
   protected async submitEmailAuth(): Promise<void> {
-    if (!this.email.trim() || this.password.length < MIN_PASSWORD_LENGTH) {
+    const email = this.email();
+    const password = this.password();
+    if (!email.trim() || password.length < MIN_PASSWORD_LENGTH) {
       return;
     }
     this.signingIn.set(true);
     this.error.set(null);
     try {
       if (this.authMode() === 'signin') {
-        await this.session.signInWithEmail(this.email, this.password);
+        await this.session.signInWithEmail(email, password);
       } else {
-        await this.session.signUpWithEmail(this.email, this.password);
+        await this.session.signUpWithEmail(email, password);
       }
       await this.router.navigate(['/trips']);
     } catch (err) {

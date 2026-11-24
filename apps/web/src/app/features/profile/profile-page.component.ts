@@ -1,5 +1,12 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  linkedSignal,
+  OnInit,
+  signal,
+} from '@angular/core';
 
 import { AuthSessionService } from '../../core/auth/auth-session.service';
 import { SessionCleanupService } from '../../core/auth/session-cleanup.service';
@@ -11,6 +18,7 @@ import {
 import { SUPPORTED_CURRENCIES } from '../../core/constants/travel-options';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { readInputValue } from '../../core/utils/form-events.utils';
 import { AppCountryPickerComponent } from '../../shared/country-picker.component';
 import { AppModalComponent } from '../../shared/modal.component';
 import { AuthStore } from '../../state/auth.store';
@@ -18,7 +26,8 @@ import { AuthStore } from '../../state/auth.store';
 /** User travel preferences (searchable country & currency dropdowns) and PAT manager. */
 @Component({
   selector: 'app-profile-page',
-  imports: [FormsModule, TranslatePipe, AppCountryPickerComponent, AppModalComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [TranslatePipe, AppCountryPickerComponent, AppModalComponent],
   template: `
     <div class="page">
       <div class="page-head">
@@ -52,22 +61,26 @@ import { AuthStore } from '../../state/auth.store';
           </button>
         </div>
 
-        <form class="pref-form" (ngSubmit)="savePreferences()">
+        <form class="pref-form" (submit)="$event.preventDefault(); savePreferences()">
           <div class="field">
             <span>{{ 'profile.homeCountry' | t }}</span>
             <app-country-picker
-              [selectedCodes]="[homeCountry]"
+              [selectedCodes]="[homeCountry()]"
               [multiple]="false"
-              (selectionChange)="homeCountry = $event[0] || homeCountry"
+              (selectionChange)="homeCountry.set($event[0] || homeCountry())"
             />
             <small class="field-hint">{{ 'profile.homeCountryHint' | t }}</small>
           </div>
 
           <label class="field">
             <span>{{ 'profile.homeCurrency' | t }}</span>
-            <select [(ngModel)]="homeCurrency" name="homeCurrency">
+            <select
+              [value]="homeCurrency()"
+              (change)="homeCurrency.set(readInputValue($event))"
+              name="homeCurrency"
+            >
               @for (cur of currencies; track cur.code) {
-                <option [value]="cur.code">
+                <option [value]="cur.code" [selected]="cur.code === homeCurrency()">
                   {{ i18n.locale() === 'zh-TW' ? cur.labelZh : cur.labelEn }}
                 </option>
               }
@@ -87,13 +100,13 @@ import { AuthStore } from '../../state/auth.store';
         <h3>{{ 'profile.tokensTitle' | t }}</h3>
         <p class="hint">{{ 'profile.tokensHint' | t }}</p>
 
-        <form class="token-form" (ngSubmit)="generateToken()" novalidate>
+        <form class="token-form" (submit)="$event.preventDefault(); generateToken()" novalidate>
           <input
             type="text"
             [class.has-error]="tokenNameError()"
-            [(ngModel)]="newTokenName"
+            [value]="newTokenName()"
+            (input)="newTokenName.set(readInputValue($event)); tokenNameError.set(false)"
             name="newTokenName"
-            (ngModelChange)="tokenNameError.set(false)"
             [placeholder]="'profile.tokenNamePlaceholder' | t"
           />
           <button type="submit" class="btn-primary" [disabled]="generatingToken()">
@@ -450,10 +463,15 @@ export class ProfilePageComponent implements OnInit {
   protected readonly i18n = inject(I18nService);
   private readonly sessionCleanup = inject(SessionCleanupService);
   protected readonly currencies = SUPPORTED_CURRENCIES;
+  protected readonly readInputValue = readInputValue;
 
-  protected homeCountry = 'TW';
-  protected homeCurrency = 'TWD';
-  protected newTokenName = '';
+  protected readonly homeCountry = linkedSignal(
+    () => this.authStore.profile()?.home_country_code ?? 'TW',
+  );
+  protected readonly homeCurrency = linkedSignal(
+    () => this.authStore.profile()?.home_currency ?? 'TWD',
+  );
+  protected readonly newTokenName = signal('');
   protected readonly savedNotice = signal(false);
   protected readonly copied = signal(false);
   protected readonly copiedKey = signal<string | null>(null);
@@ -475,11 +493,6 @@ export class ProfilePageComponent implements OnInit {
 
   async ngOnInit(): Promise<void> {
     await Promise.all([this.authStore.loadProfile(), this.authStore.loadTokens()]);
-    const profile = this.authStore.profile();
-    if (profile) {
-      this.homeCountry = profile.home_country_code;
-      this.homeCurrency = profile.home_currency;
-    }
   }
 
   protected async executeRevokeToken(): Promise<void> {
@@ -498,8 +511,8 @@ export class ProfilePageComponent implements OnInit {
   protected async savePreferences(): Promise<void> {
     try {
       await this.authStore.updateProfile({
-        home_country_code: this.homeCountry,
-        home_currency: this.homeCurrency,
+        home_country_code: this.homeCountry(),
+        home_currency: this.homeCurrency(),
       });
       this.savedNotice.set(true);
       setTimeout(() => this.savedNotice.set(false), SAVE_NOTICE_DURATION_MS);
@@ -510,14 +523,15 @@ export class ProfilePageComponent implements OnInit {
 
   protected async generateToken(): Promise<void> {
     this.tokenApiError.set(null);
-    if (!this.newTokenName.trim()) {
+    const tokenName = this.newTokenName().trim();
+    if (!tokenName) {
       this.tokenNameError.set(true);
       return;
     }
     this.generatingToken.set(true);
     try {
-      await this.authStore.createToken(this.newTokenName.trim());
-      this.newTokenName = '';
+      await this.authStore.createToken(tokenName);
+      this.newTokenName.set('');
     } catch {
       this.tokenApiError.set(this.i18n.t('profile.tokenCreateError'));
     } finally {
