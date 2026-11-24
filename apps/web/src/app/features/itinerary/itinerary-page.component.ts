@@ -17,7 +17,7 @@ import {
   SHARE_COPY_FEEDBACK_DURATION_MS,
 } from '../../core/constants/app-limits';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { ItineraryItem } from '../../core/models/tripilot.models';
+import { ItineraryItem, TripDay } from '../../core/models/tripilot.models';
 import { readCheckedValue, readInputValue } from '../../core/utils/form-events.utils';
 import {
   buildDayMapPins,
@@ -30,8 +30,10 @@ import {
   ItinerarySlot,
   toStayMapPin,
 } from '../../core/utils/travel-format.utils';
+import { AppConfirmModalComponent } from '../../shared/confirm-modal.component';
 import { AppModalComponent } from '../../shared/modal.component';
 import { TripSubnavComponent } from '../../shared/trip-subnav.component';
+import { AuthStore } from '../../state/auth.store';
 import { ExpenseStore } from '../../state/expense.store';
 import { ItineraryStore } from '../../state/itinerary.store';
 import { TripStore } from '../../state/trip.store';
@@ -55,6 +57,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
   imports: [
     RouterLink,
     TranslatePipe,
+    AppConfirmModalComponent,
     AppModalComponent,
     TripSubnavComponent,
     ItemFormModalComponent,
@@ -166,6 +169,17 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
                   (keydown.enter)="blurInput($event)"
                   [placeholder]="'itinerary.dayThemePlaceholder' | t"
                 />
+                @if (trip.days.length > 1) {
+                  <button
+                    type="button"
+                    class="plan-icon-btn danger"
+                    [title]="'itinerary.deleteDay' | t"
+                    [attr.aria-label]="'itinerary.deleteDay' | t"
+                    (click)="pendingDeleteDay.set(day)"
+                  >
+                    <span class="ms-icon sm" aria-hidden="true">delete</span>
+                  </button>
+                }
               </div>
 
               <!-- Whole-Day Plan A / Plan B Segmented Switcher (shown once a day has 2+ plans) -->
@@ -378,7 +392,11 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
         [tripDayId]="store.selectedDay()?.id ?? null"
         [item]="quickExpenseItem()"
         [defaultCurrency]="trip.default_currency"
-        [homeCurrency]="expenseStore.summary()?.home_currency ?? 'TWD'"
+        [homeCurrency]="
+          expenseStore.summary()?.home_currency ??
+          authStore.profile()?.home_currency ??
+          'TWD'
+        "
         (closed)="showQuickExpenseModal.set(false)"
       />
 
@@ -461,80 +479,59 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
         </form>
       </app-modal>
 
-      <!-- Modal: Confirm Delete Day Plan Option -->
-      <app-modal
+      <!-- Confirm Delete Day -->
+      <app-confirm-modal
+        [open]="pendingDeleteDay() !== null"
+        [title]="'confirm.deleteDayTitle' | t"
+        [message]="
+          pendingDeleteDay()
+            ? ('confirm.deleteDayBody' | t: { day: pendingDeleteDay()!.day_index })
+            : ''
+        "
+        [busy]="deletingDay()"
+        (confirmed)="executeDeleteDay()"
+        (cancelled)="pendingDeleteDay.set(null)"
+      />
+
+      <!-- Confirm Delete Day Plan Option -->
+      <app-confirm-modal
         [open]="pendingDeleteOption() !== null"
         [title]="'itinerary.plan.delete' | t"
-        (closed)="pendingDeleteOption.set(null)"
-      >
-        @if (pendingDeleteOption(); as target) {
-          <div class="modal-form">
-            <p class="confirm-copy">
-              {{ 'itinerary.plan.deleteConfirm' | t: { name: target.label } }}
-            </p>
-            <div class="add-actions">
-              <button
-                type="button"
-                class="pill-btn"
-                (click)="pendingDeleteOption.set(null)"
-              >
-                {{ 'common.cancel' | t }}
-              </button>
-              <button
-                type="button"
-                class="btn-danger"
-                (click)="executeDeleteOption()"
-              >
-                {{ 'itinerary.plan.delete' | t }}
-              </button>
-            </div>
-          </div>
-        }
-      </app-modal>
+        [message]="
+          pendingDeleteOption()
+            ? ('itinerary.plan.deleteConfirm' | t: { name: pendingDeleteOption()!.label })
+            : ''
+        "
+        [confirmLabel]="'itinerary.plan.delete' | t"
+        [busy]="deletingOption()"
+        (confirmed)="executeDeleteOption()"
+        (cancelled)="pendingDeleteOption.set(null)"
+      />
 
-      <!-- Modal: Confirm Delete Itinerary Item -->
-      <app-modal
+      <!-- Confirm Delete Itinerary Item -->
+      <app-confirm-modal
         [open]="pendingDeleteItem() !== null"
         [title]="'confirm.deleteItemTitle' | t"
-        (closed)="pendingDeleteItem.set(null)"
-      >
-        @if (pendingDeleteItem(); as target) {
-          <div class="modal-form">
-            <p class="confirm-copy">
-              {{ 'confirm.deleteItemBody' | t: { name: target.title } }}
-            </p>
-            <div class="add-actions">
-              <button type="button" class="pill-btn" (click)="pendingDeleteItem.set(null)">
-                {{ 'common.cancel' | t }}
-              </button>
-              <button type="button" class="btn-danger" (click)="executeDeleteItem()">
-                {{ 'common.delete' | t }}
-              </button>
-            </div>
-          </div>
-        }
-      </app-modal>
+        [message]="
+          pendingDeleteItem()
+            ? ('confirm.deleteItemBody' | t: { name: pendingDeleteItem()!.title })
+            : ''
+        "
+        [busy]="deletingItem()"
+        (confirmed)="executeDeleteItem()"
+        (cancelled)="pendingDeleteItem.set(null)"
+      />
 
-      <!-- Modal: Confirm Revoke Share Link -->
-      <app-modal
+      <!-- Confirm Revoke Share Link -->
+      <app-confirm-modal
         [open]="pendingRevokeShare() !== null"
         [title]="'confirm.revokeShareTitle' | t"
-        (closed)="pendingRevokeShare.set(null)"
-      >
-        @if (pendingRevokeShare()) {
-          <div class="modal-form">
-            <p class="confirm-copy">{{ 'confirm.revokeShareBody' | t }}</p>
-            <div class="add-actions">
-              <button type="button" class="pill-btn" (click)="pendingRevokeShare.set(null)">
-                {{ 'common.cancel' | t }}
-              </button>
-              <button type="button" class="btn-danger" (click)="executeRevokeShare()">
-                {{ 'share.revoke' | t }}
-              </button>
-            </div>
-          </div>
-        }
-      </app-modal>
+        [message]="'confirm.revokeShareBody' | t"
+        [confirmLabel]="'share.revoke' | t"
+        [busy]="revokingShare()"
+        (confirmed)="executeRevokeShare()"
+        (cancelled)="pendingRevokeShare.set(null)"
+      />
 
       <!-- Modal: Read-Only Share Settings -->
       <app-modal
@@ -790,7 +787,8 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       flex-shrink: 0;
     }
     .day-theme-input {
-      width: 100%;
+      flex: 1;
+      min-width: 0;
       border: none;
       background: transparent;
       color: var(--color-primary);
@@ -819,6 +817,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
     }
     .plan-icon-btn {
       position: relative;
+      flex-shrink: 0;
       width: 28px;
       height: 28px;
       display: inline-flex;
@@ -1137,6 +1136,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
 export class ItineraryPageComponent implements OnInit {
   protected readonly store = inject(ItineraryStore);
   protected readonly expenseStore = inject(ExpenseStore);
+  protected readonly authStore = inject(AuthStore);
   private readonly tripStore = inject(TripStore);
   private readonly route = inject(ActivatedRoute);
 
@@ -1152,16 +1152,21 @@ export class ItineraryPageComponent implements OnInit {
   protected readonly showRenameModal = signal(false);
   protected readonly renamingOptionId = signal<string | null>(null);
   protected readonly renameLabelError = signal(false);
+  protected readonly pendingDeleteDay = signal<TripDay | null>(null);
+  protected readonly deletingDay = signal(false);
   protected readonly pendingDeleteOption = signal<{
     dayId: string;
     optionId: string;
     label: string;
   } | null>(null);
+  protected readonly deletingOption = signal(false);
   protected readonly pendingDeleteItem = signal<ItineraryItem | null>(null);
+  protected readonly deletingItem = signal(false);
   protected readonly pendingRevokeShare = signal<{
     tripId: string;
     shareId: string;
   } | null>(null);
+  protected readonly revokingShare = signal(false);
   protected readonly showShareModal = signal(false);
   protected readonly copiedToken = signal<string | null>(null);
   protected readonly cloneLabelError = signal(false);
@@ -1410,13 +1415,37 @@ export class ItineraryPageComponent implements OnInit {
     this.pendingDeleteOption.set({ dayId, optionId, label });
   }
 
+  protected async executeDeleteDay(): Promise<void> {
+    const target = this.pendingDeleteDay();
+    if (!target) {
+      return;
+    }
+    this.deletingDay.set(true);
+    try {
+      await this.store.deleteDay(target.id);
+      this.pendingDeleteDay.set(null);
+      if (this.expenseStore.summary()?.trip_id === target.trip_id) {
+        void this.expenseStore.loadExpenses(target.trip_id);
+      }
+    } catch {
+      this.pendingDeleteDay.set(null);
+    } finally {
+      this.deletingDay.set(false);
+    }
+  }
+
   protected async executeDeleteOption(): Promise<void> {
     const target = this.pendingDeleteOption();
     if (!target) {
       return;
     }
-    this.pendingDeleteOption.set(null);
-    await this.store.deleteOption(target.dayId, target.optionId);
+    this.deletingOption.set(true);
+    try {
+      await this.store.deleteOption(target.dayId, target.optionId);
+      this.pendingDeleteOption.set(null);
+    } finally {
+      this.deletingOption.set(false);
+    }
   }
 
   protected requestDeleteItem(item: ItineraryItem): void {
@@ -1428,8 +1457,13 @@ export class ItineraryPageComponent implements OnInit {
     if (!target) {
       return;
     }
-    this.pendingDeleteItem.set(null);
-    await this.store.deleteItem(target.id);
+    this.deletingItem.set(true);
+    try {
+      await this.store.deleteItem(target.id);
+      this.pendingDeleteItem.set(null);
+    } finally {
+      this.deletingItem.set(false);
+    }
   }
 
   protected requestRevokeShare(tripId: string, shareId: string): void {
@@ -1441,8 +1475,13 @@ export class ItineraryPageComponent implements OnInit {
     if (!target) {
       return;
     }
-    this.pendingRevokeShare.set(null);
-    await this.store.revokeShare(target.tripId, target.shareId);
+    this.revokingShare.set(true);
+    try {
+      await this.store.revokeShare(target.tripId, target.shareId);
+      this.pendingRevokeShare.set(null);
+    } finally {
+      this.revokingShare.set(false);
+    }
   }
 
   protected openShareModal(tripId: string): void {

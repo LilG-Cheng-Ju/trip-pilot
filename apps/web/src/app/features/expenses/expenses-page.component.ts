@@ -9,25 +9,28 @@ import {
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 
-import { TripilotApiService } from '../../core/api/tripilot-api.service';
-import { OfflineCacheService } from '../../core/cache/offline-cache.service';
 import { ISO_CURRENCY_CODE_LENGTH } from '../../core/constants/app-limits';
 import {
   COMMON_CURRENCIES,
   QuickCurrencyOption,
 } from '../../core/constants/travel-options';
+import {
+  FxRateResolverService,
+  FxResolutionStatus,
+} from '../../core/fx/fx-rate-resolver.service';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { ExpenseCategory } from '../../core/models/tripilot.models';
+import { ExpenseCategory, ExpenseItem, TripDay } from '../../core/models/tripilot.models';
 import { isIncompleteNumberInput, readInputValue } from '../../core/utils/form-events.utils';
 import {
-  estimateOfflineFxRate,
   EXPENSE_CATEGORIES,
   expenseCategoryKey,
   roundFxRate,
 } from '../../core/utils/travel-format.utils';
+import { AppConfirmModalComponent } from '../../shared/confirm-modal.component';
 import { AppModalComponent } from '../../shared/modal.component';
 import { TripSubnavComponent } from '../../shared/trip-subnav.component';
+import { AuthStore } from '../../state/auth.store';
 import { ExpenseStore } from '../../state/expense.store';
 import { ItineraryStore } from '../../state/itinerary.store';
 
@@ -35,7 +38,7 @@ import { ItineraryStore } from '../../state/itinerary.store';
 @Component({
   selector: 'app-expenses-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslatePipe, AppModalComponent, TripSubnavComponent],
+  imports: [TranslatePipe, AppConfirmModalComponent, AppModalComponent, TripSubnavComponent],
   template: `
     <div class="page">
       @if (itineraryStore.trip(); as trip) {
@@ -127,8 +130,13 @@ import { ItineraryStore } from '../../state/itinerary.store';
                 </select>
               </label>
 
-              <div class="field">
-                <span class="field-label">{{ 'expenses.rateLabel' | t }}</span>
+              <div class="field" [class.has-error]="quickRateError()">
+                <span class="field-label">
+                  {{ 'expenses.rateLabel' | t }}
+                  @if (manualRateRequired()) {
+                    <em class="req">*</em>
+                  }
+                </span>
                 <div class="rate-box">
                   <input
                     type="number"
@@ -138,13 +146,14 @@ import { ItineraryStore } from '../../state/itinerary.store';
                     [value]="exchangeRateText()"
                     (input)="onRateInput($event)"
                     name="exchangeRate"
+                    placeholder="0"
                   />
                   <button
                     type="button"
                     class="fx-btn"
                     [disabled]="fetchingRate()"
                     [title]="'fx.refresh' | t"
-                    (click)="fetchLiveRate()"
+                    (click)="resolveQuickRate()"
                   >
                     <span class="ms-icon sm" [class.spin]="fetchingRate()" aria-hidden="true">
                       sync
@@ -154,20 +163,48 @@ import { ItineraryStore } from '../../state/itinerary.store';
               </div>
             </div>
 
+            @if (isQuickForeign() && manualRateRequired()) {
+              <div class="fx-warning-banner" role="alert">
+                <span class="ms-icon sm" aria-hidden="true">warning</span>
+                <span>{{ 'fx.unavailableHint' | t }}</span>
+              </div>
+            }
+
             <div class="preview-row tabular-nums">
               @if (previewHomeAmount() !== null) {
                 <span class="preview-line">
-                  ≈ {{ expenseStore.summary()?.home_currency || 'TWD' }} {{ previewHomeAmount() }}
+                  ≈ {{ homeCurrency() }} {{ previewHomeAmount() }}
                 </span>
               }
               @if (fetchingRate()) {
                 <span class="fx-hint">{{ 'fx.loading' | t }}</span>
-              } @else if (rateSource()) {
-                <span class="fx-hint">
-                  {{ (rateSource() === 'fallback' ? 'fx.fallbackHint' : 'fx.liveHint') | t }}
-                </span>
+              } @else if (fxStatus() === 'cached') {
+                <span class="fx-hint cached">{{ 'fx.cachedHint' | t }}</span>
+              } @else if (fxStatus() === 'live') {
+                <span class="fx-hint">{{ 'fx.liveHint' | t }}</span>
               }
             </div>
+
+            @if (tripDays().length > 0) {
+              <label class="field">
+                <span class="field-label">{{ 'expenses.field.day' | t }}</span>
+                <select
+                  class="input-main"
+                  [value]="selectedDayId()"
+                  name="tripDayId"
+                  (change)="selectedDayId.set(readInputValue($event))"
+                >
+                  <option value="" [selected]="selectedDayId() === ''">
+                    {{ 'expenses.unassignedDay' | t }}
+                  </option>
+                  @for (day of tripDays(); track day.id) {
+                    <option [value]="day.id" [selected]="selectedDayId() === day.id">
+                      {{ 'expenses.dayOption' | t: { day: day.day_index, date: day.date.slice(5) } }}
+                    </option>
+                  }
+                </select>
+              </label>
+            }
 
             <div class="cat-chips">
               @for (cat of categories; track cat) {
@@ -218,7 +255,11 @@ import { ItineraryStore } from '../../state/itinerary.store';
               </div>
             }
 
-            <button type="submit" class="submit-btn" [disabled]="submitting()">
+            <button
+              type="submit"
+              class="submit-btn"
+              [disabled]="submitting() || fetchingRate() || (isQuickForeign() && exchangeRate() === null)"
+            >
               + {{ 'common.add' | t }}
             </button>
           </form>
@@ -283,7 +324,10 @@ import { ItineraryStore } from '../../state/itinerary.store';
                     <div>
                       <h4 class="exp-title">{{ exp.title }}</h4>
                       <p class="exp-meta tabular-nums">
-                        {{ exp.paid_at.slice(0, 10) }}
+                        @if (exp.trip_day_id && dayIndexById().get(exp.trip_day_id); as dayNum) {
+                          <span class="exp-day-pill">{{ 'expenses.dayShort' | t: { day: dayNum } }}</span>
+                        }
+                        <span>{{ exp.paid_at.slice(0, 10) }}</span>
                         @if (exp.payment_method) { · {{ exp.payment_method }} }
                       </p>
                     </div>
@@ -299,7 +343,16 @@ import { ItineraryStore } from '../../state/itinerary.store';
                     </div>
                     <button
                       type="button"
-                      class="del-btn"
+                      class="row-icon-btn"
+                      [attr.aria-label]="'common.edit' | t"
+                      [title]="'common.edit' | t"
+                      (click)="openEditExpenseModal(exp)"
+                    >
+                      <span class="ms-icon sm" aria-hidden="true">edit</span>
+                    </button>
+                    <button
+                      type="button"
+                      class="row-icon-btn danger"
                       [attr.aria-label]="'common.delete' | t"
                       [title]="'common.delete' | t"
                       (click)="pendingDeleteExpense.set({ id: exp.id, title: exp.title })"
@@ -315,26 +368,219 @@ import { ItineraryStore } from '../../state/itinerary.store';
       </div>
 
       <app-modal
-        [open]="pendingDeleteExpense() !== null"
-        [title]="'confirm.deleteExpenseTitle' | t"
-        (closed)="pendingDeleteExpense.set(null)"
+        [open]="editingExpense() !== null"
+        [title]="'expenses.editModalTitle' | t"
+        (closed)="editingExpense.set(null)"
       >
-        @if (pendingDeleteExpense(); as target) {
-          <div class="modal-form">
-            <p class="confirm-copy">
-              {{ 'confirm.deleteExpenseBody' | t: { name: target.title } }}
-            </p>
-            <div class="modal-actions">
-              <button type="button" class="pill-btn" (click)="pendingDeleteExpense.set(null)">
-                {{ 'common.cancel' | t }}
-              </button>
-              <button type="button" class="btn-danger" (click)="executeDeleteExpense()">
-                {{ 'common.delete' | t }}
-              </button>
+        <form class="modal-form" (submit)="$event.preventDefault(); submitEditExpense()">
+          <label class="field">
+            <span class="field-label">
+              {{ 'expenses.field.title' | t }} <em class="req">*</em>
+            </span>
+            <input
+              type="text"
+              [value]="editTitle()"
+              (input)="editTitle.set(readInputValue($event))"
+              name="editTitle"
+              [placeholder]="'expenses.itemPlaceholder' | t"
+              required
+            />
+          </label>
+
+          <div class="amount-row">
+            <label class="field">
+              <span class="field-label">
+                {{ 'expenses.field.amount' | t }} <em class="req">*</em>
+              </span>
+              <input
+                type="number"
+                step="any"
+                min="0.01"
+                class="tabular-nums"
+                [value]="editAmountText()"
+                (input)="onEditAmountInput($event)"
+                name="editAmount"
+                placeholder="0"
+                required
+              />
+            </label>
+
+            <label class="field">
+              <span class="field-label">
+                {{ 'expenses.field.currency' | t }} <em class="req">*</em>
+              </span>
+              <select
+                [value]="editCurrency()"
+                name="editCurrency"
+                (change)="onEditCurrencyChange(readInputValue($event))"
+              >
+                @for (opt of editCurrencyOptions(); track opt.code) {
+                  <option [value]="opt.code" [selected]="opt.code === editCurrency()">
+                    {{ i18n.locale() === 'zh-TW' ? opt.labelZh : opt.labelEn }}
+                  </option>
+                }
+              </select>
+            </label>
+
+            <div class="field" [class.has-error]="editRateError()">
+              <span class="field-label">
+                {{ 'expenses.rateLabel' | t }}
+                @if (editManualRateRequired()) {
+                  <em class="req">*</em>
+                }
+              </span>
+              <div class="rate-box">
+                <input
+                  type="number"
+                  step="any"
+                  min="0.000001"
+                  class="tabular-nums"
+                  [value]="editExchangeRateText()"
+                  (input)="onEditRateInput($event)"
+                  name="editExchangeRate"
+                  placeholder="0"
+                />
+                <button
+                  type="button"
+                  class="fx-btn"
+                  [disabled]="editFetchingRate()"
+                  [title]="'fx.refresh' | t"
+                  (click)="resolveEditRate()"
+                >
+                  <span class="ms-icon sm" [class.spin]="editFetchingRate()" aria-hidden="true">
+                    sync
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
-        }
+
+          @if (isEditForeign() && editManualRateRequired()) {
+            <div class="fx-warning-banner" role="alert">
+              <span class="ms-icon sm" aria-hidden="true">warning</span>
+              <span>{{ 'fx.unavailableHint' | t }}</span>
+            </div>
+          }
+
+          <div class="preview-row tabular-nums">
+            @if (editPreviewHomeAmount() !== null) {
+              <span class="preview-line">
+                ≈ {{ homeCurrency() }} {{ editPreviewHomeAmount() }}
+              </span>
+            }
+            @if (editFetchingRate()) {
+              <span class="fx-hint">{{ 'fx.loading' | t }}</span>
+            } @else if (editFxStatus() === 'cached') {
+              <span class="fx-hint cached">{{ 'fx.cachedHint' | t }}</span>
+            } @else if (editFxStatus() === 'live') {
+              <span class="fx-hint">{{ 'fx.liveHint' | t }}</span>
+            }
+          </div>
+
+          <div class="field">
+            <span class="field-label">{{ 'expenses.field.category' | t }}</span>
+            <div class="cat-chips">
+              @for (cat of categories; track cat) {
+                <button
+                  type="button"
+                  class="cat-chip"
+                  [class.active]="editCategory() === cat"
+                  (click)="editCategory.set(cat)"
+                >
+                  {{ categoryKey(cat) | t }}
+                </button>
+              }
+            </div>
+          </div>
+
+          <div class="two-col">
+            @if (tripDays().length > 0) {
+              <label class="field">
+                <span class="field-label">{{ 'expenses.field.day' | t }}</span>
+                <select
+                  [value]="editDayId()"
+                  name="editDayId"
+                  (change)="editDayId.set(readInputValue($event))"
+                >
+                  <option value="" [selected]="editDayId() === ''">
+                    {{ 'expenses.unassignedDay' | t }}
+                  </option>
+                  @for (day of tripDays(); track day.id) {
+                    <option [value]="day.id" [selected]="editDayId() === day.id">
+                      {{ 'expenses.dayOption' | t: { day: day.day_index, date: day.date.slice(5) } }}
+                    </option>
+                  }
+                </select>
+              </label>
+            }
+
+            <label class="field">
+              <span class="field-label">{{ 'expenses.field.date' | t }}</span>
+              <input
+                type="date"
+                [value]="editPaidAt()"
+                (input)="editPaidAt.set(readInputValue($event))"
+                name="editPaidAt"
+              />
+            </label>
+          </div>
+
+          <label class="field">
+            <span class="field-label">{{ 'expenses.field.paymentMethod' | t }}</span>
+            <input
+              type="text"
+              [value]="editPaymentMethod()"
+              (input)="editPaymentMethod.set(readInputValue($event))"
+              name="editPaymentMethod"
+              [placeholder]="'expenses.field.paymentPlaceholder' | t"
+            />
+          </label>
+
+          <label class="field">
+            <span class="field-label">{{ 'expenses.field.notes' | t }}</span>
+            <input
+              type="text"
+              [value]="editNotes()"
+              (input)="editNotes.set(readInputValue($event))"
+              name="editNotes"
+              [placeholder]="'expenses.field.notesPlaceholder' | t"
+            />
+          </label>
+
+          <div class="modal-actions">
+            <button type="button" class="btn-ghost" (click)="editingExpense.set(null)">
+              {{ 'common.cancel' | t }}
+            </button>
+            <button
+              type="submit"
+              class="btn-primary"
+              [disabled]="
+                editSubmitting() ||
+                editFetchingRate() ||
+                !editTitle().trim() ||
+                !editAmount() ||
+                editAmount()! <= 0 ||
+                (isEditForeign() && editExchangeRate() === null)
+              "
+            >
+              {{ 'common.save' | t }}
+            </button>
+          </div>
+        </form>
       </app-modal>
+
+      <app-confirm-modal
+        [open]="pendingDeleteExpense() !== null"
+        [title]="'confirm.deleteExpenseTitle' | t"
+        [message]="
+          pendingDeleteExpense()
+            ? ('confirm.deleteExpenseBody' | t: { name: pendingDeleteExpense()!.title })
+            : ''
+        "
+        [busy]="deletingExpense()"
+        (confirmed)="executeDeleteExpense()"
+        (cancelled)="pendingDeleteExpense.set(null)"
+      />
     </div>
   `,
   styles: `
@@ -342,35 +588,6 @@ import { ItineraryStore } from '../../state/itinerary.store';
       max-width: 1120px;
       margin: 0 auto;
       padding: var(--space-5) var(--space-4) calc(var(--nav-bottom-height) + var(--space-6));
-    }
-    .page-head {
-      display: flex;
-      align-items: center;
-      gap: var(--space-3);
-      margin-bottom: var(--space-4);
-    }
-    .back-btn {
-      display: grid;
-      place-items: center;
-      width: 34px;
-      height: 34px;
-      border-radius: var(--radius-pill);
-      background: var(--color-surface);
-      border: 1px solid var(--color-border);
-      color: var(--color-primary);
-      text-decoration: none;
-      font-weight: 600;
-    }
-    .page-title {
-      margin: 0;
-      font-size: 1.375rem;
-      font-weight: 600;
-      color: var(--color-primary);
-    }
-    .trip-sub {
-      margin: 2px 0 0;
-      font-size: 0.8125rem;
-      color: var(--color-text-secondary);
     }
     .expenses-grid {
       display: grid;
@@ -524,6 +741,9 @@ import { ItineraryStore } from '../../state/itinerary.store';
       font-size: 0.8125rem;
       outline: none;
     }
+    .field.has-error .rate-box {
+      border-color: var(--color-alert);
+    }
     .fx-btn {
       display: inline-flex;
       align-items: center;
@@ -541,13 +761,17 @@ import { ItineraryStore } from '../../state/itinerary.store';
     .fx-btn:hover {
       background: rgba(27, 42, 74, 0.08);
     }
-    .spin {
-      animation: fx-spin 900ms linear infinite;
-    }
-    @keyframes fx-spin {
-      to {
-        transform: rotate(360deg);
-      }
+    .fx-warning-banner {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      background: var(--color-alert-soft);
+      border: 1px solid rgba(200, 75, 59, 0.35);
+      color: var(--color-alert);
+      font-size: 0.78rem;
+      font-weight: 600;
     }
     .preview-row {
       display: flex;
@@ -565,6 +789,10 @@ import { ItineraryStore } from '../../state/itinerary.store';
       margin-left: auto;
       font-size: 0.72rem;
       color: var(--color-text-muted);
+    }
+    .fx-hint.cached {
+      color: var(--color-accent-ink);
+      font-weight: 600;
     }
     .filter-banner {
       display: flex;
@@ -711,14 +939,26 @@ import { ItineraryStore } from '../../state/itinerary.store';
       overflow-wrap: anywhere;
     }
     .exp-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
       margin: 2px 0 0;
       font-size: 0.75rem;
       color: var(--color-text-muted);
     }
+    .exp-day-pill {
+      padding: 1px 7px;
+      border-radius: var(--radius-pill);
+      background: var(--color-primary-tint);
+      color: var(--color-primary);
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
     .exp-right {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 6px;
       text-align: right;
     }
     .exp-home {
@@ -730,12 +970,31 @@ import { ItineraryStore } from '../../state/itinerary.store';
       font-size: 0.75rem;
       color: var(--color-text-muted);
     }
-    .del-btn {
-      border: none;
+    .row-icon-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border: 1px solid transparent;
+      border-radius: var(--radius-pill);
       background: transparent;
       color: var(--color-text-muted);
-      font-size: 1.1rem;
       cursor: pointer;
+    }
+    .row-icon-btn:hover {
+      border-color: var(--color-border);
+      color: var(--color-primary);
+    }
+    .row-icon-btn.danger:hover {
+      background: var(--color-alert-soft);
+      color: var(--color-alert);
+    }
+    .two-col {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 10px;
     }
     .empty-box {
       padding: var(--space-6);
@@ -756,9 +1015,9 @@ import { ItineraryStore } from '../../state/itinerary.store';
 export class ExpensesPageComponent implements OnInit, OnDestroy {
   protected readonly expenseStore = inject(ExpenseStore);
   protected readonly itineraryStore = inject(ItineraryStore);
+  private readonly authStore = inject(AuthStore);
   protected readonly i18n = inject(I18nService);
-  private readonly api = inject(TripilotApiService);
-  private readonly cache = inject(OfflineCacheService);
+  private readonly fxResolver = inject(FxRateResolverService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
@@ -766,11 +1025,18 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
   protected readonly showMore = signal(false);
   protected readonly submitting = signal(false);
   protected readonly fetchingRate = signal(false);
-  protected readonly rateSource = signal<string | null>(null);
+  protected readonly fxStatus = signal<FxResolutionStatus>('same');
+  protected readonly manualRateRequired = signal(false);
+  protected readonly quickRateError = signal(false);
   protected readonly pendingDeleteExpense = signal<{ id: string; title: string } | null>(null);
+  protected readonly deletingExpense = signal(false);
+  protected readonly editingExpense = signal<ExpenseItem | null>(null);
   protected readonly categories = EXPENSE_CATEGORIES;
   protected readonly categoryKey = expenseCategoryKey;
   protected readonly readInputValue = readInputValue;
+
+  private quickRateSeq = 0;
+  private editRateSeq = 0;
 
   protected readonly title = signal('');
   protected readonly amountText = signal('');
@@ -781,41 +1047,105 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
     return Number.isFinite(n) ? n : null;
   });
   protected readonly currency = signal('JPY');
-  protected readonly exchangeRateText = signal('0.215');
-  protected readonly exchangeRate = computed<number>(() => {
-    const n = Number(this.exchangeRateText());
-    return Number.isFinite(n) && n > 0 ? n : 1;
+  protected readonly exchangeRateText = signal('1');
+  protected readonly exchangeRate = computed<number | null>(() => {
+    const raw = this.exchangeRateText().trim();
+    if (!raw) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : null;
   });
+  protected readonly selectedDayId = signal('');
   protected readonly category = signal<ExpenseCategory>('FOOD');
   protected readonly paymentMethod = signal('');
   protected readonly notes = signal('');
 
+  protected readonly editTitle = signal('');
+  protected readonly editAmountText = signal('');
+  protected readonly editAmount = computed<number | null>(() => {
+    const raw = this.editAmountText().trim();
+    if (!raw) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  });
+  protected readonly editCurrency = signal('JPY');
+  protected readonly editExchangeRateText = signal('1');
+  protected readonly editExchangeRate = computed<number | null>(() => {
+    const raw = this.editExchangeRateText().trim();
+    if (!raw) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  });
+  protected readonly editFetchingRate = signal(false);
+  protected readonly editFxStatus = signal<FxResolutionStatus>('same');
+  protected readonly editManualRateRequired = signal(false);
+  protected readonly editRateError = signal(false);
+  protected readonly editCategory = signal<ExpenseCategory>('FOOD');
+  protected readonly editDayId = signal('');
+  protected readonly editPaidAt = signal('');
+  protected readonly editPaymentMethod = signal('');
+  protected readonly editNotes = signal('');
+  protected readonly editSubmitting = signal(false);
+
+  protected readonly homeCurrency = computed(() =>
+    (
+      this.expenseStore.summary()?.home_currency ||
+      this.authStore.profile()?.home_currency ||
+      'TWD'
+    )
+      .trim()
+      .toUpperCase(),
+  );
+
+  protected readonly isQuickForeign = computed(
+    () => (this.currency().trim() || 'JPY').toUpperCase() !== this.homeCurrency(),
+  );
+
+  protected readonly isEditForeign = computed(
+    () => (this.editCurrency().trim() || 'JPY').toUpperCase() !== this.homeCurrency(),
+  );
+
+  protected readonly tripDays = computed<TripDay[]>(() => {
+    const days = this.itineraryStore.trip()?.days ?? [];
+    return [...days].sort((a, b) => a.day_index - b.day_index);
+  });
+
+  protected readonly dayIndexById = computed(() => {
+    const map = new Map<string, number>();
+    for (const day of this.tripDays()) {
+      map.set(day.id, day.day_index);
+    }
+    return map;
+  });
+
   protected readonly previewHomeAmount = computed<string | null>(() => {
     const amt = this.amount();
-    const rate = this.exchangeRate();
+    const rate = this.isQuickForeign() ? this.exchangeRate() : 1;
     if (!amt || !rate) return null;
     return (amt * rate).toFixed(2);
   });
 
-  protected readonly currencyOptions = computed<QuickCurrencyOption[]>(() => {
-    const list: QuickCurrencyOption[] = [...COMMON_CURRENCIES];
-    const extras = [
-      this.itineraryStore.trip()?.default_currency,
-      this.expenseStore.summary()?.home_currency,
-      this.currency(),
-    ];
-    for (const code of extras) {
-      const upper = code?.trim().toUpperCase();
-      if (
-        upper &&
-        upper.length === ISO_CURRENCY_CODE_LENGTH &&
-        !list.some((c) => c.code === upper)
-      ) {
-        list.unshift({ code: upper, labelEn: upper, labelZh: upper });
-      }
-    }
-    return list;
+  protected readonly editPreviewHomeAmount = computed<string | null>(() => {
+    const amt = this.editAmount();
+    const rate = this.isEditForeign() ? this.editExchangeRate() : 1;
+    if (!amt || !rate) return null;
+    return (amt * rate).toFixed(2);
   });
+
+  protected readonly currencyOptions = computed<QuickCurrencyOption[]>(() =>
+    this.buildCurrencyOptions([
+      this.itineraryStore.trip()?.default_currency,
+      this.homeCurrency(),
+      this.currency(),
+    ]),
+  );
+
+  protected readonly editCurrencyOptions = computed<QuickCurrencyOption[]>(() =>
+    this.buildCurrencyOptions([
+      this.itineraryStore.trip()?.default_currency,
+      this.homeCurrency(),
+      this.editCurrency(),
+    ]),
+  );
 
   protected readonly originalCurrencyTotals = computed(() => {
     const summary = this.expenseStore.summary();
@@ -888,12 +1218,18 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
         : this.itineraryStore.loadTrip(id),
     ]);
 
+    if (itemId) {
+      const matchedDayId = this.findDayIdForItem(itemId);
+      if (matchedDayId) {
+        this.selectedDayId.set(matchedDayId);
+      }
+    }
+
     const tripCurrency = this.itineraryStore.trip()?.default_currency;
     if (tripCurrency) {
       this.currency.set(tripCurrency);
-      this.loadSavedRate(tripCurrency);
-      await this.fetchLiveRate(tripCurrency);
     }
+    await this.resolveQuickRate(this.currency());
   }
 
   ngOnDestroy(): void {
@@ -905,8 +1241,33 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
     if (!target) {
       return;
     }
-    this.pendingDeleteExpense.set(null);
-    await this.expenseStore.deleteExpense(this.tripId(), target.id);
+    this.deletingExpense.set(true);
+    try {
+      await this.expenseStore.deleteExpense(this.tripId(), target.id);
+      this.pendingDeleteExpense.set(null);
+    } finally {
+      this.deletingExpense.set(false);
+    }
+  }
+
+  protected openEditExpenseModal(exp: ExpenseItem): void {
+    const upperCurrency = exp.currency_original.trim().toUpperCase();
+    const numericRate = Number(exp.exchange_rate);
+    this.editTitle.set(exp.title);
+    this.editAmountText.set(String(Number(exp.amount_original) || exp.amount_original));
+    this.editCurrency.set(upperCurrency);
+    this.editExchangeRateText.set(
+      Number.isFinite(numericRate) && numericRate > 0 ? String(roundFxRate(numericRate)) : '',
+    );
+    this.editFxStatus.set(upperCurrency === this.homeCurrency() ? 'same' : 'cached');
+    this.editManualRateRequired.set(false);
+    this.editRateError.set(false);
+    this.editCategory.set(exp.category);
+    this.editDayId.set(exp.trip_day_id ?? '');
+    this.editPaidAt.set(exp.paid_at.slice(0, 10));
+    this.editPaymentMethod.set(exp.payment_method ?? '');
+    this.editNotes.set(exp.notes ?? '');
+    this.editingExpense.set(exp);
   }
 
   protected clearItemFilter(): void {
@@ -929,6 +1290,7 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
     if (isIncompleteNumberInput(event)) {
       return;
     }
+    this.quickRateError.set(false);
     this.exchangeRateText.set(readInputValue(event));
   }
 
@@ -936,14 +1298,37 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
     this.currency.set(code);
     const upper = code.trim().toUpperCase();
     if (upper.length === ISO_CURRENCY_CODE_LENGTH) {
-      this.loadSavedRate(upper);
-      void this.fetchLiveRate(upper);
+      void this.resolveQuickRate(upper);
     }
   }
 
-  protected async fetchLiveRate(overrideCode?: string): Promise<void> {
+  protected onEditAmountInput(event: Event): void {
+    if (isIncompleteNumberInput(event)) {
+      return;
+    }
+    this.editAmountText.set(readInputValue(event));
+  }
+
+  protected onEditRateInput(event: Event): void {
+    if (isIncompleteNumberInput(event)) {
+      return;
+    }
+    this.editRateError.set(false);
+    this.editExchangeRateText.set(readInputValue(event));
+  }
+
+  protected onEditCurrencyChange(code: string): void {
+    this.editCurrency.set(code);
+    const upper = code.trim().toUpperCase();
+    if (upper.length === ISO_CURRENCY_CODE_LENGTH) {
+      void this.resolveEditRate(upper);
+    }
+  }
+
+  protected async resolveQuickRate(overrideCode?: string): Promise<void> {
     const src = (overrideCode || this.currency() || 'JPY').trim().toUpperCase();
-    const dst = (this.expenseStore.summary()?.home_currency || 'TWD').trim().toUpperCase();
+    const dst = this.homeCurrency();
+    const seq = ++this.quickRateSeq;
     if (
       src.length !== ISO_CURRENCY_CODE_LENGTH ||
       dst.length !== ISO_CURRENCY_CODE_LENGTH
@@ -951,27 +1336,62 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
       return;
     }
     if (src === dst) {
+      this.fxStatus.set('same');
+      this.manualRateRequired.set(false);
+      this.quickRateError.set(false);
       this.exchangeRateText.set('1');
-      this.rateSource.set('identity');
+      this.fetchingRate.set(false);
       return;
     }
     this.fetchingRate.set(true);
+    this.quickRateError.set(false);
     try {
-      const res = await this.api.getExchangeRate(src, dst);
-      const rounded = roundFxRate(res.rate);
-      this.exchangeRateText.set(String(rounded));
-      this.rateSource.set(res.source);
-      this.saveRate(src, rounded);
-    } catch {
-      const stored = this.cache.getFxRate(src);
-      if (stored !== null) {
-        this.exchangeRateText.set(String(roundFxRate(stored)));
-      } else {
-        this.exchangeRateText.set(String(estimateOfflineFxRate(src, dst) ?? 1));
+      const res = await this.fxResolver.resolve(src, dst);
+      if (seq !== this.quickRateSeq) {
+        return;
       }
-      this.rateSource.set('fallback');
+      this.fxStatus.set(res.status);
+      this.manualRateRequired.set(res.manualRequired);
+      this.exchangeRateText.set(res.rate !== null ? String(roundFxRate(res.rate)) : '');
     } finally {
-      this.fetchingRate.set(false);
+      if (seq === this.quickRateSeq) {
+        this.fetchingRate.set(false);
+      }
+    }
+  }
+
+  protected async resolveEditRate(overrideCode?: string): Promise<void> {
+    const src = (overrideCode || this.editCurrency() || 'JPY').trim().toUpperCase();
+    const dst = this.homeCurrency();
+    const seq = ++this.editRateSeq;
+    if (
+      src.length !== ISO_CURRENCY_CODE_LENGTH ||
+      dst.length !== ISO_CURRENCY_CODE_LENGTH
+    ) {
+      return;
+    }
+    if (src === dst) {
+      this.editFxStatus.set('same');
+      this.editManualRateRequired.set(false);
+      this.editRateError.set(false);
+      this.editExchangeRateText.set('1');
+      this.editFetchingRate.set(false);
+      return;
+    }
+    this.editFetchingRate.set(true);
+    this.editRateError.set(false);
+    try {
+      const res = await this.fxResolver.resolve(src, dst);
+      if (seq !== this.editRateSeq) {
+        return;
+      }
+      this.editFxStatus.set(res.status);
+      this.editManualRateRequired.set(res.manualRequired);
+      this.editExchangeRateText.set(res.rate !== null ? String(roundFxRate(res.rate)) : '');
+    } finally {
+      if (seq === this.editRateSeq) {
+        this.editFetchingRate.set(false);
+      }
     }
   }
 
@@ -984,24 +1404,43 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
   protected async submitExpense(): Promise<void> {
     const title = this.title().trim();
     const amount = this.amount();
-    if (!title || !amount || amount <= 0) return;
     const upperCurrency = (this.currency().trim() || 'JPY').toUpperCase();
-    const rate = this.exchangeRate();
-    this.saveRate(upperCurrency, rate);
+    const home = this.homeCurrency();
+    const rate = upperCurrency === home ? 1 : this.exchangeRate();
+    if (!title || !amount || amount <= 0) {
+      return;
+    }
+    if (rate === null || rate <= 0) {
+      this.quickRateError.set(true);
+      return;
+    }
+
+    const chosenDayId = this.selectedDayId() || null;
+    const filteredItemId = this.expenseStore.selectedItemId();
+    // Avoid backend 400 when user assigns an expense to a day that differs from the filtered item.
+    const itemDayId = filteredItemId ? this.findDayIdForItem(filteredItemId) : null;
+    const linkedItemId =
+      filteredItemId && (!chosenDayId || !itemDayId || chosenDayId === itemDayId)
+        ? filteredItemId
+        : null;
 
     this.submitting.set(true);
     try {
       await this.expenseStore.addExpense(this.tripId(), {
-        itinerary_item_id: this.expenseStore.selectedItemId(),
+        trip_day_id: chosenDayId,
+        itinerary_item_id: linkedItemId,
         title,
         category: this.category(),
         amount_original: amount,
         currency_original: upperCurrency,
-        exchange_rate: rate || 1,
+        exchange_rate: rate,
         payment_method: this.paymentMethod().trim() || null,
         notes: this.notes().trim() || null,
       });
       if (!this.expenseStore.error()) {
+        if (upperCurrency !== home) {
+          this.fxResolver.cacheRate(upperCurrency, home, rate);
+        }
         this.title.set('');
         this.amountText.set('');
         this.notes.set('');
@@ -1011,21 +1450,81 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
     }
   }
 
-  private loadSavedRate(currency: string): void {
-    const home = this.expenseStore.summary()?.home_currency || 'TWD';
-    if (currency === home) {
-      this.exchangeRateText.set('1');
+  protected async submitEditExpense(): Promise<void> {
+    const target = this.editingExpense();
+    if (!target) {
       return;
     }
-    const stored = this.cache.getFxRate(currency);
-    if (stored !== null) {
-      this.exchangeRateText.set(String(roundFxRate(stored)));
-    } else {
-      this.exchangeRateText.set(String(estimateOfflineFxRate(currency, home) ?? 1));
+    const title = this.editTitle().trim();
+    const amount = this.editAmount();
+    const upperCurrency = (this.editCurrency().trim() || 'JPY').toUpperCase();
+    const home = this.homeCurrency();
+    const rate = upperCurrency === home ? 1 : this.editExchangeRate();
+    if (!title || !amount || amount <= 0) {
+      return;
+    }
+    if (rate === null || rate <= 0) {
+      this.editRateError.set(true);
+      return;
+    }
+
+    const nextDayId = this.editDayId() || null;
+    const itemDayId = target.itinerary_item_id
+      ? this.findDayIdForItem(target.itinerary_item_id)
+      : null;
+    const keepItemLink =
+      target.itinerary_item_id && (!nextDayId || !itemDayId || nextDayId === itemDayId);
+    const nextDate = this.editPaidAt().trim();
+    const paidAtChanged = nextDate && nextDate !== target.paid_at.slice(0, 10);
+
+    this.editSubmitting.set(true);
+    try {
+      await this.expenseStore.updateExpense(this.tripId(), target.id, {
+        title,
+        amount_original: amount,
+        currency_original: upperCurrency,
+        exchange_rate: rate,
+        category: this.editCategory(),
+        trip_day_id: nextDayId,
+        ...(target.itinerary_item_id && !keepItemLink ? { itinerary_item_id: null } : {}),
+        ...(paidAtChanged ? { paid_at: `${nextDate}T00:00:00Z` } : {}),
+        payment_method: this.editPaymentMethod().trim() || null,
+        notes: this.editNotes().trim() || null,
+      });
+      if (upperCurrency !== home) {
+        this.fxResolver.cacheRate(upperCurrency, home, rate);
+      }
+      this.editingExpense.set(null);
+    } catch {
+      // Error state is recorded on ExpenseStore and shown in the error banner.
+    } finally {
+      this.editSubmitting.set(false);
     }
   }
 
-  private saveRate(currency: string, rate: number): void {
-    this.cache.setFxRate(currency, rate);
+  private buildCurrencyOptions(extras: (string | undefined | null)[]): QuickCurrencyOption[] {
+    const list: QuickCurrencyOption[] = [...COMMON_CURRENCIES];
+    for (const code of extras) {
+      const upper = code?.trim().toUpperCase();
+      if (
+        upper &&
+        upper.length === ISO_CURRENCY_CODE_LENGTH &&
+        !list.some((c) => c.code === upper)
+      ) {
+        list.unshift({ code: upper, labelEn: upper, labelZh: upper });
+      }
+    }
+    return list;
+  }
+
+  private findDayIdForItem(itemId: string): string | null {
+    for (const day of this.tripDays()) {
+      for (const opt of day.options) {
+        if (opt.items.some((it) => it.id === itemId)) {
+          return day.id;
+        }
+      }
+    }
+    return null;
   }
 }

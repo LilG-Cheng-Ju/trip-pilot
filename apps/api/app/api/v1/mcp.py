@@ -50,6 +50,7 @@ _TOOL_SCOPES: dict[str, str] = {
     "create_trip": "trips:write",
     "append_day": "trips:write",
     "update_day_title": "trips:write",
+    "delete_trip_day": "trips:write",
     "create_day_option": "trips:write",
     "clone_day_option": "trips:write",
     "rename_day_option": "trips:write",
@@ -355,6 +356,15 @@ _TOOL_DEFINITIONS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "delete_trip_day",
+        "description": "Delete a trip day, unlink its expenses, and re-index remaining days (rejected if sole day).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"day_id": {"type": "string"}},
+            "required": ["day_id"],
+        },
+    },
+    {
         "name": "create_day_option",
         "description": "Create a new Plan B / alternative day option (blank or cloned) on a trip day.",
         "inputSchema": {
@@ -483,6 +493,11 @@ async def _dispatch_tool(
     if name == "append_day":
         day = await trip_svc.append_day(str(args["trip_id"]), user_id)
         return TripDayResponse.model_validate(day).model_dump(mode="json")
+
+    if name == "delete_trip_day":
+        day_id = str(args["day_id"])
+        await trip_svc.delete_day(day_id, user_id)
+        return {"deleted": True, "day_id": day_id}
 
     if name == "update_day_title":
         day_id = str(args.get("day_id") or args["trip_day_id"])
@@ -797,7 +812,7 @@ Headers:
 - `Content-Type: application/json`
 
 Available MCP tools:
-- Trips & Days: `list_trips`, `get_trip`, `create_trip`, `append_day`, `update_day_title`
+- Trips & Days: `list_trips`, `get_trip`, `create_trip`, `append_day`, `update_day_title`, `delete_trip_day`
 - Day Options (Plan A/B): `create_day_option`, `clone_day_option`, `rename_day_option`, `delete_day_option`, `set_active_option`
 - Itinerary Items: `add_itinerary_item`, `add_item_by_date`, `update_itinerary_item`, `delete_itinerary_item`, `select_choice_item`
 - Places & Airports: `search_places`, `resolve_google_maps_url`, `search_airports`
@@ -812,7 +827,10 @@ Key endpoints:
 - `GET /api/v1/trips` — list trips
 - `POST /api/v1/trips` — create trip (`title`, `start_date`, `end_date`, `country_codes`, `default_currency`)
 - `GET /api/v1/trips/{{trip_id}}` — full trip with days, options, and items
+- `PATCH /api/v1/trips/{{trip_id}}` — update trip metadata or shift `start_date` (shifts all day dates and `end_date`)
+- `POST /api/v1/trips/{{trip_id}}/days` — append a new day (with default Plan A)
 - `PATCH /api/v1/days/{{day_id}}` — set Day Theme (`title`)
+- `DELETE /api/v1/days/{{day_id}}` — delete a day, unlink its expenses, and re-index remaining days (rejected if sole day)
 - `POST /api/v1/options/{{option_id}}/items` — add item (`FLIGHT`, `RESERVED_TRANSIT`, `LOCAL_TRANSIT`, `STAY`, `SPOT`, `FOOD`)
 - `PATCH /api/v1/items/{{item_id}}` — update item
 - `PATCH /api/v1/items/{{item_id}}/select` — switch active alternative in a choice group

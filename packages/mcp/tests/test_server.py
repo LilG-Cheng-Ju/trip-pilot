@@ -1,14 +1,16 @@
-"""Smoke tests for Tripilot MCPServer tool registration."""
+"""Smoke and unit tests for Tripilot MCPServer tool registration and execution."""
 
 from __future__ import annotations
 
-from tripilot_mcp.server import mcp
+import pytest
+
+from tripilot_mcp.server import delete_trip_day, mcp
 
 
 async def test_mcp_server_registers_expected_tools() -> None:
     tools = await mcp.list_tools()
     names = {tool.name for tool in tools}
-    assert {
+    expected = {
         "list_trips",
         "get_trip",
         "create_trip",
@@ -28,7 +30,31 @@ async def test_mcp_server_registers_expected_tools() -> None:
         "search_airports",
         "update_day_title",
         "append_day",
+        "delete_trip_day",
         "select_choice_item",
         "search_places",
         "resolve_google_maps_url",
-    }.issubset(names)
+    }
+    assert len(tools) == 23
+    assert names == expected
+
+
+async def test_delete_trip_day_tool_delegates_to_client(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    deleted_ids: list[str] = []
+
+    class _FakeClient:
+        async def __aenter__(self) -> _FakeClient:
+            return self
+
+        async def __aexit__(self, *_: object) -> None:
+            return None
+
+        async def delete_day(self, day_id: str) -> None:
+            deleted_ids.append(day_id)
+
+    monkeypatch.setattr("tripilot_mcp.server.TripilotClient", _FakeClient)
+    result = await delete_trip_day("day-2")
+    assert deleted_ids == ["day-2"]
+    assert result == {"deleted": True, "day_id": "day-2"}

@@ -39,6 +39,14 @@ export class OfflineCacheService {
     }
   }
 
+  remove(key: string): void {
+    try {
+      localStorage.removeItem(`${CACHE_PREFIX}${key}`);
+    } catch {
+      // Ignore storage access errors.
+    }
+  }
+
   getFxRate(currency: string): number | null {
     try {
       const raw = localStorage.getItem(`${FX_RATE_PREFIX}${currency.trim().toUpperCase()}`);

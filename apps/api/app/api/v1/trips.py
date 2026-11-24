@@ -172,6 +172,15 @@ async def update_day(
     return TripDayResponse.model_validate(day)
 
 
+@router.delete("/days/{day_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_day(
+    day_id: str,
+    auth_ctx: WriteTripsAuth,
+    db: DbSession,
+) -> None:
+    await TripService(db).delete_day(day_id, auth_ctx.user.id)
+
+
 @router.patch("/days/{day_id}/active-option", response_model=TripDayResponse)
 async def set_active_option(
     day_id: str,

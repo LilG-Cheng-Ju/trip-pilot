@@ -12,6 +12,7 @@ import {
   TripShare,
 } from '../core/models/tripilot.models';
 import {
+  addDaysToIsoDate,
   appendCreatedItem,
   groupItemsIntoSlots,
   MapRouteMode,
@@ -433,6 +434,67 @@ export const ItineraryStore = signalStore(
           } catch (err) {
             recordError(err, 'Failed to append day');
           }
+        },
+
+        async deleteDay(dayId: string): Promise<void> {
+          const trip = store.trip();
+          if (!trip || trip.days.length <= 1) {
+            return;
+          }
+          try {
+            await api.deleteDay(dayId);
+            const remaining = trip.days.filter((d) => d.id !== dayId);
+            if (remaining.length === trip.days.length) {
+              return;
+            }
+            // Reindex remaining days contiguously so dates stay aligned with trip.start_date.
+            const reindexedDays = remaining.map((d, idx) => ({
+              ...d,
+              day_index: idx + 1,
+              date: addDaysToIsoDate(trip.start_date, idx),
+            }));
+            const nextEndDate =
+              reindexedDays[reindexedDays.length - 1]?.date ?? trip.start_date;
+            const nextSelectedDayIndex = Math.max(
+              1,
+              Math.min(store.selectedDayIndex(), reindexedDays.length),
+            );
+            const { [dayId]: _removedPreview, ...nextPreviewByDay } =
+              store.previewOptionByDay();
+            const nextTrip: TripDetail = {
+              ...trip,
+              end_date: nextEndDate,
+              days: reindexedDays,
+            };
+            recalculatedOptionIds.clear();
+            cache.set(`trip.${nextTrip.id}`, nextTrip);
+            patchState(store, {
+              trip: nextTrip,
+              selectedDayIndex: nextSelectedDayIndex,
+              previewOptionByDay: nextPreviewByDay,
+              selectedItemId: null,
+              error: null,
+            });
+          } catch (err) {
+            recordError(err, 'Failed to delete day');
+            throw err;
+          }
+        },
+
+        applyTripUpdate(updated: TripDetail): void {
+          if (store.trip()?.id !== updated.id) {
+            return;
+          }
+          const nextSelectedDayIndex = Math.max(
+            1,
+            Math.min(store.selectedDayIndex(), Math.max(1, updated.days.length)),
+          );
+          cache.set(`trip.${updated.id}`, updated);
+          patchState(store, {
+            trip: updated,
+            selectedDayIndex: nextSelectedDayIndex,
+            error: null,
+          });
         },
 
         async updateDayTitle(dayId: string, title: string | null): Promise<void> {

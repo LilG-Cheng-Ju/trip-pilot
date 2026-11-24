@@ -5,11 +5,13 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException, status
+from sqlalchemy import delete, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.constants import MAX_TRIP_DATE_SPAN_DAYS
 from app.models import (
     DayOption,
+    Expense,
     ItemType,
     ItineraryItem,
     RouteSegment,
@@ -224,10 +226,26 @@ class TripService:
     ) -> Trip:
         trip = await self.get_trip_detail(trip_id, user_id)
         updates = payload.model_dump(exclude_unset=True)
+        new_start_date = updates.pop("start_date", None)
         if "status" in updates and updates["status"] is not None:
             updates["status"] = updates["status"].value
         for field, value in updates.items():
             setattr(trip, field, value)
+
+        if new_start_date is not None and new_start_date != trip.start_date:
+            delta = new_start_date - trip.start_date
+            trip.start_date = new_start_date
+            for day in trip.days:
+                day.date = new_start_date + timedelta(days=day.day_index - 1)
+            if trip.end_date is not None:
+                if trip.days:
+                    max_day_index = max(day.day_index for day in trip.days)
+                    trip.end_date = new_start_date + timedelta(
+                        days=max_day_index - 1
+                    )
+                else:
+                    trip.end_date = trip.end_date + delta
+
         await self.db.commit()
         return await self.get_trip_detail(trip_id, user_id)
 
@@ -273,6 +291,83 @@ class TripService:
             await self.repo.get_day_for_user(new_day.id, user_id),
             "Trip day not found",
         )
+
+    async def delete_day(self, day_id: str, user_id: str) -> None:
+        day = await self.repo.get_day_for_user(day_id, user_id)
+        if day is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Trip day not found"
+            )
+        trip = _require_found(
+            await self.db.scalar(
+                select(Trip).where(Trip.id == day.trip_id, Trip.user_id == user_id)
+            ),
+            "Trip not found",
+        )
+        days = list(
+            (
+                await self.db.scalars(
+                    select(TripDay)
+                    .where(TripDay.trip_id == trip.id)
+                    .order_by(TripDay.day_index)
+                )
+            ).all()
+        )
+        if len(days) <= 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot delete the last remaining day",
+            )
+
+        # Unlink expenses explicitly before deleting so SQLite and PostgreSQL
+        # preserve spending records without foreign-key constraint errors.
+        await self.db.execute(
+            update(Expense)
+            .where(Expense.trip_day_id == day.id)
+            .values(trip_day_id=None)
+        )
+        day_item_ids = [item.id for opt in day.options for item in opt.items]
+        if day_item_ids:
+            await self.db.execute(
+                update(Expense)
+                .where(Expense.itinerary_item_id.in_(day_item_ids))
+                .values(itinerary_item_id=None)
+            )
+
+        # Clear active_option_id first to break the circular TripDay <-> DayOption FK.
+        day.active_option_id = None
+        await self.db.flush()
+        await self.db.delete(day)
+        await self.db.flush()
+
+        # Remove any cross-day route legs pointing to deleted stays on SQLite.
+        if day_item_ids:
+            await self.db.execute(
+                delete(RouteSegment).where(
+                    or_(
+                        RouteSegment.from_item_id.in_(day_item_ids),
+                        RouteSegment.to_item_id.in_(day_item_ids),
+                    )
+                )
+            )
+
+        remaining = [d for d in days if d.id != day.id]
+        # Shift into a disjoint temporary range so sequential re-indexing never
+        # trips the unique (trip_id, day_index) constraint mid-update.
+        for rem_day in remaining:
+            rem_day.day_index += 1000
+        await self.db.flush()
+
+        for idx, rem_day in enumerate(remaining, start=1):
+            rem_day.day_index = idx
+            if trip.start_date is not None:
+                rem_day.date = trip.start_date + timedelta(days=idx - 1)
+
+        if trip.end_date is not None and trip.start_date is not None:
+            trip.end_date = trip.start_date + timedelta(days=len(remaining) - 1)
+
+        self.db.expire(trip, ["days"])
+        await self.db.commit()
 
     async def add_day_option(
         self, day_id: str, user_id: str, payload: DayOptionCreate

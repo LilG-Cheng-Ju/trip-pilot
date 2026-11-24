@@ -260,6 +260,7 @@ class TripUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=160)
     destination_summary: str | None = Field(default=None, max_length=200)
     country_codes: list[str] | None = None
+    start_date: date | None = None
     default_currency: str | None = Field(
         default=None,
         min_length=ISO_CURRENCY_CODE_LENGTH,

@@ -136,14 +136,23 @@ class TripilotClient:
     async def update_trip(
         self,
         trip_id: str,
-        payload: dict[str, Any],
+        payload: dict[str, Any] | None = None,
+        *,
+        start_date: str | None = None,
     ) -> dict[str, Any]:
-        """Partially update trip metadata."""
-        return await self._request("PATCH", f"/trips/{trip_id}", json_body=payload)
+        """Partially update trip metadata (including shifting start_date)."""
+        body: dict[str, Any] = dict(payload) if payload is not None else {}
+        if start_date is not None:
+            body["start_date"] = start_date
+        return await self._request("PATCH", f"/trips/{trip_id}", json_body=body)
 
     async def append_day(self, trip_id: str) -> dict[str, Any]:
         """Append a new calendar day (with default Plan A) to an existing trip."""
         return await self._request("POST", f"/trips/{trip_id}/days")
+
+    async def delete_day(self, day_id: str) -> None:
+        """Delete a TripDay, unlink its expenses, and re-index remaining days."""
+        await self._request("DELETE", f"/days/{day_id}")
 
     async def update_day(
         self,

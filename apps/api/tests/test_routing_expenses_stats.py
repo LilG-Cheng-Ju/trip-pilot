@@ -464,3 +464,97 @@ async def test_airport_and_inherited_stay_ground_routing(
         for s in detail["days"][2]["options"][0]["route_segments"]
     ]
     assert day3_pairs == [(stay["id"], spot3["id"]), (spot3["id"], flight_dep["id"])]
+
+
+@pytest.mark.asyncio
+async def test_patch_expense_updates_and_clears_trip_day_attribution(
+    api_client: AsyncClient, dev_headers: dict[str, str]
+) -> None:
+    trip = (
+        await api_client.post(
+            "/api/v1/trips",
+            headers=dev_headers,
+            json={
+                "title": "Expense Attribution Trip",
+                "country_codes": ["JP"],
+                "start_date": "2026-11-24",
+                "end_date": "2026-11-25",
+                "default_currency": "JPY",
+            },
+        )
+    ).json()
+    other_trip = (
+        await api_client.post(
+            "/api/v1/trips",
+            headers=dev_headers,
+            json={
+                "title": "Other Trip",
+                "country_codes": ["TW"],
+                "start_date": "2026-12-01",
+                "end_date": "2026-12-01",
+            },
+        )
+    ).json()
+    day1_id = trip["days"][0]["id"]
+    day2_id = trip["days"][1]["id"]
+    other_day_id = other_trip["days"][0]["id"]
+
+    exp = (
+        await api_client.post(
+            f"/api/v1/trips/{trip['id']}/expenses",
+            headers=dev_headers,
+            json={
+                "title": "ICOCA Card",
+                "category": "TRANSIT",
+                "amount_original": "2000.00",
+                "currency_original": "JPY",
+                "exchange_rate": "0.21",
+            },
+        )
+    ).json()
+    assert exp["trip_day_id"] is None
+
+    # Assign to Day 1.
+    set_day1 = await api_client.patch(
+        f"/api/v1/expenses/{exp['id']}",
+        headers=dev_headers,
+        json={"trip_day_id": day1_id},
+    )
+    assert set_day1.status_code == 200
+    assert set_day1.json()["trip_day_id"] == day1_id
+
+    # Move to Day 2.
+    set_day2 = await api_client.patch(
+        f"/api/v1/expenses/{exp['id']}",
+        headers=dev_headers,
+        json={"trip_day_id": day2_id},
+    )
+    assert set_day2.status_code == 200
+    assert set_day2.json()["trip_day_id"] == day2_id
+
+    # Unrelated patch preserves existing trip_day_id.
+    keep_day = await api_client.patch(
+        f"/api/v1/expenses/{exp['id']}",
+        headers=dev_headers,
+        json={"title": "ICOCA Top-up"},
+    )
+    assert keep_day.status_code == 200
+    assert keep_day.json()["title"] == "ICOCA Top-up"
+    assert keep_day.json()["trip_day_id"] == day2_id
+
+    # Reject cross-trip day link.
+    bad_link = await api_client.patch(
+        f"/api/v1/expenses/{exp['id']}",
+        headers=dev_headers,
+        json={"trip_day_id": other_day_id},
+    )
+    assert bad_link.status_code == 400
+
+    # Clear trip_day_id explicitly with null.
+    cleared = await api_client.patch(
+        f"/api/v1/expenses/{exp['id']}",
+        headers=dev_headers,
+        json={"trip_day_id": None},
+    )
+    assert cleared.status_code == 200
+    assert cleared.json()["trip_day_id"] is None

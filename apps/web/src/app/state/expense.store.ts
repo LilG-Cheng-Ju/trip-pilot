@@ -1,7 +1,11 @@
 import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 
-import { CreateExpensePayload, TripilotApiService } from '../core/api/tripilot-api.service';
+import {
+  CreateExpensePayload,
+  TripilotApiService,
+  UpdateExpensePayload,
+} from '../core/api/tripilot-api.service';
 import { OfflineCacheService } from '../core/cache/offline-cache.service';
 import { ExpenseCategory, TripExpensesSummary } from '../core/models/tripilot.models';
 
@@ -161,6 +165,33 @@ export const ExpenseStore = signalStore(
             patchState(store, {
               error: err instanceof Error ? err.message : 'Failed to add expense',
             });
+          }
+        },
+
+        async updateExpense(
+          tripId: string,
+          expenseId: string,
+          payload: UpdateExpensePayload,
+        ): Promise<void> {
+          patchState(store, { error: null });
+          try {
+            const updated = await api.updateExpense(expenseId, payload);
+            const current = store.summary();
+            if (current && current.trip_id === tripId) {
+              const nextItems = current.items
+                .map((it) => (it.id === expenseId ? updated : it))
+                .sort((a, b) => b.paid_at.localeCompare(a.paid_at));
+              const next = rebuildSummary(current, nextItems);
+              cache.set(`expenses.${tripId}`, next);
+              patchState(store, { summary: next, error: null });
+            } else {
+              await this.loadExpenses(tripId);
+            }
+          } catch (err) {
+            patchState(store, {
+              error: err instanceof Error ? err.message : 'Failed to update expense',
+            });
+            throw err;
           }
         },
 

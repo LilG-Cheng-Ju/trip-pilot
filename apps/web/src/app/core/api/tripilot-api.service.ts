@@ -38,6 +38,16 @@ export interface CreateTripPayload {
   notes?: string | null;
 }
 
+export interface TripUpdatePayload {
+  title?: string;
+  destination_summary?: string | null;
+  country_codes?: string[];
+  start_date?: string;
+  default_currency?: string;
+  status?: TripStatus;
+  notes?: string | null;
+}
+
 export interface CreateItemPayload {
   type: ItemType;
   title: string;
@@ -60,9 +70,12 @@ export interface CreateExpensePayload {
   amount_original: number;
   currency_original: string;
   exchange_rate: number;
+  paid_at?: string | null;
   payment_method?: string | null;
   notes?: string | null;
 }
+
+export type UpdateExpensePayload = Partial<CreateExpensePayload>;
 
 /** Typed HTTP client for all Tripilot v1 REST endpoints. */
 @Injectable({ providedIn: 'root' })
@@ -113,13 +126,14 @@ export class TripilotApiService {
     return firstValueFrom(this.http.get<TripDetail>(`${this.baseUrl}/trips/${tripId}`));
   }
 
-  updateTrip(
-    tripId: string,
-    payload: Partial<Pick<TripDetail, 'title' | 'destination_summary' | 'country_codes' | 'default_currency' | 'status' | 'notes'>>,
-  ): Promise<TripDetail> {
+  updateTrip(tripId: string, payload: TripUpdatePayload): Promise<TripDetail> {
     return firstValueFrom(
       this.http.patch<TripDetail>(`${this.baseUrl}/trips/${tripId}`, payload),
     );
+  }
+
+  deleteTrip(tripId: string): Promise<void> {
+    return firstValueFrom(this.http.delete<void>(`${this.baseUrl}/trips/${tripId}`));
   }
 
   addDayOption(dayId: string, label: string, summary_notes?: string): Promise<DayOption> {
@@ -141,6 +155,10 @@ export class TripilotApiService {
     return firstValueFrom(
       this.http.patch<TripDay>(`${this.baseUrl}/days/${dayId}`, payload),
     );
+  }
+
+  deleteDay(dayId: string): Promise<void> {
+    return firstValueFrom(this.http.delete<void>(`${this.baseUrl}/days/${dayId}`));
   }
 
   selectChoiceItem(itemId: string): Promise<DayOption> {
@@ -258,6 +276,12 @@ export class TripilotApiService {
   createExpense(tripId: string, payload: CreateExpensePayload): Promise<ExpenseItem> {
     return firstValueFrom(
       this.http.post<ExpenseItem>(`${this.baseUrl}/trips/${tripId}/expenses`, payload),
+    );
+  }
+
+  updateExpense(expenseId: string, payload: UpdateExpensePayload): Promise<ExpenseItem> {
+    return firstValueFrom(
+      this.http.patch<ExpenseItem>(`${this.baseUrl}/expenses/${expenseId}`, payload),
     );
   }
 

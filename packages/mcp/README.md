@@ -66,6 +66,7 @@ Or run via `uv` without a global install:
 - `create_trip(title, start_date, end_date, country_codes, default_currency="JPY", destination_summary=None)` — Create a trip with auto-generated days and Plan A.
 - `append_day(trip_id)` — Append a new calendar day (with default Plan A) to an existing trip.
 - `update_day_title(day_id, title=None, notes=None)` — Set or update a day's theme title or notes.
+- `delete_trip_day(day_id)` — Delete a `TripDay`, unlink its expenses, and re-index remaining days (rejected if sole day).
 - `create_day_option(day_id, label, clone_from_option_id=None, summary_notes=None)` — Create or clone a Plan B / Rainy Day variant.
 - `clone_day_option(option_id, label)` — Deep-clone an existing `DayOption`.
 - `rename_day_option(option_id, label)` — Rename an existing `DayOption`.

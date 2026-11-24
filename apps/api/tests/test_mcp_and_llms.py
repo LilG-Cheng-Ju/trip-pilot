@@ -16,6 +16,9 @@ async def test_llms_txt_is_public_and_documents_mcp(api_client: AsyncClient) -> 
     assert "Tripilot" in resp.text
     assert "/mcp" in resp.text
     assert "details.attachments" in resp.text
+    assert "delete_trip_day" in resp.text
+    assert "DELETE /api/v1/days/{day_id}" in resp.text
+    assert "start_date" in resp.text
 
 
 @pytest.mark.asyncio
@@ -42,7 +45,13 @@ async def test_remote_mcp_lifecycle_and_tool_calls(
     )
     assert tools.status_code == 200
     tool_names = {t["name"] for t in tools.json()["result"]["tools"]}
-    expected = {"list_trips", "add_itinerary_item", "get_fx_rate", "get_travel_stats"}
+    expected = {
+        "list_trips",
+        "add_itinerary_item",
+        "get_fx_rate",
+        "get_travel_stats",
+        "delete_trip_day",
+    }
     assert expected <= tool_names
 
     fx = await api_client.post(
@@ -197,6 +206,24 @@ async def test_remote_mcp_lifecycle_and_tool_calls(
     )
     stats = json.loads(stats_res.json()["result"]["content"][0]["text"])
     assert stats["total_flight_distance_km"] > 8000.0
+
+    day2_id = detail["days"][1]["id"]
+    del_day_res = await api_client.post(
+        "/mcp",
+        headers=dev_headers,
+        json={
+            "jsonrpc": "2.0",
+            "id": 9,
+            "method": "tools/call",
+            "params": {"name": "delete_trip_day", "arguments": {"day_id": day2_id}},
+        },
+    )
+    assert del_day_res.status_code == 200
+    assert del_day_res.json()["result"]["isError"] is False
+    assert json.loads(del_day_res.json()["result"]["content"][0]["text"]) == {
+        "deleted": True,
+        "day_id": day2_id,
+    }
 
 
 @pytest.mark.asyncio

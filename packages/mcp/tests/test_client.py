@@ -271,3 +271,65 @@ async def test_log_expense_posts_payload_and_raises_api_error_on_failure() -> No
 
     assert exc_info.value.status_code == 404
     assert "Trip not found" in exc_info.value.detail
+
+
+async def test_update_trip_supports_start_date_shifting() -> None:
+    captured_bodies: list[dict[str, Any]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "PATCH"
+        assert request.url.path == "/api/v1/trips/trip-1"
+        body = json.loads(request.content.decode("utf-8"))
+        captured_bodies.append(body)
+        return httpx.Response(200, json={"id": "trip-1", **body})
+
+    transport = httpx.MockTransport(handler)
+    async with TripilotClient(
+        base_url="http://localhost:8000",
+        api_token="tp_pat_test",
+        transport=transport,
+    ) as client:
+        res1 = await client.update_trip("trip-1", start_date="2026-12-01")
+        res2 = await client.update_trip(
+            "trip-1",
+            {"title": "Shifted Trip"},
+            start_date="2026-12-05",
+        )
+
+    assert res1["start_date"] == "2026-12-01"
+    assert res2["title"] == "Shifted Trip"
+    assert res2["start_date"] == "2026-12-05"
+    assert captured_bodies == [
+        {"start_date": "2026-12-01"},
+        {"title": "Shifted Trip", "start_date": "2026-12-05"},
+    ]
+
+
+async def test_delete_day_calls_delete_endpoint_and_propagates_errors() -> None:
+    seen_paths: list[tuple[str, str]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen_paths.append((request.method, request.url.path))
+        if request.url.path == "/api/v1/days/day-2":
+            return httpx.Response(204)
+        return httpx.Response(
+            400, json={"detail": "Cannot delete the last remaining day"}
+        )
+
+    transport = httpx.MockTransport(handler)
+    async with TripilotClient(
+        base_url="http://localhost:8000",
+        api_token="tp_pat_test",
+        transport=transport,
+    ) as client:
+        await client.delete_day("day-2")
+
+        with pytest.raises(TripilotAPIError) as exc_info:
+            await client.delete_day("day-1")
+
+    assert seen_paths == [
+        ("DELETE", "/api/v1/days/day-2"),
+        ("DELETE", "/api/v1/days/day-1"),
+    ]
+    assert exc_info.value.status_code == 400
+    assert "last remaining day" in exc_info.value.detail

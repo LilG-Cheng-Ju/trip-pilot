@@ -19,15 +19,15 @@ import { SUPPORTED_CURRENCIES } from '../../core/constants/travel-options';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { readInputValue } from '../../core/utils/form-events.utils';
+import { AppConfirmModalComponent } from '../../shared/confirm-modal.component';
 import { AppCountryPickerComponent } from '../../shared/country-picker.component';
-import { AppModalComponent } from '../../shared/modal.component';
 import { AuthStore } from '../../state/auth.store';
 
 /** User travel preferences (searchable country & currency dropdowns) and PAT manager. */
 @Component({
   selector: 'app-profile-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslatePipe, AppCountryPickerComponent, AppModalComponent],
+  imports: [TranslatePipe, AppCountryPickerComponent, AppConfirmModalComponent],
   template: `
     <div class="page">
       <div class="page-head">
@@ -183,27 +183,19 @@ import { AuthStore } from '../../state/auth.store';
         }
       </section>
 
-      <app-modal
+      <app-confirm-modal
         [open]="pendingRevokeToken() !== null"
         [title]="'confirm.revokeTokenTitle' | t"
-        (closed)="pendingRevokeToken.set(null)"
-      >
-        @if (pendingRevokeToken(); as target) {
-          <div class="modal-form">
-            <p class="confirm-copy">
-              {{ 'confirm.revokeTokenBody' | t: { name: target.name } }}
-            </p>
-            <div class="modal-actions">
-              <button type="button" class="pill-btn" (click)="pendingRevokeToken.set(null)">
-                {{ 'common.cancel' | t }}
-              </button>
-              <button type="button" class="btn-danger" (click)="executeRevokeToken()">
-                {{ 'share.revoke' | t }}
-              </button>
-            </div>
-          </div>
-        }
-      </app-modal>
+        [message]="
+          pendingRevokeToken()
+            ? ('confirm.revokeTokenBody' | t: { name: pendingRevokeToken()!.name })
+            : ''
+        "
+        [confirmLabel]="'share.revoke' | t"
+        [busy]="revokingToken()"
+        (confirmed)="executeRevokeToken()"
+        (cancelled)="pendingRevokeToken.set(null)"
+      />
     </div>
   `,
   styles: `
@@ -476,6 +468,7 @@ export class ProfilePageComponent implements OnInit {
   protected readonly copied = signal(false);
   protected readonly copiedKey = signal<string | null>(null);
   protected readonly pendingRevokeToken = signal<{ id: string; name: string } | null>(null);
+  protected readonly revokingToken = signal(false);
   protected readonly tokenNameError = signal(false);
   protected readonly tokenApiError = signal<string | null>(null);
   protected readonly generatingToken = signal(false);
@@ -500,11 +493,15 @@ export class ProfilePageComponent implements OnInit {
     if (!target) {
       return;
     }
-    this.pendingRevokeToken.set(null);
+    this.revokingToken.set(true);
     try {
       await this.authStore.revokeToken(target.id);
+      this.pendingRevokeToken.set(null);
     } catch {
       // Error state is recorded on AuthStore and shown in the error banner.
+      this.pendingRevokeToken.set(null);
+    } finally {
+      this.revokingToken.set(false);
     }
   }
 

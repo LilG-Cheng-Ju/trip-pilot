@@ -1,11 +1,15 @@
 """Integration tests for Trips, DayOptions (Plan A/B), Items, and Share privacy."""
 
+from datetime import date
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import AsyncClient
 
+from app.schemas.trip import TripUpdate
 from app.services.routing import RouteLegResult
+from app.services.trip_service import TripService
 
 
 @pytest.mark.asyncio
@@ -329,3 +333,233 @@ async def test_item_rejects_non_http_urls_in_maps_and_attachments(
         },
     )
     assert bad_att.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_patch_trip_start_date_shifts_days_and_end_date(
+    api_client: AsyncClient, dev_headers: dict[str, str]
+) -> None:
+    created = (
+        await api_client.post(
+            "/api/v1/trips",
+            headers=dev_headers,
+            json={
+                "title": "Hokkaido Roadtrip",
+                "country_codes": ["JP"],
+                "start_date": "2026-11-24",
+                "end_date": "2026-11-26",
+            },
+        )
+    ).json()
+    trip_id = created["id"]
+    assert [d["date"] for d in created["days"]] == [
+        "2026-11-24",
+        "2026-11-25",
+        "2026-11-26",
+    ]
+
+    # Shift forward by 7 days.
+    shifted_fwd = await api_client.patch(
+        f"/api/v1/trips/{trip_id}",
+        headers=dev_headers,
+        json={"start_date": "2026-12-01"},
+    )
+    assert shifted_fwd.status_code == 200
+    fwd_trip = shifted_fwd.json()
+    assert fwd_trip["start_date"] == "2026-12-01"
+    assert fwd_trip["end_date"] == "2026-12-03"
+    assert [(d["day_index"], d["date"]) for d in fwd_trip["days"]] == [
+        (1, "2026-12-01"),
+        (2, "2026-12-02"),
+        (3, "2026-12-03"),
+    ]
+
+    # Shift backward together with metadata update.
+    shifted_back = await api_client.patch(
+        f"/api/v1/trips/{trip_id}",
+        headers=dev_headers,
+        json={"title": "Hokkaido Winter", "start_date": "2026-11-10"},
+    )
+    assert shifted_back.status_code == 200
+    back_trip = shifted_back.json()
+    assert back_trip["title"] == "Hokkaido Winter"
+    assert back_trip["start_date"] == "2026-11-10"
+    assert back_trip["end_date"] == "2026-11-12"
+    assert [(d["day_index"], d["date"]) for d in back_trip["days"]] == [
+        (1, "2026-11-10"),
+        (2, "2026-11-11"),
+        (3, "2026-11-12"),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_update_trip_start_date_preserves_none_end_date() -> None:
+    fake_db = SimpleNamespace(commit=AsyncMock())
+    svc = TripService(fake_db)  # type: ignore[arg-type]
+    open_ended_trip = SimpleNamespace(
+        id="trip-open",
+        start_date=date(2026, 11, 1),
+        end_date=None,
+        days=[
+            SimpleNamespace(day_index=1, date=date(2026, 11, 1)),
+            SimpleNamespace(day_index=2, date=date(2026, 11, 2)),
+        ],
+    )
+    svc.get_trip_detail = AsyncMock(return_value=open_ended_trip)  # type: ignore[method-assign]
+
+    updated = await svc.update_trip(
+        "trip-open",
+        "user-1",
+        TripUpdate(start_date=date(2026, 11, 5)),
+    )
+    assert updated.start_date == date(2026, 11, 5)
+    assert updated.end_date is None
+    assert [d.date for d in updated.days] == [date(2026, 11, 5), date(2026, 11, 6)]
+
+
+@pytest.mark.asyncio
+async def test_delete_day_reindexes_shifts_dates_and_unlinks_expenses(
+    api_client: AsyncClient, dev_headers: dict[str, str]
+) -> None:
+    created = (
+        await api_client.post(
+            "/api/v1/trips",
+            headers=dev_headers,
+            json={
+                "title": "Kyushu Three Days",
+                "country_codes": ["JP"],
+                "start_date": "2026-12-10",
+                "end_date": "2026-12-12",
+                "default_currency": "JPY",
+            },
+        )
+    ).json()
+    trip_id = created["id"]
+    day1_id, day2_id, day3_id = (d["id"] for d in created["days"])
+    day1_opt = created["days"][0]["active_option_id"]
+    day2_opt = created["days"][1]["active_option_id"]
+
+    mock_leg = RouteLegResult(
+        distance_km=5.0,
+        duration_min=10,
+        geometry_polyline="poly",
+        is_approx=False,
+    )
+    with patch(
+        "app.services.routing.OsrmRoutingProvider.compute_leg",
+        new=AsyncMock(return_value=mock_leg),
+    ):
+        await api_client.post(
+            f"/api/v1/options/{day1_opt}/items",
+            headers=dev_headers,
+            json={
+                "type": "STAY",
+                "title": "Hakata Hotel",
+                "latitude": 33.5902,
+                "longitude": 130.4207,
+            },
+        )
+        day2_item = (
+            await api_client.post(
+                f"/api/v1/options/{day2_opt}/items",
+                headers=dev_headers,
+                json={
+                    "type": "FOOD",
+                    "title": "Ramen Stadium",
+                    "latitude": 33.5898,
+                    "longitude": 130.4108,
+                },
+            )
+        ).json()
+
+    exp_day2 = (
+        await api_client.post(
+            f"/api/v1/trips/{trip_id}/expenses",
+            headers=dev_headers,
+            json={
+                "title": "Tonkotsu Ramen",
+                "category": "FOOD",
+                "amount_original": "1200.00",
+                "currency_original": "JPY",
+                "exchange_rate": "0.21",
+                "trip_day_id": day2_id,
+                "itinerary_item_id": day2_item["id"],
+            },
+        )
+    ).json()
+    exp_day3 = (
+        await api_client.post(
+            f"/api/v1/trips/{trip_id}/expenses",
+            headers=dev_headers,
+            json={
+                "title": "Dazaifu Train",
+                "category": "TRANSIT",
+                "amount_original": "820.00",
+                "currency_original": "JPY",
+                "exchange_rate": "0.21",
+                "trip_day_id": day3_id,
+            },
+        )
+    ).json()
+
+    # Delete middle day (Day 2).
+    del_mid = await api_client.delete(
+        f"/api/v1/days/{day2_id}", headers=dev_headers
+    )
+    assert del_mid.status_code == 204
+
+    after_mid = (
+        await api_client.get(f"/api/v1/trips/{trip_id}", headers=dev_headers)
+    ).json()
+    assert after_mid["end_date"] == "2026-12-11"
+    assert [(d["id"], d["day_index"], d["date"]) for d in after_mid["days"]] == [
+        (day1_id, 1, "2026-12-10"),
+        (day3_id, 2, "2026-12-11"),
+    ]
+
+    # Expense from Day 2 is preserved with day & item cleared; Day 3 stays linked.
+    expenses = (
+        await api_client.get(
+            f"/api/v1/trips/{trip_id}/expenses", headers=dev_headers
+        )
+    ).json()["items"]
+    by_id = {e["id"]: e for e in expenses}
+    assert set(by_id.keys()) == {exp_day2["id"], exp_day3["id"]}
+    assert by_id[exp_day2["id"]]["trip_day_id"] is None
+    assert by_id[exp_day2["id"]]["itinerary_item_id"] is None
+    assert by_id[exp_day3["id"]]["trip_day_id"] == day3_id
+
+    # Delete Day 1 (holding a STAY) and confirm remaining day shifts to Day 1.
+    del_first = await api_client.delete(
+        f"/api/v1/days/{day1_id}", headers=dev_headers
+    )
+    assert del_first.status_code == 204
+
+    after_first = (
+        await api_client.get(f"/api/v1/trips/{trip_id}", headers=dev_headers)
+    ).json()
+    assert after_first["end_date"] == "2026-12-10"
+    assert [(d["id"], d["day_index"], d["date"]) for d in after_first["days"]] == [
+        (day3_id, 1, "2026-12-10"),
+    ]
+
+    # Deleting the sole remaining day must return 400.
+    blocked = await api_client.delete(
+        f"/api/v1/days/{day3_id}", headers=dev_headers
+    )
+    assert blocked.status_code == 400
+    assert "last remaining day" in blocked.json()["detail"].lower()
+
+    # Appending a new day after deletion continues sequentially without conflicts.
+    appended = await api_client.post(
+        f"/api/v1/trips/{trip_id}/days", headers=dev_headers
+    )
+    assert appended.status_code == 201
+    assert appended.json()["day_index"] == 2
+    assert appended.json()["date"] == "2026-12-11"
+
+    # Deleting a non-existent day returns 404.
+    missing = await api_client.delete(
+        "/api/v1/days/non-existent-day", headers=dev_headers
+    )
+    assert missing.status_code == 404

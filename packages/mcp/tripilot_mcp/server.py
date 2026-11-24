@@ -450,6 +450,18 @@ async def append_day(trip_id: str) -> dict[str, Any]:
 
 
 @mcp.tool()
+async def delete_trip_day(day_id: str) -> dict[str, Any]:
+    """Delete a TripDay, unlink its expenses, and re-index remaining days.
+
+    Args:
+        day_id: ID of the TripDay to remove (rejected if it is the sole day).
+    """
+    async with TripilotClient() as client:
+        await client.delete_day(day_id=day_id)
+    return {"deleted": True, "day_id": day_id}
+
+
+@mcp.tool()
 async def select_choice_item(item_id: str) -> dict[str, Any]:
     """Promote an itinerary item as the active choice within its slot choice group.
 

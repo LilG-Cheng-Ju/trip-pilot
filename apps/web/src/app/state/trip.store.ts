@@ -1,9 +1,13 @@
 import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 
-import { CreateTripPayload, TripilotApiService } from '../core/api/tripilot-api.service';
+import {
+  CreateTripPayload,
+  TripilotApiService,
+  TripUpdatePayload,
+} from '../core/api/tripilot-api.service';
 import { OfflineCacheService } from '../core/cache/offline-cache.service';
-import { TripStatus, TripSummary } from '../core/models/tripilot.models';
+import { TripDetail, TripStatus, TripSummary } from '../core/models/tripilot.models';
 
 export type TripListTab = 'upcoming' | 'completed';
 
@@ -147,6 +151,47 @@ export const TripStore = signalStore(
             patchState(store, {
               error: err instanceof Error ? err.message : 'Failed to update trip',
             });
+          }
+        },
+
+        async updateTrip(tripId: string, payload: TripUpdatePayload): Promise<TripDetail> {
+          patchState(store, { error: null });
+          try {
+            const updated = await api.updateTrip(tripId, payload);
+            const nextTrips = store.trips().map((t) => (t.id === tripId ? updated : t));
+            cache.set('trips', nextTrips);
+            cache.set(`trip.${tripId}`, updated);
+            patchState(store, { trips: nextTrips });
+            return updated;
+          } catch (err) {
+            patchState(store, {
+              error: err instanceof Error ? err.message : 'Failed to update trip',
+            });
+            throw err;
+          }
+        },
+
+        async deleteTrip(tripId: string): Promise<void> {
+          patchState(store, { error: null });
+          try {
+            await api.deleteTrip(tripId);
+            const nextTrips = store.trips().filter((t) => t.id !== tripId);
+            cache.set('trips', nextTrips);
+            cache.remove(`trip.${tripId}`);
+            cache.remove(`expenses.${tripId}`);
+            const nextSelected =
+              store.lastSelectedTripId() === tripId
+                ? (nextTrips[0]?.id ?? null)
+                : store.lastSelectedTripId();
+            patchState(store, {
+              trips: nextTrips,
+              lastSelectedTripId: nextSelected,
+            });
+          } catch (err) {
+            patchState(store, {
+              error: err instanceof Error ? err.message : 'Failed to delete trip',
+            });
+            throw err;
           }
         },
 

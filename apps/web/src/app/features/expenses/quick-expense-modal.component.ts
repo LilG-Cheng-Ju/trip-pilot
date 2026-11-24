@@ -10,19 +10,20 @@ import {
   untracked,
 } from '@angular/core';
 
-import { TripilotApiService } from '../../core/api/tripilot-api.service';
-import { OfflineCacheService } from '../../core/cache/offline-cache.service';
 import { ISO_CURRENCY_CODE_LENGTH } from '../../core/constants/app-limits';
 import {
   COMMON_CURRENCIES,
   QuickCurrencyOption,
 } from '../../core/constants/travel-options';
+import {
+  FxRateResolverService,
+  FxResolutionStatus,
+} from '../../core/fx/fx-rate-resolver.service';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ExpenseCategory, ItineraryItem } from '../../core/models/tripilot.models';
 import { isIncompleteNumberInput, readInputValue } from '../../core/utils/form-events.utils';
 import {
-  estimateOfflineFxRate,
   EXPENSE_CATEGORIES,
   expenseCategoryKey,
   mapItemTypeToExpenseCategory,
@@ -103,23 +104,58 @@ import { ExpenseStore } from '../../state/expense.store';
           </label>
         </div>
 
-        @if (currency() !== homeCurrency() && rateNeedsConfirm()) {
-          <label class="field">
-            <span class="field-label">{{ 'expenses.rateLabel' | t }}</span>
-            <input
-              type="number"
-              step="any"
-              min="0.000001"
-              class="input-control tabular-nums"
-              [value]="exchangeRateText()"
-              (input)="onRateInput($event)"
-              name="exchangeRate"
-            />
-            <small class="rate-warn">{{ 'fx.manualConfirmHint' | t }}</small>
+        @if (isForeignCurrency()) {
+          @if (manualRateRequired()) {
+            <div class="fx-warning-banner" role="alert">
+              <span class="ms-icon sm" aria-hidden="true">warning</span>
+              <span>{{ 'fx.unavailableHint' | t }}</span>
+            </div>
+          }
+
+          <label class="field" [class.has-error]="rateError()">
+            <span class="field-label">
+              {{ 'expenses.rateLabel' | t }} (1 {{ currency() }} → {{ homeCurrency() }})
+              @if (manualRateRequired()) {
+                <em class="req">*</em>
+              }
+            </span>
+            <div class="rate-box">
+              <input
+                type="number"
+                step="any"
+                min="0.000001"
+                class="tabular-nums"
+                [value]="exchangeRateText()"
+                (input)="onRateInput($event)"
+                name="exchangeRate"
+                placeholder="0"
+              />
+              <button
+                type="button"
+                class="fx-btn"
+                [disabled]="fetchingRate()"
+                [title]="'fx.refresh' | t"
+                (click)="resolveRate()"
+              >
+                <span class="ms-icon sm" [class.spin]="fetchingRate()" aria-hidden="true">
+                  sync
+                </span>
+              </button>
+            </div>
+            @if (fetchingRate()) {
+              <small class="fx-hint">{{ 'fx.loading' | t }}</small>
+            } @else if (fxStatus() === 'cached') {
+              <small class="fx-hint cached">{{ 'fx.cachedHint' | t }}</small>
+            } @else if (fxStatus() === 'live') {
+              <small class="fx-hint">{{ 'fx.liveHint' | t }}</small>
+            }
+            @if (rateError()) {
+              <small class="err-msg">{{ 'fx.errRateRequired' | t }}</small>
+            }
           </label>
         }
 
-        @if (previewHomeAmount() !== null && currency() !== homeCurrency()) {
+        @if (previewHomeAmount() !== null && isForeignCurrency()) {
           <div class="preview-line tabular-nums">
             <span>≈ {{ homeCurrency() }} {{ previewHomeAmount() }}</span>
           </div>
@@ -171,7 +207,11 @@ import { ExpenseStore } from '../../state/expense.store';
           <button type="button" class="btn-ghost" (click)="closed.emit()">
             {{ 'common.cancel' | t }}
           </button>
-          <button type="submit" class="btn-primary" [disabled]="submitting() || fetchingRate()">
+          <button
+            type="submit"
+            class="btn-primary"
+            [disabled]="submitting() || fetchingRate() || (isForeignCurrency() && exchangeRate() === null)"
+          >
             + {{ 'common.add' | t }}
           </button>
         </div>
@@ -235,15 +275,67 @@ import { ExpenseStore } from '../../state/expense.store';
       gap: 10px;
     }
     .preview-line {
-      margin-top: -6px;
+      margin-top: -4px;
       font-size: 0.78rem;
       font-weight: 600;
       color: var(--color-primary);
     }
-    .rate-warn {
+    .fx-warning-banner {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      background: var(--color-alert-soft);
+      border: 1px solid rgba(200, 75, 59, 0.35);
+      color: var(--color-alert);
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .rate-box {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      height: 39px;
+      padding: 0 6px 0 11px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      background: var(--color-bg);
+    }
+    .rate-box input {
+      width: 100%;
+      min-width: 0;
+      border: none;
+      background: transparent;
+      color: var(--color-text-primary);
+      font: inherit;
+      font-size: 0.875rem;
+      outline: none;
+    }
+    .field.has-error .rate-box {
+      border-color: var(--color-alert);
+    }
+    .fx-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      padding: 0;
+      border: none;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--color-primary);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .fx-hint {
       font-size: 0.74rem;
-      font-weight: 500;
+      color: var(--color-text-muted);
+    }
+    .fx-hint.cached {
       color: var(--color-accent-ink);
+      font-weight: 500;
     }
     .cat-chips {
       display: flex;
@@ -319,8 +411,7 @@ export class QuickExpenseModalComponent {
   readonly closed = output<void>();
   readonly saved = output<void>();
 
-  private readonly api = inject(TripilotApiService);
-  private readonly cache = inject(OfflineCacheService);
+  private readonly fxResolver = inject(FxRateResolverService);
   private readonly expenseStore = inject(ExpenseStore);
   protected readonly i18n = inject(I18nService);
 
@@ -329,7 +420,10 @@ export class QuickExpenseModalComponent {
   protected readonly readInputValue = readInputValue;
   protected readonly submitting = signal(false);
   protected readonly fetchingRate = signal(false);
-  protected readonly rateNeedsConfirm = signal(false);
+  protected readonly fxStatus = signal<FxResolutionStatus>('same');
+  protected readonly manualRateRequired = signal(false);
+  protected readonly rateError = signal(false);
+  private rateSeq = 0;
 
   protected readonly currencyOptions = computed<QuickCurrencyOption[]>(() => {
     const list: QuickCurrencyOption[] = [...COMMON_CURRENCIES];
@@ -356,9 +450,16 @@ export class QuickExpenseModalComponent {
   });
   protected readonly currency = signal('JPY');
   protected readonly exchangeRateText = signal('1');
-  protected readonly exchangeRate = computed<number>(() => {
-    const n = Number(this.exchangeRateText());
-    return Number.isFinite(n) && n > 0 ? n : 1;
+  protected readonly exchangeRate = computed<number | null>(() => {
+    const raw = this.exchangeRateText().trim();
+    if (!raw) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  });
+  protected readonly isForeignCurrency = computed(() => {
+    const src = (this.currency().trim() || 'JPY').toUpperCase();
+    const dst = (this.homeCurrency().trim() || 'TWD').toUpperCase();
+    return src !== dst;
   });
   protected readonly category = signal<ExpenseCategory>('FOOD');
   protected readonly paymentMethod = signal('');
@@ -386,7 +487,8 @@ export class QuickExpenseModalComponent {
         this.category.set(stop ? mapItemTypeToExpenseCategory(stop.type) : 'FOOD');
         this.paymentMethod.set('');
         this.notes.set('');
-        void this.fetchLiveRate();
+        this.rateError.set(false);
+        void this.resolveRate();
       });
     });
   }
@@ -402,6 +504,7 @@ export class QuickExpenseModalComponent {
     if (isIncompleteNumberInput(event)) {
       return;
     }
+    this.rateError.set(false);
     this.exchangeRateText.set(readInputValue(event));
   }
 
@@ -409,13 +512,14 @@ export class QuickExpenseModalComponent {
     this.currency.set(code);
     const upper = code.trim().toUpperCase();
     if (upper.length === ISO_CURRENCY_CODE_LENGTH) {
-      void this.fetchLiveRate(upper);
+      void this.resolveRate(upper);
     }
   }
 
-  private async fetchLiveRate(overrideCode?: string): Promise<void> {
+  protected async resolveRate(overrideCode?: string): Promise<void> {
     const src = (overrideCode || this.currency() || 'JPY').trim().toUpperCase();
     const dst = (this.homeCurrency() || 'TWD').trim().toUpperCase();
+    const seq = ++this.rateSeq;
     if (
       src.length !== ISO_CURRENCY_CODE_LENGTH ||
       dst.length !== ISO_CURRENCY_CODE_LENGTH
@@ -423,38 +527,43 @@ export class QuickExpenseModalComponent {
       return;
     }
     if (src === dst) {
+      this.fxStatus.set('same');
+      this.manualRateRequired.set(false);
+      this.rateError.set(false);
       this.exchangeRateText.set('1');
-      this.rateNeedsConfirm.set(false);
+      this.fetchingRate.set(false);
       return;
     }
     this.fetchingRate.set(true);
+    this.rateError.set(false);
     try {
-      const res = await this.api.getExchangeRate(src, dst);
-      const rounded = roundFxRate(res.rate);
-      this.exchangeRateText.set(String(rounded));
-      this.rateNeedsConfirm.set(false);
-      this.cache.setFxRate(src, rounded);
-    } catch {
-      const cached = this.cache.getFxRate(src);
-      if (cached !== null) {
-        this.exchangeRateText.set(String(roundFxRate(cached)));
-        this.rateNeedsConfirm.set(false);
-      } else {
-        this.exchangeRateText.set(String(estimateOfflineFxRate(src, dst) ?? 1));
-        this.rateNeedsConfirm.set(true);
+      const res = await this.fxResolver.resolve(src, dst);
+      if (seq !== this.rateSeq) {
+        return;
       }
+      this.fxStatus.set(res.status);
+      this.manualRateRequired.set(res.manualRequired);
+      this.exchangeRateText.set(res.rate !== null ? String(roundFxRate(res.rate)) : '');
     } finally {
-      this.fetchingRate.set(false);
+      if (seq === this.rateSeq) {
+        this.fetchingRate.set(false);
+      }
     }
   }
 
   protected async submit(): Promise<void> {
     const title = this.title().trim();
     const amount = this.amount();
+    const upperCurrency = (this.currency().trim() || 'JPY').toUpperCase();
+    const home = (this.homeCurrency().trim() || 'TWD').toUpperCase();
+    const rate = upperCurrency === home ? 1 : this.exchangeRate();
     if (!title || !amount || amount <= 0) {
       return;
     }
-    const upperCurrency = (this.currency().trim() || 'JPY').toUpperCase();
+    if (rate === null || rate <= 0) {
+      this.rateError.set(true);
+      return;
+    }
     this.submitting.set(true);
     try {
       await this.expenseStore.addExpense(this.tripId(), {
@@ -464,10 +573,13 @@ export class QuickExpenseModalComponent {
         category: this.category(),
         amount_original: amount,
         currency_original: upperCurrency,
-        exchange_rate: this.exchangeRate() || 1,
+        exchange_rate: rate,
         payment_method: this.paymentMethod().trim() || null,
         notes: this.notes().trim() || null,
       });
+      if (upperCurrency !== home) {
+        this.fxResolver.cacheRate(upperCurrency, home, rate);
+      }
       this.saved.emit();
       this.closed.emit();
     } finally {
