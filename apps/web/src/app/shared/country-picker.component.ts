@@ -2,7 +2,6 @@ import {
   Component,
   computed,
   ElementRef,
-  HostListener,
   inject,
   input,
   output,
@@ -16,11 +15,16 @@ import {
   SUPPORTED_COUNTRIES,
 } from '../core/constants/travel-options';
 import { I18nService } from '../core/i18n/i18n.service';
+import { TranslatePipe } from '../core/i18n/translate.pipe';
 
 /** Reusable searchable country picker supporting single and multi-select modes. */
 @Component({
   selector: 'app-country-picker',
-  imports: [FormsModule],
+  imports: [FormsModule, TranslatePipe],
+  host: {
+    '(document:click)': 'onDocumentClick($event)',
+    '(document:keydown.escape)': 'onEscape()',
+  },
   template: `
     <div class="picker">
       <div class="selected-row" (click)="open.set(!open())">
@@ -56,7 +60,7 @@ import { I18nService } from '../core/i18n/i18n.service';
               type="text"
               [ngModel]="query()"
               (ngModelChange)="query.set($event)"
-              [placeholder]="i18n.locale() === 'zh-TW' ? '搜尋國家名稱或代碼（如 捷克、JP）' : 'Search country or code (e.g. Czechia, JP)'"
+              [placeholder]="'countryPicker.searchPlaceholder' | t"
               autofocus
             />
           </div>
@@ -78,7 +82,7 @@ import { I18nService } from '../core/i18n/i18n.service';
               </button>
             } @empty {
               <p class="empty-opt">
-                {{ i18n.locale() === 'zh-TW' ? '找不到相符國家' : 'No matching country' }}
+                {{ 'countryPicker.empty' | t }}
               </p>
             }
           </div>
@@ -221,14 +225,12 @@ export class AppCountryPickerComponent {
   protected readonly open = signal(false);
   protected readonly query = signal('');
 
-  @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
     if (this.open() && !this.hostRef.nativeElement.contains(event.target as Node)) {
       this.open.set(false);
     }
   }
 
-  @HostListener('document:keydown.escape')
   onEscape(): void {
     if (this.open()) {
       this.open.set(false);

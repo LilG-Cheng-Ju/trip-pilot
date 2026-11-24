@@ -3,16 +3,18 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import { TripilotApiService } from '../../core/api/tripilot-api.service';
-import { COMMON_CURRENCIES, CurrencyOption } from '../../core/config/currencies';
+import { OfflineCacheService } from '../../core/cache/offline-cache.service';
 import { ISO_CURRENCY_CODE_LENGTH } from '../../core/constants/app-limits';
+import {
+  COMMON_CURRENCIES,
+  QuickCurrencyOption,
+} from '../../core/constants/travel-options';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ExpenseCategory } from '../../core/models/tripilot.models';
 import { EXPENSE_CATEGORIES, expenseCategoryKey } from '../../core/utils/travel-format.utils';
 import { TripSubnavComponent } from '../../shared/trip-subnav.component';
 import { ExpenseStore } from '../../state/expense.store';
 import { ItineraryStore } from '../../state/itinerary.store';
-
-const RATE_STORAGE_PREFIX = 'tripilot.fxRate.';
 
 /** Low-friction per-trip expense ledger with instant currency conversion. */
 @Component({
@@ -687,6 +689,7 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
   protected readonly expenseStore = inject(ExpenseStore);
   protected readonly itineraryStore = inject(ItineraryStore);
   private readonly api = inject(TripilotApiService);
+  private readonly cache = inject(OfflineCacheService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
@@ -706,8 +709,8 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
   protected paymentMethod = '';
   protected notes = '';
 
-  protected readonly currencyOptions = computed<CurrencyOption[]>(() => {
-    const list: CurrencyOption[] = [...COMMON_CURRENCIES];
+  protected readonly currencyOptions = computed<QuickCurrencyOption[]>(() => {
+    const list: QuickCurrencyOption[] = [...COMMON_CURRENCIES];
     const extras = [
       this.itineraryStore.trip()?.default_currency,
       this.expenseStore.summary()?.home_currency,
@@ -895,21 +898,13 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
       this.exchangeRate = 1;
       return;
     }
-    try {
-      const stored = localStorage.getItem(`${RATE_STORAGE_PREFIX}${currency}`);
-      if (stored && Number(stored) > 0) {
-        this.exchangeRate = Number(stored);
-      }
-    } catch {
-      // Ignore storage access errors.
+    const stored = this.cache.getFxRate(currency);
+    if (stored !== null) {
+      this.exchangeRate = stored;
     }
   }
 
   private saveRate(currency: string, rate: number): void {
-    try {
-      localStorage.setItem(`${RATE_STORAGE_PREFIX}${currency}`, String(rate));
-    } catch {
-      // Ignore storage access errors.
-    }
+    this.cache.setFxRate(currency, rate);
   }
 }

@@ -1,8 +1,8 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
 
 import { AuthSessionService } from '../../core/auth/auth-session.service';
+import { SessionCleanupService } from '../../core/auth/session-cleanup.service';
 import { getApiBaseUrl } from '../../core/config/runtime-config';
 import {
   SAVE_NOTICE_DURATION_MS,
@@ -24,7 +24,7 @@ import { AuthStore } from '../../state/auth.store';
         <h2 class="page-title">{{ 'profile.title' | t }}</h2>
         @if (session.isFirebaseEnabled()) {
           <button type="button" class="pill-btn danger" (click)="signOut()">
-            {{ i18n.locale() === 'zh-TW' ? '登出' : 'Sign Out' }}
+            {{ 'profile.signOut' | t }}
           </button>
         }
       </div>
@@ -407,7 +407,7 @@ export class ProfilePageComponent implements OnInit {
   protected readonly authStore = inject(AuthStore);
   protected readonly session = inject(AuthSessionService);
   protected readonly i18n = inject(I18nService);
-  private readonly router = inject(Router);
+  private readonly sessionCleanup = inject(SessionCleanupService);
   protected readonly currencies = SUPPORTED_CURRENCIES;
 
   protected homeCountry = 'TW';
@@ -460,11 +460,7 @@ export class ProfilePageComponent implements OnInit {
       await this.authStore.createToken(this.newTokenName.trim());
       this.newTokenName = '';
     } catch {
-      this.tokenApiError.set(
-        this.i18n.locale() === 'zh-TW'
-          ? '產生 Token 失敗，請確認後端服務正常。'
-          : 'Failed to generate token. Please check the API server.',
-      );
+      this.tokenApiError.set(this.i18n.t('profile.tokenCreateError'));
     } finally {
       this.generatingToken.set(false);
     }
@@ -503,7 +499,6 @@ export class ProfilePageComponent implements OnInit {
   }
 
   protected async signOut(): Promise<void> {
-    await this.session.signOut();
-    await this.router.navigate(['/login']);
+    await this.sessionCleanup.signOutAndRedirect();
   }
 }

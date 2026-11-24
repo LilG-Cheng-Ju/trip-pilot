@@ -39,26 +39,20 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
           </div>
 
           <div class="visual-copy">
-            <h2>
-              {{
-                i18n.locale() === 'zh-TW'
-                  ? '每一趟出發，都有專屬副駕駛。'
-                  : 'Every journey deserves a pocket copilot.'
-              }}
-            </h2>
+            <h2>{{ 'login.heroHeadline' | t }}</h2>
             <p>{{ 'app.tagline' | t }}</p>
             <div class="visual-tags">
               <span>
                 <span class="ms-icon sm">map</span>
-                {{ i18n.locale() === 'zh-TW' ? '即時互動地圖' : 'Live Route Map' }}
+                {{ 'login.featureMap' | t }}
               </span>
               <span>
                 <span class="ms-icon sm">summarize</span>
-                {{ i18n.locale() === 'zh-TW' ? '住宿航班摘要' : 'Trip Brief' }}
+                {{ 'login.featureBrief' | t }}
               </span>
               <span>
                 <span class="ms-icon sm">offline_pin</span>
-                {{ i18n.locale() === 'zh-TW' ? '離線快取檢視' : 'Offline Cache' }}
+                {{ 'login.featureOffline' | t }}
               </span>
             </div>
           </div>
@@ -79,22 +73,10 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
         <div class="form-card">
           <div class="form-head">
             <h1>
-              {{
-                authMode() === 'signin'
-                  ? i18n.locale() === 'zh-TW'
-                    ? '歡迎回來'
-                    : 'Welcome back'
-                  : i18n.locale() === 'zh-TW'
-                    ? '建立帳號'
-                    : 'Create account'
-              }}
+              {{ (authMode() === 'signin' ? 'login.welcomeBack' : 'login.createAccount') | t }}
             </h1>
             <p class="head-sub">
-              {{
-                i18n.locale() === 'zh-TW'
-                  ? '登入 Tripilot 同步你的旅程、地圖與花費。'
-                  : 'Sign in to sync your itineraries, maps, and expenses.'
-              }}
+              {{ 'login.subtitle' | t }}
             </p>
           </div>
 
@@ -106,7 +88,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
                 [class.active]="authMode() === 'signin'"
                 (click)="switchMode('signin')"
               >
-                {{ i18n.locale() === 'zh-TW' ? '登入' : 'Sign In' }}
+                {{ 'login.tabSignIn' | t }}
               </button>
               <button
                 type="button"
@@ -114,14 +96,14 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
                 [class.active]="authMode() === 'signup'"
                 (click)="switchMode('signup')"
               >
-                {{ i18n.locale() === 'zh-TW' ? '註冊新帳號' : 'Sign Up' }}
+                {{ 'login.tabSignUp' | t }}
               </button>
             </div>
 
             <form class="email-form" (ngSubmit)="submitEmailAuth()">
               <label class="field">
                 <span class="field-label">
-                  {{ i18n.locale() === 'zh-TW' ? '電子信箱' : 'Email' }} <em class="req">*</em>
+                  {{ 'login.emailLabel' | t }} <em class="req">*</em>
                 </span>
                 <input
                   type="email"
@@ -136,7 +118,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
               <label class="field">
                 <span class="field-label">
-                  {{ i18n.locale() === 'zh-TW' ? '密碼' : 'Password' }} <em class="req">*</em>
+                  {{ 'login.passwordLabel' | t }} <em class="req">*</em>
                 </span>
                 <input
                   type="password"
@@ -144,9 +126,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
                   [(ngModel)]="password"
                   name="password"
                   [autocomplete]="authMode() === 'signin' ? 'current-password' : 'new-password'"
-                  [placeholder]="
-                    i18n.locale() === 'zh-TW' ? '至少 6 個字元' : 'At least 6 characters'
-                  "
+                  [placeholder]="'login.passwordPlaceholder' | t"
                   minlength="6"
                   required
                 />
@@ -159,27 +139,17 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
               <button type="submit" class="primary-btn" [disabled]="signingIn()">
                 @if (signingIn()) {
                   <span class="ms-icon sm spin" aria-hidden="true">progress_activity</span>
-                  <span>
-                    {{ i18n.locale() === 'zh-TW' ? '處理中...' : 'Please wait...' }}
-                  </span>
+                  <span>{{ 'login.processing' | t }}</span>
                 } @else {
                   <span>
-                    {{
-                      authMode() === 'signin'
-                        ? i18n.locale() === 'zh-TW'
-                          ? '以信箱登入'
-                          : 'Sign in with Email'
-                        : i18n.locale() === 'zh-TW'
-                          ? '建立帳號並登入'
-                          : 'Create Account'
-                    }}
+                    {{ (authMode() === 'signin' ? 'login.signInEmail' : 'login.signUpEmail') | t }}
                   </span>
                 }
               </button>
             </form>
 
             <div class="divider">
-              <span>{{ i18n.locale() === 'zh-TW' ? '或' : 'or' }}</span>
+              <span>{{ 'login.or' | t }}</span>
             </div>
 
             <button type="button" class="google-btn" [disabled]="signingIn()" (click)="loginGoogle()">
@@ -201,18 +171,10 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                 />
               </svg>
-              <span>
-                {{ i18n.locale() === 'zh-TW' ? '使用 Google 帳號繼續' : 'Continue with Google' }}
-              </span>
+              <span>{{ 'login.continueGoogle' | t }}</span>
             </button>
           } @else {
-            <p class="dev-note">
-              {{
-                i18n.locale() === 'zh-TW'
-                  ? '目前為本機開發模式（未啟用 Firebase 登入）。'
-                  : 'Local development mode is active (Firebase Auth disabled).'
-              }}
-            </p>
+            <p class="dev-note">{{ 'login.devNotice' | t }}</p>
             <button type="button" class="primary-btn" (click)="goTrips()">
               {{ 'itinerary.goTrips' | t }}
             </button>
@@ -589,19 +551,22 @@ export class LoginPageComponent {
 
   private mapAuthError(err: unknown): string {
     const code = (err as { code?: string } | null)?.code ?? '';
-    const zh = this.i18n.locale() === 'zh-TW';
-    if (code.includes('invalid-credential') || code.includes('wrong-password') || code.includes('user-not-found')) {
-      return zh ? '信箱或密碼不正確，請再確認。' : 'Invalid email or password.';
+    if (
+      code.includes('invalid-credential') ||
+      code.includes('wrong-password') ||
+      code.includes('user-not-found')
+    ) {
+      return this.i18n.t('login.errInvalid');
     }
     if (code.includes('email-already-in-use')) {
-      return zh ? '此信箱已經註冊過，請直接切換至「登入」。' : 'This email is already registered. Please sign in.';
+      return this.i18n.t('login.errEmailInUse');
     }
     if (code.includes('weak-password')) {
-      return zh ? '密碼強度不足，請輸入至少 6 個字元。' : 'Password must be at least 6 characters.';
+      return this.i18n.t('login.errWeakPassword');
     }
     if (code.includes('popup-closed-by-user')) {
-      return zh ? '已取消 Google 登入視窗。' : 'Google sign-in popup was closed.';
+      return this.i18n.t('login.errPopupClosed');
     }
-    return zh ? '登入失敗，請稍後再試。' : 'Sign-in failed. Please try again.';
+    return this.i18n.t('login.errGeneric');
   }
 }

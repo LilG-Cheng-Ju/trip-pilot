@@ -1,4 +1,4 @@
-import { Component, computed, ElementRef, HostListener, inject, signal } from '@angular/core';
+import { Component, computed, ElementRef, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import {
   NavigationEnd,
@@ -10,6 +10,7 @@ import {
 import { filter, map } from 'rxjs';
 
 import { AuthSessionService } from './core/auth/auth-session.service';
+import { SessionCleanupService } from './core/auth/session-cleanup.service';
 import { APP_VERSION, IS_BETA } from './core/config/app-version';
 import { I18nService } from './core/i18n/i18n.service';
 import { TranslatePipe } from './core/i18n/translate.pipe';
@@ -19,10 +20,15 @@ import { TranslatePipe } from './core/i18n/translate.pipe';
   selector: 'app-root',
   styleUrl: './app.css',
   templateUrl: './app.html',
+  host: {
+    '(document:click)': 'onDocumentClick($event)',
+    '(document:keydown.escape)': 'onEscape()',
+  },
 })
 export class App {
   protected readonly i18n = inject(I18nService);
   protected readonly auth = inject(AuthSessionService);
+  private readonly sessionCleanup = inject(SessionCleanupService);
   private readonly router = inject(Router);
   private readonly hostRef = inject(ElementRef<HTMLElement>);
 
@@ -63,11 +69,9 @@ export class App {
 
   protected async signOut(): Promise<void> {
     this.closeAccountMenu();
-    await this.auth.signOut();
-    await this.router.navigateByUrl('/login');
+    await this.sessionCleanup.signOutAndRedirect();
   }
 
-  @HostListener('document:click', ['$event'])
   protected onDocumentClick(event: MouseEvent): void {
     if (!this.accountMenuOpen()) {
       return;
@@ -79,7 +83,6 @@ export class App {
     }
   }
 
-  @HostListener('document:keydown.escape')
   protected onEscape(): void {
     if (this.accountMenuOpen()) {
       this.accountMenuOpen.set(false);

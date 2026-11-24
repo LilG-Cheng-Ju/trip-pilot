@@ -50,80 +50,92 @@ export const TripStore = signalStore(
       store,
       api = inject(TripilotApiService),
       cache = inject(OfflineCacheService),
-    ) => ({
-      setTab(activeTab: TripListTab): void {
-        patchState(store, { activeTab });
-      },
+    ) => {
+      let loadTripsSeq = 0;
 
-      setLastSelectedTripId(tripId: string): void {
-        patchState(store, { lastSelectedTripId: tripId });
-      },
+      return {
+        setTab(activeTab: TripListTab): void {
+          patchState(store, { activeTab });
+        },
 
-      async loadTrips(): Promise<void> {
-        const cached = cache.get<TripSummary[]>('trips');
-        if (cached && cached.length > 0 && store.trips().length === 0) {
-          const fallbackId = store.lastSelectedTripId() ?? cached[0]?.id ?? null;
+        setLastSelectedTripId(tripId: string): void {
+          patchState(store, { lastSelectedTripId: tripId });
+        },
+
+        async loadTrips(): Promise<void> {
+          const seq = ++loadTripsSeq;
+          const cached = cache.get<TripSummary[]>('trips');
+          if (cached && cached.length > 0 && store.trips().length === 0) {
+            const fallbackId = store.lastSelectedTripId() ?? cached[0]?.id ?? null;
+            patchState(store, {
+              trips: cached,
+              lastSelectedTripId: fallbackId,
+              loading: false,
+              syncing: true,
+              usingOfflineCache: false,
+              error: null,
+            });
+          } else {
+            patchState(store, {
+              loading: store.trips().length === 0,
+              syncing: store.trips().length > 0,
+              usingOfflineCache: false,
+              error: null,
+            });
+          }
+
+          try {
+            const trips = await api.listTrips();
+            if (seq !== loadTripsSeq) return;
+            cache.set('trips', trips);
+            const fallbackId = store.lastSelectedTripId() ?? trips[0]?.id ?? null;
+            patchState(store, {
+              trips,
+              lastSelectedTripId: fallbackId,
+              loading: false,
+              syncing: false,
+              usingOfflineCache: false,
+            });
+          } catch (err) {
+            if (seq !== loadTripsSeq) return;
+            const hasData = store.trips().length > 0;
+            patchState(store, {
+              loading: false,
+              syncing: false,
+              usingOfflineCache: hasData,
+              error: hasData
+                ? null
+                : err instanceof Error
+                  ? err.message
+                  : 'Failed to load trips',
+            });
+          }
+        },
+
+        async createTrip(payload: CreateTripPayload): Promise<string> {
+          const created = await api.createTrip(payload);
+          const nextTrips = [created, ...store.trips()];
+          cache.set('trips', nextTrips);
           patchState(store, {
-            trips: cached,
-            lastSelectedTripId: fallbackId,
-            loading: false,
-            syncing: true,
-            usingOfflineCache: false,
-            error: null,
+            trips: nextTrips,
+            lastSelectedTripId: created.id,
+            activeTab: 'upcoming',
           });
-        } else {
-          patchState(store, {
-            loading: store.trips().length === 0,
-            syncing: store.trips().length > 0,
-            usingOfflineCache: false,
-            error: null,
-          });
-        }
+          return created.id;
+        },
 
-        try {
-          const trips = await api.listTrips();
-          cache.set('trips', trips);
-          const fallbackId = store.lastSelectedTripId() ?? trips[0]?.id ?? null;
-          patchState(store, {
-            trips,
-            lastSelectedTripId: fallbackId,
-            loading: false,
-            syncing: false,
-            usingOfflineCache: false,
-          });
-        } catch (err) {
-          const hasData = store.trips().length > 0;
-          patchState(store, {
-            loading: false,
-            syncing: false,
-            usingOfflineCache: hasData,
-            error: hasData
-              ? null
-              : err instanceof Error
-                ? err.message
-                : 'Failed to load trips',
-          });
-        }
-      },
+        async updateTripStatus(tripId: string, status: TripStatus): Promise<void> {
+          const updated = await api.updateTrip(tripId, { status });
+          const nextTrips = store.trips().map((t) => (t.id === tripId ? updated : t));
+          cache.set('trips', nextTrips);
+          patchState(store, { trips: nextTrips });
+        },
 
-      async createTrip(payload: CreateTripPayload): Promise<string> {
-        const created = await api.createTrip(payload);
-        const nextTrips = [created, ...store.trips()];
-        cache.set('trips', nextTrips);
-        patchState(store, {
-          trips: nextTrips,
-          lastSelectedTripId: created.id,
-          activeTab: 'upcoming',
-        });
-        return created.id;
-      },
-
-      async updateTripStatus(tripId: string, status: TripStatus): Promise<void> {
-        const updated = await api.updateTrip(tripId, { status });
-        const nextTrips = store.trips().map((t) => (t.id === tripId ? updated : t));
-        cache.set('trips', nextTrips);
-        patchState(store, { trips: nextTrips });
-      },
-    }),
+        reset(): void {
+          loadTripsSeq += 1;
+          patchState(store, initialState);
+        },
+      };
+    },
   ),
 );

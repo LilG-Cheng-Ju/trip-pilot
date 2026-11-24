@@ -11,6 +11,7 @@ import {
   TripDetail,
   TripShare,
 } from '../core/models/tripilot.models';
+import { groupItemsIntoSlots } from '../core/utils/travel-format.utils';
 
 interface ItineraryState {
   trip: TripDetail | null;
@@ -127,310 +128,308 @@ export const ItineraryStore = signalStore(
       store,
       api = inject(TripilotApiService),
       cache = inject(OfflineCacheService),
-    ) => ({
-      selectDay(dayIndex: number): void {
-        patchState(store, { selectedDayIndex: dayIndex, selectedItemId: null });
-      },
+    ) => {
+      let loadTripSeq = 0;
 
-      previewOption(dayId: string, optionId: string): void {
-        patchState(store, {
-          previewOptionByDay: {
-            ...store.previewOptionByDay(),
-            [dayId]: optionId,
-          },
-          selectedItemId: null,
-        });
-      },
+      return {
+        selectDay(dayIndex: number): void {
+          patchState(store, { selectedDayIndex: dayIndex, selectedItemId: null });
+        },
 
-      selectItem(itemId: string | null): void {
-        patchState(store, { selectedItemId: itemId });
-      },
-
-      setMobileMapOpen(mobileMapOpen: boolean): void {
-        patchState(store, { mobileMapOpen });
-      },
-
-      toggleMobileMap(): void {
-        patchState(store, { mobileMapOpen: !store.mobileMapOpen() });
-      },
-
-      async loadTrip(tripId: string): Promise<void> {
-        const cached = cache.get<TripDetail>(`trip.${tripId}`);
-        const hasCurrent = store.trip()?.id === tripId;
-
-        if (!hasCurrent && cached) {
-          const validDayIdx = cached.days[0]?.day_index ?? 1;
+        previewOption(dayId: string, optionId: string): void {
           patchState(store, {
-            trip: cached,
-            selectedDayIndex: validDayIdx,
-            loading: false,
-            syncing: true,
-            usingOfflineCache: false,
-            error: null,
+            previewOptionByDay: {
+              ...store.previewOptionByDay(),
+              [dayId]: optionId,
+            },
+            selectedItemId: null,
           });
-        } else {
-          patchState(store, {
-            loading: !hasCurrent,
-            syncing: hasCurrent,
-            usingOfflineCache: false,
-            error: null,
-          });
-        }
+        },
 
-        try {
-          const trip = await api.getTrip(tripId);
-          cache.set(`trip.${tripId}`, trip);
-          const currentDayIdx = store.selectedDayIndex();
-          const validDayIdx = trip.days.some((d) => d.day_index === currentDayIdx)
-            ? currentDayIdx
-            : (trip.days[0]?.day_index ?? 1);
-          patchState(store, {
-            trip,
-            selectedDayIndex: validDayIdx,
-            loading: false,
-            syncing: false,
-            usingOfflineCache: false,
-          });
-        } catch (err) {
-          const fallbackReady = store.trip()?.id === tripId;
-          patchState(store, {
-            loading: false,
-            syncing: false,
-            usingOfflineCache: fallbackReady,
-            error: fallbackReady
-              ? null
-              : err instanceof Error
-                ? err.message
-                : 'Failed to load itinerary',
-          });
-        }
-      },
+        selectItem(itemId: string | null): void {
+          patchState(store, { selectedItemId: itemId });
+        },
 
-    async createBlankOption(label: string): Promise<void> {
-      const day = store.selectedDay();
-      const trip = store.trip();
-      if (!day || !trip) {
-        return;
-      }
-      const created = await api.addDayOption(day.id, label);
-      await this.loadTrip(trip.id);
-      this.previewOption(day.id, created.id);
-    },
+        setMobileMapOpen(mobileMapOpen: boolean): void {
+          patchState(store, { mobileMapOpen });
+        },
 
-    async cloneCurrentOption(label: string): Promise<void> {
-      const day = store.selectedDay();
-      const option = store.selectedOption();
-      const trip = store.trip();
-      if (!day || !option || !trip) {
-        return;
-      }
-      const cloned = await api.cloneDayOption(option.id, label);
-      await this.loadTrip(trip.id);
-      this.previewOption(day.id, cloned.id);
-    },
+        toggleMobileMap(): void {
+          patchState(store, { mobileMapOpen: !store.mobileMapOpen() });
+        },
 
-    async renameOption(optionId: string, label: string): Promise<void> {
-      const trip = store.trip();
-      if (!trip) {
-        return;
-      }
-      await api.updateDayOption(optionId, label);
-      await this.loadTrip(trip.id);
-    },
+        async loadTrip(tripId: string): Promise<void> {
+          const seq = ++loadTripSeq;
+          const cached = cache.get<TripDetail>(`trip.${tripId}`);
+          const hasCurrent = store.trip()?.id === tripId;
 
-    async deleteOption(dayId: string, optionId: string): Promise<void> {
-      const trip = store.trip();
-      if (!trip) {
-        return;
-      }
-      const updatedDay = await api.deleteDayOption(optionId);
-      await this.loadTrip(trip.id);
-      if (updatedDay.active_option_id) {
-        this.previewOption(dayId, updatedDay.active_option_id);
-      }
-    },
-
-    async appendDay(): Promise<void> {
-      const trip = store.trip();
-      if (!trip) {
-        return;
-      }
-      const newDay = await api.appendDay(trip.id);
-      await this.loadTrip(trip.id);
-      this.selectDay(newDay.day_index);
-    },
-
-    async updateDayTitle(dayId: string, title: string | null): Promise<void> {
-      const trip = store.trip();
-      if (!trip) {
-        return;
-      }
-      await api.updateDay(dayId, { title: title?.trim() || null });
-      await this.loadTrip(trip.id);
-    },
-
-    async selectChoiceItem(itemId: string): Promise<void> {
-      const trip = store.trip();
-      if (!trip) {
-        return;
-      }
-
-      // Optimistic 0ms UI flip so cards & map switch immediately before OSRM finishes.
-      let targetGroupId: string | null = null;
-      let targetOptionId: string | null = null;
-      for (const day of trip.days) {
-        for (const opt of day.options) {
-          const hit = opt.items.find((it) => it.id === itemId);
-          if (hit) {
-            targetGroupId = hit.choice_group_id;
-            targetOptionId = opt.id;
-            break;
+          if (!hasCurrent && cached) {
+            const validDayIdx = cached.days[0]?.day_index ?? 1;
+            patchState(store, {
+              trip: cached,
+              selectedDayIndex: validDayIdx,
+              loading: false,
+              syncing: true,
+              usingOfflineCache: false,
+              error: null,
+            });
+          } else {
+            patchState(store, {
+              loading: !hasCurrent,
+              syncing: hasCurrent,
+              usingOfflineCache: false,
+              error: null,
+            });
           }
-        }
-        if (targetOptionId) break;
-      }
 
-      const previousTrip = trip;
-      if (targetOptionId && targetGroupId) {
-        const optimisticTrip: TripDetail = {
-          ...trip,
-          days: trip.days.map((day) => ({
-            ...day,
-            options: day.options.map((opt) =>
-              opt.id !== targetOptionId
-                ? opt
-                : {
-                    ...opt,
-                    items: opt.items.map((it) =>
-                      it.choice_group_id === targetGroupId
-                        ? { ...it, is_selected: it.id === itemId }
-                        : it,
-                    ),
-                  },
-            ),
-          })),
-        };
-        patchState(store, { trip: optimisticTrip });
-      }
+          try {
+            const trip = await api.getTrip(tripId);
+            if (seq !== loadTripSeq) return;
+            cache.set(`trip.${tripId}`, trip);
+            const currentDayIdx = store.selectedDayIndex();
+            const validDayIdx = trip.days.some((d) => d.day_index === currentDayIdx)
+              ? currentDayIdx
+              : (trip.days[0]?.day_index ?? 1);
+            patchState(store, {
+              trip,
+              selectedDayIndex: validDayIdx,
+              loading: false,
+              syncing: false,
+              usingOfflineCache: false,
+            });
+          } catch (err) {
+            if (seq !== loadTripSeq) return;
+            const fallbackReady = store.trip()?.id === tripId;
+            patchState(store, {
+              loading: false,
+              syncing: false,
+              usingOfflineCache: fallbackReady,
+              error: fallbackReady
+                ? null
+                : err instanceof Error
+                  ? err.message
+                  : 'Failed to load itinerary',
+            });
+          }
+        },
 
-      try {
-        const updatedOption = await api.selectChoiceItem(itemId);
-        const latest = store.trip();
-        if (!latest) return;
-        const mergedTrip: TripDetail = {
-          ...latest,
-          days: latest.days.map((day) => ({
-            ...day,
-            options: day.options.map((opt) =>
-              opt.id === updatedOption.id ? updatedOption : opt,
-            ),
-          })),
-        };
-        cache.set(`trip.${mergedTrip.id}`, mergedTrip);
-        patchState(store, { trip: mergedTrip });
-      } catch {
-        // Revert optimistic update if the server request fails.
-        patchState(store, { trip: previousTrip });
-      }
+        async createBlankOption(label: string): Promise<void> {
+          const day = store.selectedDay();
+          const trip = store.trip();
+          if (!day || !trip) {
+            return;
+          }
+          const created = await api.addDayOption(day.id, label);
+          await this.loadTrip(trip.id);
+          this.previewOption(day.id, created.id);
+        },
+
+        async cloneCurrentOption(label: string): Promise<void> {
+          const day = store.selectedDay();
+          const option = store.selectedOption();
+          const trip = store.trip();
+          if (!day || !option || !trip) {
+            return;
+          }
+          const cloned = await api.cloneDayOption(option.id, label);
+          await this.loadTrip(trip.id);
+          this.previewOption(day.id, cloned.id);
+        },
+
+        async renameOption(optionId: string, label: string): Promise<void> {
+          const trip = store.trip();
+          if (!trip) {
+            return;
+          }
+          await api.updateDayOption(optionId, label);
+          await this.loadTrip(trip.id);
+        },
+
+        async deleteOption(dayId: string, optionId: string): Promise<void> {
+          const trip = store.trip();
+          if (!trip) {
+            return;
+          }
+          const updatedDay = await api.deleteDayOption(optionId);
+          await this.loadTrip(trip.id);
+          if (updatedDay.active_option_id) {
+            this.previewOption(dayId, updatedDay.active_option_id);
+          }
+        },
+
+        async appendDay(): Promise<void> {
+          const trip = store.trip();
+          if (!trip) {
+            return;
+          }
+          const newDay = await api.appendDay(trip.id);
+          await this.loadTrip(trip.id);
+          this.selectDay(newDay.day_index);
+        },
+
+        async updateDayTitle(dayId: string, title: string | null): Promise<void> {
+          const trip = store.trip();
+          if (!trip) {
+            return;
+          }
+          await api.updateDay(dayId, { title: title?.trim() || null });
+          await this.loadTrip(trip.id);
+        },
+
+        async selectChoiceItem(itemId: string): Promise<void> {
+          const trip = store.trip();
+          if (!trip) {
+            return;
+          }
+
+          // Optimistic 0ms UI flip so cards & map switch immediately before OSRM finishes.
+          let targetGroupId: string | null = null;
+          let targetOptionId: string | null = null;
+          for (const day of trip.days) {
+            for (const opt of day.options) {
+              const hit = opt.items.find((it) => it.id === itemId);
+              if (hit) {
+                targetGroupId = hit.choice_group_id;
+                targetOptionId = opt.id;
+                break;
+              }
+            }
+            if (targetOptionId) break;
+          }
+
+          const previousTrip = trip;
+          if (targetOptionId && targetGroupId) {
+            const optimisticTrip: TripDetail = {
+              ...trip,
+              days: trip.days.map((day) => ({
+                ...day,
+                options: day.options.map((opt) =>
+                  opt.id !== targetOptionId
+                    ? opt
+                    : {
+                        ...opt,
+                        items: opt.items.map((it) =>
+                          it.choice_group_id === targetGroupId
+                            ? { ...it, is_selected: it.id === itemId }
+                            : it,
+                        ),
+                      },
+                ),
+              })),
+            };
+            patchState(store, { trip: optimisticTrip });
+          }
+
+          try {
+            const updatedOption = await api.selectChoiceItem(itemId);
+            const latest = store.trip();
+            if (!latest) return;
+            const mergedTrip: TripDetail = {
+              ...latest,
+              days: latest.days.map((day) => ({
+                ...day,
+                options: day.options.map((opt) =>
+                  opt.id === updatedOption.id ? updatedOption : opt,
+                ),
+              })),
+            };
+            cache.set(`trip.${mergedTrip.id}`, mergedTrip);
+            patchState(store, { trip: mergedTrip });
+          } catch {
+            // Revert optimistic update if the server request fails.
+            patchState(store, { trip: previousTrip });
+          }
+        },
+
+        async setActiveOption(dayId: string, optionId: string): Promise<void> {
+          const trip = store.trip();
+          if (!trip) {
+            return;
+          }
+          await api.setActiveOption(dayId, optionId);
+          await this.loadTrip(trip.id);
+        },
+
+        async addItem(payload: CreateItemPayload): Promise<void> {
+          const option = store.selectedOption();
+          const trip = store.trip();
+          if (!option || !trip) {
+            return;
+          }
+          await api.addItem(option.id, payload);
+          await this.loadTrip(trip.id);
+        },
+
+        async updateItem(
+          itemId: string,
+          payload: Partial<CreateItemPayload>,
+        ): Promise<void> {
+          const trip = store.trip();
+          if (!trip) {
+            return;
+          }
+          await api.updateItem(itemId, payload);
+          await this.loadTrip(trip.id);
+        },
+
+        async deleteItem(itemId: string): Promise<void> {
+          const trip = store.trip();
+          if (!trip) {
+            return;
+          }
+          await api.deleteItem(itemId);
+          await this.loadTrip(trip.id);
+        },
+
+        async moveItem(item: ItineraryItem, direction: -1 | 1): Promise<void> {
+          const option = store.selectedOption();
+          const trip = store.trip();
+          if (!option || !trip) {
+            return;
+          }
+          // Group items by slot (choice_group_id) so moving skips hidden alternatives.
+          const slots = groupItemsIntoSlots(option.items);
+
+          const targetKey = item.choice_group_id ?? item.id;
+          const currentIndex = slots.findIndex((s) => s.key === targetKey);
+          const targetIndex = currentIndex + direction;
+          if (currentIndex < 0 || targetIndex < 0 || targetIndex >= slots.length) {
+            return;
+          }
+          [slots[currentIndex], slots[targetIndex]] = [
+            slots[targetIndex],
+            slots[currentIndex],
+          ];
+          const reorderedIds = slots.flatMap((s) => s.choices.map((c) => c.id));
+          await api.reorderItems(option.id, reorderedIds);
+          await this.loadTrip(trip.id);
+        },
+
+        async loadShares(tripId: string): Promise<void> {
+          const shares = await api.listShares(tripId);
+          patchState(store, { shares });
+        },
+
+        async createShare(
+          tripId: string,
+          label: string,
+          policy: ShareVisibilityPolicy,
+        ): Promise<TripShare> {
+          const share = await api.createShare(tripId, label, policy);
+          patchState(store, { shares: [share, ...store.shares()] });
+          return share;
+        },
+
+        async revokeShare(tripId: string, shareId: string): Promise<void> {
+          await api.revokeShare(tripId, shareId);
+          await this.loadShares(tripId);
+        },
+
+        reset(): void {
+          loadTripSeq += 1;
+          patchState(store, initialState);
+        },
+      };
     },
-
-    async setActiveOption(dayId: string, optionId: string): Promise<void> {
-      const trip = store.trip();
-      if (!trip) {
-        return;
-      }
-      await api.setActiveOption(dayId, optionId);
-      await this.loadTrip(trip.id);
-    },
-
-    async addItem(payload: CreateItemPayload): Promise<void> {
-      const option = store.selectedOption();
-      const trip = store.trip();
-      if (!option || !trip) {
-        return;
-      }
-      await api.addItem(option.id, payload);
-      await this.loadTrip(trip.id);
-    },
-
-    async updateItem(
-      itemId: string,
-      payload: Partial<CreateItemPayload>,
-    ): Promise<void> {
-      const trip = store.trip();
-      if (!trip) {
-        return;
-      }
-      await api.updateItem(itemId, payload);
-      await this.loadTrip(trip.id);
-    },
-
-    async deleteItem(itemId: string): Promise<void> {
-      const trip = store.trip();
-      if (!trip) {
-        return;
-      }
-      await api.deleteItem(itemId);
-      await this.loadTrip(trip.id);
-    },
-
-    async moveItem(item: ItineraryItem, direction: -1 | 1): Promise<void> {
-      const option = store.selectedOption();
-      const trip = store.trip();
-      if (!option || !trip) {
-        return;
-      }
-      // Group items by slot (choice_group_id) so moving skips hidden alternatives.
-      const slots: { key: string; ids: string[] }[] = [];
-      const seenGroups = new Set<string>();
-      for (const entry of option.items) {
-        if (!entry.choice_group_id) {
-          slots.push({ key: entry.id, ids: [entry.id] });
-          continue;
-        }
-        if (seenGroups.has(entry.choice_group_id)) {
-          continue;
-        }
-        seenGroups.add(entry.choice_group_id);
-        const groupIds = option.items
-          .filter((i) => i.choice_group_id === entry.choice_group_id)
-          .map((i) => i.id);
-        slots.push({ key: entry.choice_group_id, ids: groupIds });
-      }
-
-      const targetKey = item.choice_group_id ?? item.id;
-      const currentIndex = slots.findIndex((s) => s.key === targetKey);
-      const targetIndex = currentIndex + direction;
-      if (currentIndex < 0 || targetIndex < 0 || targetIndex >= slots.length) {
-        return;
-      }
-      [slots[currentIndex], slots[targetIndex]] = [
-        slots[targetIndex],
-        slots[currentIndex],
-      ];
-      const reorderedIds = slots.flatMap((s) => s.ids);
-      await api.reorderItems(option.id, reorderedIds);
-      await this.loadTrip(trip.id);
-    },
-
-    async loadShares(tripId: string): Promise<void> {
-      const shares = await api.listShares(tripId);
-      patchState(store, { shares });
-    },
-
-    async createShare(
-      tripId: string,
-      label: string,
-      policy: ShareVisibilityPolicy,
-    ): Promise<TripShare> {
-      const share = await api.createShare(tripId, label, policy);
-      patchState(store, { shares: [share, ...store.shares()] });
-      return share;
-    },
-
-    async revokeShare(tripId: string, shareId: string): Promise<void> {
-      await api.revokeShare(tripId, shareId);
-      await this.loadShares(tripId);
-    },
-  })),
+  ),
 );

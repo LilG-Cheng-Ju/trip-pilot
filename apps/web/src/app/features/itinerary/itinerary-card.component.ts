@@ -2,7 +2,6 @@ import {
   Component,
   computed,
   ElementRef,
-  HostListener,
   inject,
   input,
   output,
@@ -14,13 +13,21 @@ import { COPY_FEEDBACK_DURATION_MS } from '../../core/constants/app-limits';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ItemAttachment, ItineraryItem } from '../../core/models/tripilot.models';
-import { extractItemAttachments } from '../../core/utils/travel-format.utils';
+import {
+  buildGoogleMapsUrl,
+  extractItemAttachments,
+  getItemDetailString,
+} from '../../core/utils/travel-format.utils';
 import { ItemExpenseSummary } from '../../state/expense.store';
 
 /** Renders split-transit and venue itinerary cards with synced map pins, attachments, and 1-tap expense logging. */
 @Component({
   selector: 'app-itinerary-card',
   imports: [RouterLink, TranslatePipe],
+  host: {
+    '(document:click)': 'onDocumentClick($event)',
+    '(document:keydown.escape)': 'onEscape()',
+  },
   template: `
     @if (item().type === 'LOCAL_TRANSIT') {
       <div class="connector-wrap">
@@ -1077,7 +1084,6 @@ export class ItineraryCardComponent {
     this.deleted.emit(this.item().id);
   }
 
-  @HostListener('document:click', ['$event'])
   protected onDocumentClick(event: MouseEvent): void {
     if (!this.menuOpen()) {
       return;
@@ -1089,7 +1095,6 @@ export class ItineraryCardComponent {
     }
   }
 
-  @HostListener('document:keydown.escape')
   protected onEscape(): void {
     if (this.menuOpen()) {
       this.menuOpen.set(false);
@@ -1107,8 +1112,7 @@ export class ItineraryCardComponent {
   }
 
   protected detail(key: string): string | null {
-    const val = this.item().details?.[key];
-    return val === undefined || val === null || val === '' ? null : String(val);
+    return getItemDetailString(this.item().details, key);
   }
 
   protected typeIcon(): string {
@@ -1152,16 +1156,6 @@ export class ItineraryCardComponent {
   }
 
   protected mapsUrl(): string | null {
-    const it = this.item();
-    if (it.google_maps_url) {
-      return it.google_maps_url;
-    }
-    if (it.latitude !== null && it.longitude !== null) {
-      return `https://www.google.com/maps/search/?api=1&query=${it.latitude},${it.longitude}`;
-    }
-    if (it.address) {
-      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(it.address)}`;
-    }
-    return null;
+    return buildGoogleMapsUrl(this.item());
   }
 }

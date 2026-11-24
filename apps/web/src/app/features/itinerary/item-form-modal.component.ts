@@ -13,6 +13,7 @@ import {
   ItineraryItem,
   PlaceCandidate,
 } from '../../core/models/tripilot.models';
+import { extractItemAttachments } from '../../core/utils/travel-format.utils';
 import { AppModalComponent } from '../../shared/modal.component';
 import { AppTimeInputComponent } from '../../shared/time-input.component';
 
@@ -650,21 +651,9 @@ export class ItemFormModalComponent {
         this.transitMin = d['duration_minutes'] ? Number(d['duration_minutes']) : 15;
         this.freeCancel = String(d['free_cancellation_deadline'] ?? '');
         this.localName = String(d['local_name'] ?? '');
-        const rawAttachments = d['attachments'];
-        const parsedAttachments: ItemAttachment[] = Array.isArray(rawAttachments)
-          ? rawAttachments
-              .filter(
-                (entry): entry is ItemAttachment =>
-                  typeof entry === 'object' &&
-                  entry !== null &&
-                  typeof (entry as ItemAttachment).url === 'string' &&
-                  (entry as ItemAttachment).url.trim().length > 0,
-              )
-              .map((entry) => ({
-                name: entry.name?.trim() || this.deriveAttachmentName(entry.url),
-                url: entry.url.trim(),
-              }))
-          : [];
+        const parsedAttachments = extractItemAttachments(d, (url) =>
+          this.deriveAttachmentName(url),
+        );
         this.attachments.set(parsedAttachments);
 
         if (edit.latitude !== null && edit.longitude !== null) {

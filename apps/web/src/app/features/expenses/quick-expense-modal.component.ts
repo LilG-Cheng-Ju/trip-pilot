@@ -2,8 +2,12 @@ import { Component, computed, effect, inject, input, output, signal } from '@ang
 import { FormsModule } from '@angular/forms';
 
 import { TripilotApiService } from '../../core/api/tripilot-api.service';
-import { COMMON_CURRENCIES, CurrencyOption } from '../../core/config/currencies';
+import { OfflineCacheService } from '../../core/cache/offline-cache.service';
 import { ISO_CURRENCY_CODE_LENGTH } from '../../core/constants/app-limits';
+import {
+  COMMON_CURRENCIES,
+  QuickCurrencyOption,
+} from '../../core/constants/travel-options';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ExpenseCategory, ItineraryItem } from '../../core/models/tripilot.models';
 import {
@@ -275,6 +279,7 @@ export class QuickExpenseModalComponent {
   readonly saved = output<void>();
 
   private readonly api = inject(TripilotApiService);
+  private readonly cache = inject(OfflineCacheService);
   private readonly expenseStore = inject(ExpenseStore);
 
   protected readonly categories = EXPENSE_CATEGORIES;
@@ -282,8 +287,8 @@ export class QuickExpenseModalComponent {
   protected readonly submitting = signal(false);
   protected readonly fetchingRate = signal(false);
 
-  protected readonly currencyOptions = computed<CurrencyOption[]>(() => {
-    const list: CurrencyOption[] = [...COMMON_CURRENCIES];
+  protected readonly currencyOptions = computed<QuickCurrencyOption[]>(() => {
+    const list: QuickCurrencyOption[] = [...COMMON_CURRENCIES];
     for (const code of [this.defaultCurrency(), this.homeCurrency()]) {
       const upper = code?.trim().toUpperCase();
       if (
@@ -352,8 +357,9 @@ export class QuickExpenseModalComponent {
     try {
       const res = await this.api.getExchangeRate(src, dst);
       this.exchangeRate = res.rate;
+      this.cache.setFxRate(src, res.rate);
     } catch {
-      this.exchangeRate = 1;
+      this.exchangeRate = this.cache.getFxRate(src) ?? 1;
     } finally {
       this.fetchingRate.set(false);
     }

@@ -1,8 +1,11 @@
-import { Component, HostListener, input, output } from '@angular/core';
+import { Component, input, output } from '@angular/core';
 
 /** Reusable modal dialog (centered card on desktop, bottom sheet on mobile). */
 @Component({
   selector: 'app-modal',
+  host: {
+    '(document:keydown.escape)': 'onEscape()',
+  },
   template: `
     @if (open()) {
       <div class="modal-backdrop" (click)="closed.emit()">
@@ -92,7 +95,6 @@ export class AppModalComponent {
   readonly title = input('');
   readonly closed = output<void>();
 
-  @HostListener('document:keydown.escape')
   onEscape(): void {
     if (this.open()) {
       this.closed.emit();

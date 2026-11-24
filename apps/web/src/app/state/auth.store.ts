@@ -67,5 +67,9 @@ export const AuthStore = signalStore(
       await api.revokeToken(tokenId);
       await this.loadTokens();
     },
+
+    reset(): void {
+      patchState(store, initialState);
+    },
   })),
 );

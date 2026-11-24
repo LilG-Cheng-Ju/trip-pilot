@@ -9,6 +9,12 @@ import {
 } from '../../core/constants/app-limits';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ItineraryItem } from '../../core/models/tripilot.models';
+import {
+  buildGoogleMapsUrl,
+  getItemDetailString,
+  groupItemsIntoSlots,
+  ItinerarySlot,
+} from '../../core/utils/travel-format.utils';
 import { AppModalComponent } from '../../shared/modal.component';
 import { TripSubnavComponent } from '../../shared/trip-subnav.component';
 import { ExpenseStore } from '../../state/expense.store';
@@ -25,12 +31,6 @@ import {
   MapPin,
   StayMapPin,
 } from './itinerary-map.component';
-
-interface TimelineSlot {
-  key: string;
-  activeItem: ItineraryItem;
-  choices: ItineraryItem[];
-}
 
 /** Mobile-first itinerary timeline with Day 1..N, Plan A/B, slot choices, and map sync. */
 @Component({
@@ -1381,33 +1381,9 @@ export class ItineraryPageComponent implements OnInit {
   );
 
   /** Groups items sharing a choice_group_id into single timeline slots. */
-  protected readonly timelineSlots = computed<TimelineSlot[]>(() => {
+  protected readonly timelineSlots = computed<ItinerarySlot[]>(() => {
     const option = this.store.selectedOption();
-    if (!option) return [];
-
-    const slots: TimelineSlot[] = [];
-    const seenGroups = new Set<string>();
-
-    for (const item of option.items) {
-      if (!item.choice_group_id) {
-        slots.push({ key: item.id, activeItem: item, choices: [item] });
-        continue;
-      }
-      if (seenGroups.has(item.choice_group_id)) {
-        continue;
-      }
-      seenGroups.add(item.choice_group_id);
-      const groupItems = option.items.filter(
-        (candidate) => candidate.choice_group_id === item.choice_group_id,
-      );
-      const activeItem = groupItems.find((c) => c.is_selected) ?? groupItems[0];
-      slots.push({
-        key: item.choice_group_id,
-        activeItem,
-        choices: groupItems,
-      });
-    }
-    return slots;
+    return option ? groupItemsIntoSlots(option.items) : [];
   });
 
   protected readonly stayMapPin = computed<StayMapPin | null>(() => {
@@ -1506,19 +1482,11 @@ export class ItineraryPageComponent implements OnInit {
   protected readonly dayStripScrollStepPx = DAY_STRIP_SCROLL_STEP_PX;
 
   protected itemMapsUrl(item: ItineraryItem): string | null {
-    if (item.google_maps_url) return item.google_maps_url;
-    if (item.latitude !== null && item.longitude !== null) {
-      return `https://www.google.com/maps/search/?api=1&query=${item.latitude},${item.longitude}`;
-    }
-    if (item.address) {
-      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.address)}`;
-    }
-    return null;
+    return buildGoogleMapsUrl(item);
   }
 
   protected itemLocalName(item: ItineraryItem): string | null {
-    const val = item.details?.['local_name'];
-    return val === undefined || val === null || val === '' ? null : String(val);
+    return getItemDetailString(item.details, 'local_name');
   }
 
   protected async copyMiniLocalName(text: string): Promise<void> {

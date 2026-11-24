@@ -24,26 +24,38 @@ const initialState: StatsState = {
 export const StatsStore = signalStore(
   { providedIn: 'root' },
   withState(initialState),
-  withMethods((store, api = inject(TripilotApiService)) => ({
-    async loadStats(
-      year: number | null = store.selectedYear(),
-      scope: StatsScope = store.selectedScope(),
-    ): Promise<void> {
-      patchState(store, {
-        selectedYear: year,
-        selectedScope: scope,
-        loading: true,
-        error: null,
-      });
-      try {
-        const stats = await api.getStats(year, scope);
-        patchState(store, { stats, loading: false });
-      } catch (err) {
+  withMethods((store, api = inject(TripilotApiService)) => {
+    let loadStatsSeq = 0;
+
+    return {
+      async loadStats(
+        year: number | null = store.selectedYear(),
+        scope: StatsScope = store.selectedScope(),
+      ): Promise<void> {
+        const seq = ++loadStatsSeq;
         patchState(store, {
-          loading: false,
-          error: err instanceof Error ? err.message : 'Failed to load stats',
+          selectedYear: year,
+          selectedScope: scope,
+          loading: true,
+          error: null,
         });
-      }
-    },
-  })),
+        try {
+          const stats = await api.getStats(year, scope);
+          if (seq !== loadStatsSeq) return;
+          patchState(store, { stats, loading: false });
+        } catch (err) {
+          if (seq !== loadStatsSeq) return;
+          patchState(store, {
+            loading: false,
+            error: err instanceof Error ? err.message : 'Failed to load stats',
+          });
+        }
+      },
+
+      reset(): void {
+        loadStatsSeq += 1;
+        patchState(store, initialState);
+      },
+    };
+  }),
 );

@@ -16,6 +16,10 @@ import {
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { TripSummary } from '../../core/models/tripilot.models';
+import {
+  addDaysToIsoDate,
+  formatLocalIsoDate,
+} from '../../core/utils/travel-format.utils';
 import { AppCountryPickerComponent } from '../../shared/country-picker.component';
 import { AppModalComponent } from '../../shared/modal.component';
 import { AuthStore } from '../../state/auth.store';
@@ -215,9 +219,9 @@ type DateEndMode = 'end' | 'duration' | 'open';
             <span>{{ 'trips.form.startDate' | t }} <em class="req">*</em></span>
             <input
               type="date"
-              [(ngModel)]="startDate"
+              [ngModel]="startDate()"
               name="startDate"
-              (ngModelChange)="dateError.set(null)"
+              (ngModelChange)="startDate.set($event); dateError.set(null)"
             />
           </label>
 
@@ -265,7 +269,7 @@ type DateEndMode = 'end' | 'duration' | 'open';
                 <button
                   type="button"
                   class="step-btn"
-                  (click)="durationDays = Math.max(minTripDurationDays, durationDays - 1)"
+                  (click)="durationDays.set(Math.max(minTripDurationDays, durationDays() - 1))"
                 >
                   <span class="ms-icon sm">remove</span>
                 </button>
@@ -274,13 +278,14 @@ type DateEndMode = 'end' | 'duration' | 'open';
                   [min]="minTripDurationDays"
                   [max]="maxTripDurationDays"
                   class="tabular-nums step-input"
-                  [(ngModel)]="durationDays"
+                  [ngModel]="durationDays()"
+                  (ngModelChange)="durationDays.set(+$event || minTripDurationDays)"
                   name="durationDays"
                 />
                 <button
                   type="button"
                   class="step-btn"
-                  (click)="durationDays = Math.min(maxTripDurationDays, durationDays + 1)"
+                  (click)="durationDays.set(Math.min(maxTripDurationDays, durationDays() + 1))"
                 >
                   <span class="ms-icon sm">add</span>
                 </button>
@@ -640,19 +645,14 @@ export class TripsPageComponent implements OnInit {
   protected title = '';
   protected destination = '';
   protected defaultCurrency = 'JPY';
-  protected startDate = new Date().toISOString().slice(0, 10);
-  protected endDate = new Date(
-    Date.now() + (DEFAULT_TRIP_DURATION_DAYS - 1) * MS_PER_DAY,
-  )
-    .toISOString()
-    .slice(0, 10);
-  protected durationDays = DEFAULT_TRIP_DURATION_DAYS;
+  protected readonly startDate = signal(formatLocalIsoDate());
+  protected endDate = addDaysToIsoDate(formatLocalIsoDate(), DEFAULT_TRIP_DURATION_DAYS - 1);
+  protected readonly durationDays = signal(DEFAULT_TRIP_DURATION_DAYS);
 
   protected readonly computedEndDate = computed(() => {
-    if (!this.startDate) return '';
-    const d = new Date(`${this.startDate}T00:00:00`);
-    d.setDate(d.getDate() + Math.max(0, this.durationDays - 1));
-    return d.toISOString().slice(0, 10);
+    const start = this.startDate();
+    if (!start) return '';
+    return addDaysToIsoDate(start, Math.max(0, this.durationDays() - 1));
   });
 
   ngOnInit(): void {
@@ -732,22 +732,21 @@ export class TripsPageComponent implements OnInit {
       this.countryError.set(true);
       hasError = true;
     }
-    if (!this.startDate) {
+    const start = this.startDate();
+    if (!start) {
       this.dateError.set('trips.err.startRequired');
       hasError = true;
     }
 
-    let resolvedEndDate = this.startDate;
+    let resolvedEndDate = start;
     if (this.dateEndMode() === 'end') {
-      resolvedEndDate = this.endDate || this.startDate;
-      if (this.startDate && resolvedEndDate < this.startDate) {
+      resolvedEndDate = this.endDate || start;
+      if (start && resolvedEndDate < start) {
         this.dateError.set('trips.err.endBeforeStart');
         hasError = true;
       }
     } else if (this.dateEndMode() === 'duration') {
-      const startObj = new Date(`${this.startDate}T00:00:00`);
-      startObj.setDate(startObj.getDate() + Math.max(0, this.durationDays - 1));
-      resolvedEndDate = startObj.toISOString().slice(0, 10);
+      resolvedEndDate = addDaysToIsoDate(start, Math.max(0, this.durationDays() - 1));
     }
 
     if (hasError) {
@@ -767,7 +766,7 @@ export class TripsPageComponent implements OnInit {
         title: this.title.trim(),
         destination_summary: this.destination.trim() || null,
         country_codes: countryCodes,
-        start_date: this.startDate,
+        start_date: start,
         end_date: resolvedEndDate,
         default_currency: currencyCode,
       });

@@ -1,11 +1,13 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 
-import { COPY_FEEDBACK_DURATION_MS } from '../../core/constants/app-limits';
+import { COPY_FEEDBACK_DURATION_MS, MS_PER_DAY } from '../../core/constants/app-limits';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ItemAttachment, ItineraryItem } from '../../core/models/tripilot.models';
 import {
+  buildGoogleMapsUrl,
   extractItemAttachments,
+  getItemDetailString,
   getSelectedDayItems,
 } from '../../core/utils/travel-format.utils';
 import { TripSubnavComponent } from '../../shared/trip-subnav.component';
@@ -625,19 +627,11 @@ export class TripBriefPageComponent implements OnInit {
   }
 
   protected detail(item: ItineraryItem, key: string): string | null {
-    const val = item.details?.[key];
-    return val === undefined || val === null || val === '' ? null : String(val);
+    return getItemDetailString(item.details, key);
   }
 
   protected mapsUrl(item: ItineraryItem): string | null {
-    if (item.google_maps_url) return item.google_maps_url;
-    if (item.latitude !== null && item.longitude !== null) {
-      return `https://www.google.com/maps/search/?api=1&query=${item.latitude},${item.longitude}`;
-    }
-    if (item.address) {
-      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.address)}`;
-    }
-    return null;
+    return buildGoogleMapsUrl(item);
   }
 
   protected async copyText(id: string, text: string): Promise<void> {
@@ -673,6 +667,6 @@ export class TripBriefPageComponent implements OnInit {
     if (Number.isNaN(start) || Number.isNaN(end)) {
       return 1;
     }
-    return Math.round((end - start) / 86_400_000);
+    return Math.round((end - start) / MS_PER_DAY);
   }
 }

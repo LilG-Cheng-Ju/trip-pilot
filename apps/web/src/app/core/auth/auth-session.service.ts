@@ -28,6 +28,7 @@ export class AuthSessionService {
   );
 
   private firebaseAuthInstance: unknown = null;
+  private currentFirebaseUser: { getIdToken: () => Promise<string> } | null = null;
   private readyResolve: (() => void) | null = null;
   private readonly readyPromise: Promise<void>;
 
@@ -56,6 +57,23 @@ export class AuthSessionService {
     } catch {
       return DEFAULT_DEV_TOKEN;
     }
+  }
+
+  /** Return a fresh Bearer token, letting Firebase SDK auto-refresh expired JWTs. */
+  async getFreshBearerToken(): Promise<string> {
+    if (!this.isFirebaseEnabled()) {
+      return this.getBearerToken();
+    }
+    if (this.currentFirebaseUser) {
+      try {
+        const fresh = await this.currentFirebaseUser.getIdToken();
+        this.idToken.set(fresh);
+        return fresh;
+      } catch {
+        return this.idToken() ?? '';
+      }
+    }
+    return this.idToken() ?? '';
   }
 
   async signInWithGoogle(): Promise<void> {
@@ -103,6 +121,7 @@ export class AuthSessionService {
     photoURL?: string | null;
     getIdToken: () => Promise<string>;
   }): Promise<void> {
+    this.currentFirebaseUser = user;
     const token = await user.getIdToken();
     this.idToken.set(token);
     this.emailSignal.set(user.email ?? null);
@@ -116,6 +135,7 @@ export class AuthSessionService {
     }
     const authMod = await this.loadFirebaseAuthModule();
     await authMod.signOut(this.firebaseAuthInstance);
+    this.currentFirebaseUser = null;
     this.idToken.set(null);
     this.emailSignal.set(null);
     this.displayNameSignal.set(null);
@@ -144,11 +164,13 @@ export class AuthSessionService {
           } | null,
         ) => {
           if (user) {
+            this.currentFirebaseUser = user;
             this.idToken.set(await user.getIdToken());
             this.emailSignal.set(user.email ?? null);
             this.displayNameSignal.set(user.displayName ?? null);
             this.photoUrlSignal.set(user.photoURL ?? null);
           } else {
+            this.currentFirebaseUser = null;
             this.idToken.set(null);
             this.emailSignal.set(null);
             this.displayNameSignal.set(null);

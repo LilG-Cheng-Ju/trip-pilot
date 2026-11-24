@@ -4,6 +4,11 @@ export interface CurrencyOption {
   labelZh: string;
 }
 
+export interface QuickCurrencyOption {
+  code: string;
+  label: string;
+}
+
 export interface CountryOption {
   code: string;
   nameEn: string;
@@ -19,6 +24,27 @@ export const SUPPORTED_CURRENCIES: readonly CurrencyOption[] = [
   { code: 'CNY', labelEn: 'CNY — Chinese Yuan', labelZh: 'CNY 人民幣' },
   { code: 'EUR', labelEn: 'EUR — Euro', labelZh: 'EUR 歐元' },
   { code: 'KRW', labelEn: 'KRW — South Korean Won', labelZh: 'KRW 韓元' },
+];
+
+/** Common currency choices for multi-currency expense logging. */
+export const COMMON_CURRENCIES: readonly QuickCurrencyOption[] = [
+  { code: 'TWD', label: 'TWD · NT$' },
+  { code: 'JPY', label: 'JPY · ¥' },
+  { code: 'KRW', label: 'KRW · ₩' },
+  { code: 'USD', label: 'USD · $' },
+  { code: 'EUR', label: 'EUR · €' },
+  { code: 'GBP', label: 'GBP · £' },
+  { code: 'THB', label: 'THB · ฿' },
+  { code: 'SGD', label: 'SGD · S$' },
+  { code: 'HKD', label: 'HKD · HK$' },
+  { code: 'CNY', label: 'CNY · ¥' },
+  { code: 'AUD', label: 'AUD · A$' },
+  { code: 'CAD', label: 'CAD · C$' },
+  { code: 'CHF', label: 'CHF · Fr' },
+  { code: 'VND', label: 'VND · ₫' },
+  { code: 'MYR', label: 'MYR · RM' },
+  { code: 'PHP', label: 'PHP · ₱' },
+  { code: 'IDR', label: 'IDR · Rp' },
 ];
 
 /** Broad global travel country list with bilingual labels and default currency. */
@@ -81,6 +107,10 @@ export const SUPPORTED_COUNTRIES: readonly CountryOption[] = [
   { code: 'NZ', nameEn: 'New Zealand', nameZh: '紐西蘭', defaultCurrency: 'USD' },
 ];
 
+const COUNTRY_BY_CODE = new Map<string, CountryOption>(
+  SUPPORTED_COUNTRIES.map((country) => [country.code, country]),
+);
+
 export function findCountry(code: string): CountryOption | undefined {
-  return SUPPORTED_COUNTRIES.find((c) => c.code === code.toUpperCase());
+  return COUNTRY_BY_CODE.get(code.toUpperCase());
 }
