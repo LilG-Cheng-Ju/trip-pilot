@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
-from app.core.auth import AuthContext, get_auth_context
+from app.core.auth import AuthContext, require_scope
 from app.core.constants import PLACES_DEFAULT_LIMIT, PLACES_MAX_LIMIT
 from app.services.places import (
     PlaceCandidate,
@@ -14,7 +14,7 @@ from app.services.places import (
 )
 
 router = APIRouter(tags=["places"])
-CurrentAuth = Annotated[AuthContext, Depends(get_auth_context)]
+ReadTripsAuth = Annotated[AuthContext, Depends(require_scope("trips:read"))]
 
 
 class PlaceCandidateResponse(BaseModel):
@@ -43,7 +43,7 @@ def _to_response(candidate: PlaceCandidate) -> PlaceCandidateResponse:
 
 @router.get("/places/search", response_model=list[PlaceCandidateResponse])
 async def search_places(
-    _auth_ctx: CurrentAuth,
+    _auth_ctx: ReadTripsAuth,
     q: Annotated[str, Query(min_length=1, max_length=120)],
     lang: Annotated[str, Query(max_length=10)] = "zh-TW",
     limit: Annotated[int, Query(ge=1, le=PLACES_MAX_LIMIT)] = PLACES_DEFAULT_LIMIT,
@@ -63,7 +63,7 @@ async def search_places(
 @router.post("/places/resolve-url", response_model=PlaceCandidateResponse)
 async def resolve_place_url(
     payload: ResolveUrlRequest,
-    _auth_ctx: CurrentAuth,
+    _auth_ctx: ReadTripsAuth,
 ) -> PlaceCandidateResponse:
     """Resolve a full or shortened Google Maps URL into name and coordinates."""
     resolved = await resolve_google_maps_url(payload.url)

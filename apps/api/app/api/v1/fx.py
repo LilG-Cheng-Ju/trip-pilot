@@ -5,11 +5,11 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
-from app.core.auth import AuthContext, get_auth_context
+from app.core.auth import AuthContext, require_scope
 from app.services.fx_service import get_fx_provider
 
 router = APIRouter(tags=["fx"])
-CurrentAuth = Annotated[AuthContext, Depends(get_auth_context)]
+ReadExpensesAuth = Annotated[AuthContext, Depends(require_scope("expenses:read"))]
 
 
 class FxRateResponse(BaseModel):
@@ -22,7 +22,7 @@ class FxRateResponse(BaseModel):
 
 @router.get("/fx/rate", response_model=FxRateResponse)
 async def get_fx_rate(
-    _auth_ctx: CurrentAuth,
+    _auth_ctx: ReadExpensesAuth,
     from_currency: Annotated[str, Query(alias="from", min_length=3, max_length=3)],
     to_currency: Annotated[str, Query(alias="to", min_length=3, max_length=3)],
 ) -> FxRateResponse:

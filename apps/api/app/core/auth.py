@@ -3,6 +3,7 @@
 import asyncio
 import hashlib
 import secrets
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -16,14 +17,16 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from firebase_admin import auth as firebase_auth
 from firebase_admin import credentials
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
-from app.core.constants import API_TOKEN_PREFIX_LENGTH
+from app.core.constants import API_TOKEN_PREFIX_LENGTH, PAT_LAST_USED_MIN_INTERVAL_SEC
 from app.core.database import get_db
 from app.models import ApiToken, User
 
 PAT_PREFIX = "tp_pat_"
+_firebase_init_lock = threading.Lock()
 
 ALL_SCOPES: tuple[str, ...] = (
     "trips:read",
@@ -73,18 +76,21 @@ def generate_personal_token() -> tuple[str, str, str]:
 def _ensure_firebase_initialized(settings: Settings) -> None:
     if firebase_admin._apps:
         return
+    with _firebase_init_lock:
+        if firebase_admin._apps:
+            return
 
-    cred_path = (
-        Path(settings.firebase_credentials_path)
-        if settings.firebase_credentials_path
-        else Path(__file__).resolve().parents[2]
-        / "config"
-        / "firebase-service-account.json"
-    )
-    if cred_path.exists():
-        firebase_admin.initialize_app(credentials.Certificate(str(cred_path)))
-    else:
-        firebase_admin.initialize_app()
+        cred_path = (
+            Path(settings.firebase_credentials_path)
+            if settings.firebase_credentials_path
+            else Path(__file__).resolve().parents[2]
+            / "config"
+            / "firebase-service-account.json"
+        )
+        if cred_path.exists():
+            firebase_admin.initialize_app(credentials.Certificate(str(cred_path)))
+        else:
+            firebase_admin.initialize_app()
 
 
 async def _get_or_create_user(
@@ -100,9 +106,18 @@ async def _get_or_create_user(
         display_name=email.split("@")[0] if email else "Traveler",
     )
     db.add(user)
-    await db.commit()
-    await db.refresh(user)
-    return user
+    try:
+        await db.commit()
+        await db.refresh(user)
+        return user
+    except IntegrityError:
+        await db.rollback()
+        existing = await db.scalar(
+            select(User).where(User.firebase_uid == firebase_uid)
+        )
+        if existing is not None:
+            return existing
+        raise
 
 
 async def _verify_pat(db: AsyncSession, raw_token: str) -> AuthContext:
@@ -135,8 +150,16 @@ async def _verify_pat(db: AsyncSession, raw_token: str) -> AuthContext:
             detail="Token owner not found",
         )
 
-    api_token.last_used_at = now
-    await db.commit()
+    # Throttle last_used_at updates to cut write amplification on MCP reads.
+    last_used = api_token.last_used_at
+    if last_used is not None and last_used.tzinfo is None:
+        last_used = last_used.replace(tzinfo=UTC)
+    if (
+        last_used is None
+        or (now - last_used).total_seconds() >= PAT_LAST_USED_MIN_INTERVAL_SEC
+    ):
+        api_token.last_used_at = now
+        await db.commit()
     return AuthContext(
         user=user,
         method=AuthMethod.PAT,
@@ -203,6 +226,18 @@ async def get_auth_context(
         )
 
     return await _verify_firebase(db, raw_token, settings)
+
+
+def require_human_auth(
+    auth_ctx: Annotated[AuthContext, Depends(get_auth_context)],
+) -> AuthContext:
+    """Restrict account/token routes to interactive Firebase or DEV sessions."""
+    if auth_ctx.method == AuthMethod.PAT:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Personal API Tokens cannot manage account or token settings",
+        )
+    return auth_ctx
 
 
 def require_scope(scope: str) -> Callable[..., AuthContext]:

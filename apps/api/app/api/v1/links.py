@@ -8,7 +8,7 @@ from urllib.parse import urljoin, urlparse
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from app.core.auth import AuthContext, get_auth_context
+from app.core.auth import AuthContext, require_scope
 from app.core.constants import (
     LINK_HTML_MAX_BYTES,
     LINK_MAX_REDIRECTS,
@@ -156,7 +156,7 @@ async def fetch_cloud_link_title(url: str) -> str | None:
 @router.post("/resolve-title", response_model=ResolveLinkTitleResponse)
 async def resolve_link_title(
     payload: ResolveLinkTitleRequest,
-    _: Annotated[AuthContext, Depends(get_auth_context)],
+    _: Annotated[AuthContext, Depends(require_scope("trips:read"))],
 ) -> ResolveLinkTitleResponse:
     """Resolve a human-readable filename/title from a whitelisted cloud share link."""
     try:

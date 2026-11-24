@@ -9,9 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import (
     AuthContext,
-    AuthMethod,
     generate_personal_token,
     get_auth_context,
+    require_human_auth,
 )
 from app.core.database import get_db
 from app.models import ApiToken
@@ -26,6 +26,7 @@ from app.schemas.auth import (
 router = APIRouter(tags=["account"])
 
 CurrentAuth = Annotated[AuthContext, Depends(get_auth_context)]
+HumanAuth = Annotated[AuthContext, Depends(require_human_auth)]
 DbSession = Annotated[AsyncSession, Depends(get_db)]
 
 
@@ -38,7 +39,7 @@ async def get_me(auth_ctx: CurrentAuth) -> UserProfileResponse:
 @router.patch("/me", response_model=UserProfileResponse)
 async def update_me(
     payload: UserProfileUpdate,
-    auth_ctx: CurrentAuth,
+    auth_ctx: HumanAuth,
     db: DbSession,
 ) -> UserProfileResponse:
     """Update the authenticated user's profile preferences."""
@@ -52,7 +53,7 @@ async def update_me(
 
 @router.get("/tokens", response_model=list[ApiTokenResponse])
 async def list_tokens(
-    auth_ctx: CurrentAuth,
+    auth_ctx: HumanAuth,
     db: DbSession,
 ) -> list[ApiTokenResponse]:
     """List Personal API Tokens owned by the current user."""
@@ -73,16 +74,10 @@ async def list_tokens(
 )
 async def create_token(
     payload: ApiTokenCreate,
-    auth_ctx: CurrentAuth,
+    auth_ctx: HumanAuth,
     db: DbSession,
 ) -> ApiTokenCreatedResponse:
     """Mint a new Personal API Token (disallowed when authenticating via PAT)."""
-    if auth_ctx.method == AuthMethod.PAT:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Personal API Tokens cannot mint additional tokens",
-        )
-
     plaintext, prefix, token_hash = generate_personal_token()
     token = ApiToken(
         user_id=auth_ctx.user.id,
@@ -105,7 +100,7 @@ async def create_token(
 @router.delete("/tokens/{token_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def revoke_token(
     token_id: str,
-    auth_ctx: CurrentAuth,
+    auth_ctx: HumanAuth,
     db: DbSession,
 ) -> None:
     """Revoke an existing Personal API Token owned by the caller."""

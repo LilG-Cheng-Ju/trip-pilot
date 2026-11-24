@@ -50,7 +50,7 @@ async def test_pat_lifecycle_and_restrictions(
     me_resp = await api_client.get("/api/v1/me", headers=pat_headers)
     assert me_resp.status_code == 200
 
-    # PAT cannot mint another PAT.
+    # PAT cannot mint another PAT, mutate user preferences, or enumerate/revoke tokens.
     mint_resp = await api_client.post(
         "/api/v1/tokens",
         headers=pat_headers,
@@ -58,7 +58,22 @@ async def test_pat_lifecycle_and_restrictions(
     )
     assert mint_resp.status_code == 403
 
-    # Revoking the PAT immediately invalidates it.
+    patch_me_resp = await api_client.patch(
+        "/api/v1/me",
+        headers=pat_headers,
+        json={"home_currency": "USD"},
+    )
+    assert patch_me_resp.status_code == 403
+
+    list_tok_resp = await api_client.get("/api/v1/tokens", headers=pat_headers)
+    assert list_tok_resp.status_code == 403
+
+    revoke_tok_resp = await api_client.delete(
+        f"/api/v1/tokens/{token_data['id']}", headers=pat_headers
+    )
+    assert revoke_tok_resp.status_code == 403
+
+    # Revoking the PAT via human session immediately invalidates it.
     del_resp = await api_client.delete(
         f"/api/v1/tokens/{token_data['id']}", headers=dev_headers
     )
@@ -66,3 +81,30 @@ async def test_pat_lifecycle_and_restrictions(
 
     revoked_resp = await api_client.get("/api/v1/me", headers=pat_headers)
     assert revoked_resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_auxiliary_endpoints_enforce_pat_scopes(
+    api_client: AsyncClient, dev_headers: dict[str, str]
+) -> None:
+    create_resp = await api_client.post(
+        "/api/v1/tokens",
+        headers=dev_headers,
+        json={"name": "Trips Reader", "scopes": ["trips:read"]},
+    )
+    assert create_resp.status_code == 201
+    pat_headers = {"Authorization": f"Bearer {create_resp.json()['plaintext_token']}"}
+
+    # trips:read permits link/place utilities (400 here is SSRF validation, not 403).
+    link_resp = await api_client.post(
+        "/api/v1/links/resolve-title",
+        headers=pat_headers,
+        json={"url": "http://169.254.169.254/latest/meta-data/"},
+    )
+    assert link_resp.status_code == 400
+
+    # trips:read alone is rejected by FX endpoint which requires expenses:read.
+    fx_resp = await api_client.get(
+        "/api/v1/fx/rate?from=TWD&to=TWD", headers=pat_headers
+    )
+    assert fx_resp.status_code == 403

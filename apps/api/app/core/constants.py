@@ -9,6 +9,7 @@ STATS_MAX_YEAR = 2100
 
 # Authentication & token formatting
 API_TOKEN_PREFIX_LENGTH = 14
+PAT_LAST_USED_MIN_INTERVAL_SEC = 300
 
 # External service limits & timeouts
 AIRPORTS_DEFAULT_LIMIT = 10
