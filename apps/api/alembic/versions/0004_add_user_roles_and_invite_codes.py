@@ -1,6 +1,6 @@
 """add_user_roles_and_invite_codes
 
-Revision ID: 0004_add_user_roles_and_invite_codes
+Revision ID: 0004_user_roles_and_invites
 Revises: 0003_drop_unused_airports_table
 Create Date: 2026-11-25 17:15:00.000000
 """
@@ -10,7 +10,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0004_add_user_roles_and_invite_codes"
+revision: str = "0004_user_roles_and_invites"
 down_revision: str | None = "0003_drop_unused_airports_table"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
