@@ -1,5 +1,6 @@
 """Business logic for trip expenses, link checks, and currency conversion."""
 
+import asyncio
 from collections import defaultdict
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -18,19 +19,50 @@ from app.schemas.expense import (
 from app.services.fx_service import get_fx_provider
 
 
-async def convert_expense_to_home(
-    exp: Expense, target_home_currency: str
+async def resolve_home_rates(
+    expenses: list[Expense], target_home_currency: str
+) -> dict[str, Decimal]:
+    """Fetch distinct foreign-to-home FX conversion rates concurrently once."""
+    target = target_home_currency.upper()
+    needed_sources = sorted(
+        {
+            exp.currency_home.upper()
+            for exp in expenses
+            if exp.currency_home.upper() != target
+            and exp.currency_original.upper() != target
+        }
+    )
+    if not needed_sources:
+        return {}
+    provider = get_fx_provider()
+    results = await asyncio.gather(
+        *(provider.get_rate(src, target) for src in needed_sources)
+    )
+    return {
+        src: Decimal(str(rate))
+        for src, (rate, _, _) in zip(needed_sources, results, strict=True)
+    }
+
+
+def convert_expense_with_rates(
+    exp: Expense, target_home_currency: str, rates_by_src: dict[str, Decimal]
 ) -> Decimal:
-    """Normalize an expense's home amount into the user's current home currency."""
+    """Normalize an expense into target_home_currency using pre-resolved rates."""
     target = target_home_currency.upper()
     if exp.currency_home.upper() == target:
         return exp.amount_home
     if exp.currency_original.upper() == target:
         return exp.amount_original.quantize(Decimal("0.01"))
-    rate, _, _ = await get_fx_provider().get_rate(
-        exp.currency_home.upper(), target
-    )
-    return (exp.amount_home * Decimal(str(rate))).quantize(Decimal("0.01"))
+    rate = rates_by_src[exp.currency_home.upper()]
+    return (exp.amount_home * rate).quantize(Decimal("0.01"))
+
+
+async def convert_expense_to_home(
+    exp: Expense, target_home_currency: str
+) -> Decimal:
+    """Normalize a single expense's home amount into the user's home currency."""
+    rates = await resolve_home_rates([exp], target_home_currency)
+    return convert_expense_with_rates(exp, target_home_currency, rates)
 
 
 class ExpenseService:
@@ -104,9 +136,10 @@ class ExpenseService:
         )
         total_home = Decimal("0.00")
         by_category: dict[str, Decimal] = defaultdict(lambda: Decimal("0.00"))
+        rates_by_src = await resolve_home_rates(expenses, user.home_currency)
         for exp in expenses:
-            normalized_amount = await convert_expense_to_home(
-                exp, user.home_currency
+            normalized_amount = convert_expense_with_rates(
+                exp, user.home_currency, rates_by_src
             )
             total_home += normalized_amount
             by_category[exp.category] += normalized_amount

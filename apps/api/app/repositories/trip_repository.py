@@ -33,15 +33,21 @@ class TripRepository:
             stmt = stmt.where(Trip.status == status_filter)
         return list((await self.db.scalars(stmt)).all())
 
-    async def get_detail(self, trip_id: str, user_id: str) -> Trip | None:
+    async def get_detail(
+        self, trip_id: str, user_id: str, *, populate_existing: bool = False
+    ) -> Trip | None:
         stmt = (
             select(Trip)
             .where(Trip.id == trip_id, Trip.user_id == user_id)
             .options(_trip_detail_options())
         )
+        if populate_existing:
+            stmt = stmt.execution_options(populate_existing=True)
         return await self.db.scalar(stmt)
 
-    async def get_day_for_user(self, day_id: str, user_id: str) -> TripDay | None:
+    async def get_day_for_user(
+        self, day_id: str, user_id: str, *, populate_existing: bool = False
+    ) -> TripDay | None:
         stmt = (
             select(TripDay)
             .join(Trip, Trip.id == TripDay.trip_id)
@@ -53,6 +59,8 @@ class TripRepository:
                 )
             )
         )
+        if populate_existing:
+            stmt = stmt.execution_options(populate_existing=True)
         return await self.db.scalar(stmt)
 
     async def get_trip_for_day(self, day_id: str, user_id: str) -> Trip | None:
@@ -65,7 +73,7 @@ class TripRepository:
         return await self.db.scalar(stmt)
 
     async def get_option_for_user(
-        self, option_id: str, user_id: str
+        self, option_id: str, user_id: str, *, populate_existing: bool = False
     ) -> DayOption | None:
         stmt = (
             select(DayOption)
@@ -77,6 +85,8 @@ class TripRepository:
                 selectinload(DayOption.route_segments),
             )
         )
+        if populate_existing:
+            stmt = stmt.execution_options(populate_existing=True)
         return await self.db.scalar(stmt)
 
     async def get_item_for_user(

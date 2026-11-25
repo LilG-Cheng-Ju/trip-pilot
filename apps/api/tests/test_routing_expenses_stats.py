@@ -558,3 +558,215 @@ async def test_patch_expense_updates_and_clears_trip_day_attribution(
     )
     assert cleared.status_code == 200
     assert cleared.json()["trip_day_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_stay_update_and_delete_recalculates_downstream_days_and_unlinks_expenses(
+    api_client: AsyncClient, dev_headers: dict[str, str]
+) -> None:
+    trip = (
+        await api_client.post(
+            "/api/v1/trips",
+            headers=dev_headers,
+            json={
+                "title": "Stay Cascade & FK Trip",
+                "country_codes": ["JP"],
+                "start_date": "2026-12-01",
+                "end_date": "2026-12-02",
+                "default_currency": "JPY",
+            },
+        )
+    ).json()
+    opt1_id = trip["days"][0]["active_option_id"]
+    day2_id = trip["days"][1]["id"]
+    opt2_id = trip["days"][1]["active_option_id"]
+
+    leg_15 = RouteLegResult(
+        distance_km=15.0,
+        duration_min=25,
+        geometry_polyline="poly_15",
+        is_approx=False,
+    )
+    with patch(
+        "app.services.routing.OsrmRoutingProvider.compute_leg",
+        new=AsyncMock(return_value=leg_15),
+    ):
+        stay = (
+            await api_client.post(
+                f"/api/v1/options/{opt1_id}/items",
+                headers=dev_headers,
+                json={
+                    "type": "STAY",
+                    "title": "Hotel A",
+                    "latitude": 35.6909,
+                    "longitude": 139.7003,
+                },
+            )
+        ).json()
+        spot2 = (
+            await api_client.post(
+                f"/api/v1/options/{opt2_id}/items",
+                headers=dev_headers,
+                json={
+                    "type": "SPOT",
+                    "title": "Day 2 Spot",
+                    "latitude": 35.7148,
+                    "longitude": 139.7745,
+                },
+            )
+        ).json()
+
+    # Link an expense to Day 2's spot so we can verify FK cleanup on delete_item.
+    linked_exp = (
+        await api_client.post(
+            f"/api/v1/trips/{trip['id']}/expenses",
+            headers=dev_headers,
+            json={
+                "title": "Spot Entry Ticket",
+                "category": "ACTIVITY",
+                "amount_original": "1500.00",
+                "currency_original": "JPY",
+                "exchange_rate": "0.21",
+                "trip_day_id": day2_id,
+                "itinerary_item_id": spot2["id"],
+            },
+        )
+    ).json()
+
+    initial_day2 = (
+        await api_client.get(f"/api/v1/trips/{trip['id']}", headers=dev_headers)
+    ).json()["days"][1]["options"][0]
+    assert initial_day2["cached_ground_distance_km"] == 30.0
+    assert len(initial_day2["route_segments"]) == 2
+
+    # Updating Day 1 STAY coordinates must cascade and recalculate Day 2's routes.
+    leg_22 = RouteLegResult(
+        distance_km=22.5,
+        duration_min=35,
+        geometry_polyline="poly_22",
+        is_approx=False,
+    )
+    with patch(
+        "app.services.routing.OsrmRoutingProvider.compute_leg",
+        new=AsyncMock(return_value=leg_22),
+    ):
+        upd_stay = await api_client.patch(
+            f"/api/v1/items/{stay['id']}",
+            headers=dev_headers,
+            json={"latitude": 35.6585, "longitude": 139.7454},
+        )
+        assert upd_stay.status_code == 200
+
+    after_stay_move = (
+        await api_client.get(f"/api/v1/trips/{trip['id']}", headers=dev_headers)
+    ).json()["days"][1]["options"][0]
+    assert after_stay_move["cached_ground_distance_km"] == 45.0
+
+    # Deleting Day 1 STAY clears Day 2's inherited segments and resets distance to 0.
+    del_stay = await api_client.delete(
+        f"/api/v1/items/{stay['id']}", headers=dev_headers
+    )
+    assert del_stay.status_code == 204
+    after_stay_del = (
+        await api_client.get(f"/api/v1/trips/{trip['id']}", headers=dev_headers)
+    ).json()["days"][1]["options"][0]
+    assert after_stay_del["route_segments"] == []
+    assert after_stay_del["cached_ground_distance_km"] == 0.0
+
+    # Deleting Day 2 spot preserves the expense while clearing itinerary_item_id.
+    del_spot = await api_client.delete(
+        f"/api/v1/items/{spot2['id']}", headers=dev_headers
+    )
+    assert del_spot.status_code == 204
+    expenses = (
+        await api_client.get(
+            f"/api/v1/trips/{trip['id']}/expenses", headers=dev_headers
+        )
+    ).json()["items"]
+    assert len(expenses) == 1
+    assert expenses[0]["id"] == linked_exp["id"]
+    assert expenses[0]["itinerary_item_id"] is None
+    assert expenses[0]["trip_day_id"] == day2_id
+
+    # Deleting the entire populated trip must succeed under PRAGMA foreign_keys=ON.
+    del_trip = await api_client.delete(
+        f"/api/v1/trips/{trip['id']}", headers=dev_headers
+    )
+    assert del_trip.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_osrm_routing_runs_outside_active_db_transaction() -> None:
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from app.core.database import Base, configure_sqlite_foreign_keys
+    from app.models import RouteProfile, User
+    from app.schemas.trip import ItineraryItemCreate, TripCreate
+    from app.services.trip_service import TripService
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    configure_sqlite_foreign_keys(engine)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with session_factory() as session:
+        user = User(firebase_uid="tx-check-user", email="tx@example.test")
+        session.add(user)
+        await session.commit()
+
+        observed_in_tx: list[bool] = []
+
+        class _TxCheckingRouter:
+            async def compute_leg(
+                self,
+                lat1: float,
+                lng1: float,
+                lat2: float,
+                lng2: float,
+                profile: RouteProfile = RouteProfile.DRIVING,
+            ) -> RouteLegResult:
+                del lat1, lng1, lat2, lng2, profile
+                observed_in_tx.append(session.in_transaction())
+                return RouteLegResult(
+                    distance_km=4.2,
+                    duration_min=10,
+                    geometry_polyline="poly",
+                    is_approx=False,
+                )
+
+        svc = TripService(session, routing_provider=_TxCheckingRouter())
+        trip = await svc.create_trip(
+            user.id,
+            TripCreate(
+                title="No TX Lock Trip",
+                country_codes=["JP"],
+                start_date="2027-01-01",
+                end_date="2027-01-01",
+            ),
+        )
+        opt_id = trip.days[0].active_option_id
+        assert opt_id is not None
+
+        await svc.add_item(
+            opt_id,
+            user.id,
+            ItineraryItemCreate(
+                title="Spot 1",
+                latitude=35.6812,
+                longitude=139.7671,
+            ),
+        )
+        await svc.add_item(
+            opt_id,
+            user.id,
+            ItineraryItemCreate(
+                title="Spot 2",
+                latitude=35.7148,
+                longitude=139.7745,
+            ),
+        )
+
+        assert observed_in_tx == [False]
+
+    await engine.dispose()

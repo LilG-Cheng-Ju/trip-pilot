@@ -10,7 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models import DayOption, ItemType, Trip, TripDay, TripStatus, User
 from app.schemas.stats import StatsScope, TravelStatsResponse, TripStatSummary
-from app.services.expense_service import convert_expense_to_home
+from app.services.expense_service import convert_expense_with_rates, resolve_home_rates
 
 
 def _is_international_trip(trip: Trip, home_country: str) -> bool:
@@ -80,6 +80,9 @@ class StatsService:
         spend_by_category: dict[str, Decimal] = defaultdict(lambda: Decimal("0.00"))
         trip_summaries: list[TripStatSummary] = []
 
+        all_expenses = [exp for trip in trips for exp in trip.expenses]
+        rates_by_src = await resolve_home_rates(all_expenses, user.home_currency)
+
         for trip in trips:
             days_count = (trip.end_date - trip.start_date).days + 1
             total_days += days_count
@@ -114,8 +117,8 @@ class StatsService:
 
             trip_spend = Decimal("0.00")
             for exp in trip.expenses:
-                normalized_amount = await convert_expense_to_home(
-                    exp, user.home_currency
+                normalized_amount = convert_expense_with_rates(
+                    exp, user.home_currency, rates_by_src
                 )
                 trip_spend += normalized_amount
                 total_spend += normalized_amount

@@ -6,13 +6,14 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from app.core.database import Base
+from app.core.database import Base, configure_sqlite_foreign_keys
 from app.models import DayOption, ItemType, ItineraryItem, Trip, TripDay, User
 
 
 @pytest.mark.asyncio
 async def test_create_trip_with_day_option_variants() -> None:
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    configure_sqlite_foreign_keys(engine)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 

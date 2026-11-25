@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 import httpx
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -39,6 +39,32 @@ class RouteLegResult:
     duration_min: int | None
     geometry_polyline: str | None
     is_approx: bool
+
+
+@dataclass(frozen=True)
+class PlannedLegSpec:
+    """Detached coordinate leg spec allowing OSRM calls outside DB transactions."""
+
+    from_item_id: str
+    to_item_id: str
+    lat1: float
+    lng1: float
+    lat2: float
+    lng2: float
+    profile: RouteProfile = RouteProfile.DRIVING
+
+    @property
+    def coord_key(self) -> tuple[float, float, float, float, RouteProfile]:
+        return (self.lat1, self.lng1, self.lat2, self.lng2, self.profile)
+
+
+@dataclass(frozen=True)
+class OptionRoutePlan:
+    """Pure-Python route recalculation plan for a single DayOption."""
+
+    option_id: str
+    leg_specs: list[PlannedLegSpec]
+    reusable: dict[tuple[str, str], RouteLegResult]
 
 
 class RoutingProvider(Protocol):
@@ -279,17 +305,15 @@ def build_day_ground_pairs(
     return pairs
 
 
-async def recalculate_option_routes(
-    db: AsyncSession,
+def build_option_route_plan(
     option: DayOption,
     items: list[ItineraryItem],
-    provider: RoutingProvider | None = None,
     departure_stay: ItineraryItem | None = None,
     *,
     invalidate_item_ids: set[str] | None = None,
     force_refresh: bool = False,
-) -> tuple[float, bool]:
-    """Recompute and cache RouteSegment rows concurrently for geolocated stops."""
+) -> OptionRoutePlan:
+    """Extract reusable route legs and detached specs without holding DB locks."""
     reusable: dict[tuple[str, str], RouteLegResult] = {}
     if not force_refresh:
         invalid = invalidate_item_ids or set()
@@ -306,55 +330,116 @@ async def recalculate_option_routes(
                     is_approx=seg.is_approx,
                 )
 
+    pairs = build_day_ground_pairs(items, departure_stay=departure_stay)
+    leg_specs: list[PlannedLegSpec] = []
+    for prev_item, next_item in pairs:
+        if (
+            prev_item.latitude is None
+            or prev_item.longitude is None
+            or next_item.latitude is None
+            or next_item.longitude is None
+        ):
+            continue
+        leg_specs.append(
+            PlannedLegSpec(
+                from_item_id=prev_item.id,
+                to_item_id=next_item.id,
+                lat1=prev_item.latitude,
+                lng1=prev_item.longitude,
+                lat2=next_item.latitude,
+                lng2=next_item.longitude,
+                profile=RouteProfile.DRIVING,
+            )
+        )
+    return OptionRoutePlan(
+        option_id=option.id,
+        leg_specs=leg_specs,
+        reusable=reusable,
+    )
+
+
+async def compute_missing_route_legs(
+    plans: list[OptionRoutePlan],
+    provider: RoutingProvider | None = None,
+) -> dict[tuple[float, float, float, float, RouteProfile], RouteLegResult]:
+    """Resolve uncached ground route legs concurrently with no DB lock held."""
+    missing_keys: list[tuple[float, float, float, float, RouteProfile]] = []
+    seen: set[tuple[float, float, float, float, RouteProfile]] = set()
+    for plan in plans:
+        for spec in plan.leg_specs:
+            if (spec.from_item_id, spec.to_item_id) in plan.reusable:
+                continue
+            key = spec.coord_key
+            if key not in seen:
+                seen.add(key)
+                missing_keys.append(key)
+
+    if not missing_keys:
+        return {}
+
+    active_provider: RoutingProvider = (
+        provider
+        if provider is not None
+        else OsrmRoutingProvider(client=get_shared_http_client())
+    )
+    computed = await asyncio.gather(
+        *(active_provider.compute_leg(*key) for key in missing_keys)
+    )
+    return dict(zip(missing_keys, computed, strict=True))
+
+
+async def apply_option_route_plan(
+    db: AsyncSession,
+    option: DayOption,
+    plan: OptionRoutePlan,
+    computed_legs: dict[
+        tuple[float, float, float, float, RouteProfile], RouteLegResult
+    ],
+    *,
+    existing_item_ids: set[str] | None = None,
+) -> tuple[float, bool]:
+    """Persist precomputed RouteSegment rows inside a short DB transaction."""
     await db.execute(
         delete(RouteSegment).where(RouteSegment.day_option_id == option.id)
     )
 
-    pairs = build_day_ground_pairs(items, departure_stay=departure_stay)
-    if not pairs:
+    if not plan.leg_specs:
         option.cached_ground_distance_km = 0.0
         option.cached_distance_is_approx = False
         return 0.0, False
 
-    missing_indices = [
-        idx
-        for idx, (prev_item, next_item) in enumerate(pairs)
-        if (prev_item.id, next_item.id) not in reusable
-    ]
-    computed_by_idx: dict[int, RouteLegResult] = {}
-    if missing_indices:
-        active_provider: RoutingProvider = (
-            provider
-            if provider is not None
-            else OsrmRoutingProvider(client=get_shared_http_client())
-        )
-        computed = await asyncio.gather(
-            *[
-                active_provider.compute_leg(
-                    pairs[idx][0].latitude,  # type: ignore[arg-type]
-                    pairs[idx][0].longitude,  # type: ignore[arg-type]
-                    pairs[idx][1].latitude,  # type: ignore[arg-type]
-                    pairs[idx][1].longitude,  # type: ignore[arg-type]
-                    RouteProfile.DRIVING,
+    valid_ids = existing_item_ids
+    if valid_ids is None:
+        referenced_ids = {
+            item_id
+            for spec in plan.leg_specs
+            for item_id in (spec.from_item_id, spec.to_item_id)
+        }
+        valid_ids = set(
+            (
+                await db.scalars(
+                    select(ItineraryItem.id).where(ItineraryItem.id.in_(referenced_ids))
                 )
-                for idx in missing_indices
-            ]
+            ).all()
         )
-        computed_by_idx = dict(zip(missing_indices, computed, strict=True))
 
     total_km = 0.0
     any_approx = False
-
-    for idx, (prev_item, next_item) in enumerate(pairs):
-        leg = computed_by_idx.get(idx) or reusable[(prev_item.id, next_item.id)]
+    for spec in plan.leg_specs:
+        if spec.from_item_id not in valid_ids or spec.to_item_id not in valid_ids:
+            # Skip legs whose endpoint item was concurrently deleted during network I/O.
+            continue
+        leg = plan.reusable.get((spec.from_item_id, spec.to_item_id))
+        if leg is None:
+            leg = computed_legs[spec.coord_key]
         total_km += leg.distance_km
         any_approx = any_approx or leg.is_approx
         db.add(
             RouteSegment(
                 day_option_id=option.id,
-                from_item_id=prev_item.id,
-                to_item_id=next_item.id,
-                profile=RouteProfile.DRIVING.value,
+                from_item_id=spec.from_item_id,
+                to_item_id=spec.to_item_id,
+                profile=spec.profile.value,
                 distance_km=leg.distance_km,
                 duration_min=leg.duration_min,
                 geometry_polyline=leg.geometry_polyline,
@@ -365,3 +450,25 @@ async def recalculate_option_routes(
     option.cached_ground_distance_km = round(total_km, 2)
     option.cached_distance_is_approx = any_approx
     return option.cached_ground_distance_km, option.cached_distance_is_approx
+
+
+async def recalculate_option_routes(
+    db: AsyncSession,
+    option: DayOption,
+    items: list[ItineraryItem],
+    provider: RoutingProvider | None = None,
+    departure_stay: ItineraryItem | None = None,
+    *,
+    invalidate_item_ids: set[str] | None = None,
+    force_refresh: bool = False,
+) -> tuple[float, bool]:
+    """Recompute and cache RouteSegment rows concurrently for geolocated stops."""
+    plan = build_option_route_plan(
+        option,
+        items,
+        departure_stay=departure_stay,
+        invalidate_item_ids=invalidate_item_ids,
+        force_refresh=force_refresh,
+    )
+    computed_legs = await compute_missing_route_legs([plan], provider)
+    return await apply_option_route_plan(db, option, plan, computed_legs)

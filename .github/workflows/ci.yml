@@ -36,6 +36,11 @@ jobs:
       - name: Run pytest
         run: uv run pytest -q
 
+      - name: Verify Alembic migrations
+        run: |
+          DATABASE_URL="sqlite+aiosqlite:///./ci_alembic.db" uv run alembic upgrade head
+          rm -f ci_alembic.db
+
   mcp:
     name: MCP Package (ruff, mypy, pytest)
     runs-on: ubuntu-latest

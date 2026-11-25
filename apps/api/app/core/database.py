@@ -2,8 +2,9 @@
 
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
+from typing import Any
 
-from sqlalchemy import MetaData
+from sqlalchemy import MetaData, event
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -40,22 +41,36 @@ class Base(DeclarativeBase):
     metadata = _build_metadata()
 
 
+def configure_sqlite_foreign_keys(target_engine: AsyncEngine) -> None:
+    """Enforce SQLite foreign-key constraints so local dev/tests match PostgreSQL."""
+
+    @event.listens_for(target_engine.sync_engine, "connect")
+    def _enable_sqlite_fk(dbapi_connection: Any, _: Any) -> None:
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+
 def create_engine_from_settings() -> AsyncEngine:
     """Create the async SQLAlchemy engine configured for SQLite or PostgreSQL."""
     settings = get_settings()
     connect_args: dict[str, object] = {}
-    if settings.database_url.startswith("sqlite"):
+    is_sqlite = settings.database_url.startswith("sqlite")
+    if is_sqlite:
         connect_args["check_same_thread"] = False
     elif "asyncpg" in settings.database_url:
         # Required for Supabase Transaction Pooler (port 6543 / PgBouncer).
         connect_args["statement_cache_size"] = 0
 
-    return create_async_engine(
+    async_engine = create_async_engine(
         settings.database_url,
         echo=False,
         pool_pre_ping=True,
         connect_args=connect_args,
     )
+    if is_sqlite:
+        configure_sqlite_foreign_keys(async_engine)
+    return async_engine
 
 
 engine: AsyncEngine = create_engine_from_settings()

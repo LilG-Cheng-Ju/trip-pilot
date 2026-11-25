@@ -7,6 +7,7 @@ from datetime import UTC, datetime, time, timedelta
 
 from fastapi import HTTPException, status
 from sqlalchemy import delete, or_, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.constants import MAX_TRIP_DATE_SPAN_DAYS
@@ -40,7 +41,13 @@ from app.schemas.trip import (
     sanitize_item_for_share,
 )
 from app.services.airport_service import compute_flight_distance_km, get_airport
-from app.services.routing import RoutingProvider, recalculate_option_routes
+from app.services.routing import (
+    OptionRoutePlan,
+    RoutingProvider,
+    apply_option_route_plan,
+    build_option_route_plan,
+    compute_missing_route_legs,
+)
 
 
 def _require_found[T](entity: T | None, detail: str) -> T:
@@ -168,56 +175,145 @@ class TripService:
             return user.home_country_code.upper()
         return "TW"
 
-    async def _resolve_departure_stay(
-        self, trip_day_id: str, user_id: str
-    ) -> ItineraryItem | None:
-        trip = await self.repo.get_trip_for_day(trip_day_id, user_id)
-        if trip is None:
-            return None
-        target_day = next((d for d in trip.days if d.id == trip_day_id), None)
-        if target_day is None:
-            return None
-        prev_stay: ItineraryItem | None = None
-        for day in trip.days:
-            if day.day_index >= target_day.day_index:
-                break
-            opt = next(
-                (o for o in day.options if o.id == day.active_option_id),
-                day.options[0] if day.options else None,
+    async def _get_day_location_for_option(
+        self, option_id: str
+    ) -> tuple[str, int] | None:
+        row = (
+            await self.db.execute(
+                select(TripDay.trip_id, TripDay.day_index)
+                .join(DayOption, DayOption.trip_day_id == TripDay.id)
+                .where(DayOption.id == option_id)
             )
-            if opt is None:
-                continue
-            for item in opt.items:
-                if (
-                    item.is_selected
-                    and item.type == ItemType.STAY.value
-                    and item.latitude is not None
-                    and item.longitude is not None
-                ):
-                    prev_stay = item
-        return prev_stay
+        ).first()
+        if row is None:
+            return None
+        return str(row[0]), int(row[1])
 
-    async def _recalculate_routes_for_option(
+    async def _unlink_item_expenses(self, item_ids: list[str]) -> None:
+        """Clear nullable Expense links before deleting itinerary items."""
+        if not item_ids:
+            return
+        await self.db.execute(
+            update(Expense)
+            .where(Expense.itinerary_item_id.in_(item_ids))
+            .values(itinerary_item_id=None)
+        )
+
+    async def _delete_item_route_segments(self, item_ids: list[str]) -> None:
+        """Delete any route segments referencing removed items after ORM flush."""
+        if not item_ids:
+            return
+        await self.db.execute(
+            delete(RouteSegment).where(
+                or_(
+                    RouteSegment.from_item_id.in_(item_ids),
+                    RouteSegment.to_item_id.in_(item_ids),
+                )
+            )
+        )
+
+    async def _sync_routes_after_commit(
         self,
-        option: DayOption,
-        items: list[ItineraryItem],
+        trip_id: str,
         user_id: str,
+        target_option_ids: list[str],
         *,
+        cascade_after_day_index: int | None = None,
         invalidate_item_ids: set[str] | None = None,
         force_refresh: bool = False,
     ) -> None:
-        departure_stay = await self._resolve_departure_stay(
-            option.trip_day_id, user_id
+        """Recalculate option routes with no DB write lock held during OSRM I/O."""
+        explicit_ids = set(target_option_ids)
+        if not explicit_ids and cascade_after_day_index is None:
+            return
+
+        trip = await self.repo.get_detail(trip_id, user_id, populate_existing=True)
+        if trip is None:
+            await self.db.commit()
+            return
+
+        plans: list[OptionRoutePlan] = []
+        running_departure_stay: ItineraryItem | None = None
+        for day in sorted(trip.days, key=lambda d: d.day_index):
+            include_day_options = (
+                cascade_after_day_index is not None
+                and day.day_index > cascade_after_day_index
+            )
+            for opt in day.options:
+                if include_day_options or opt.id in explicit_ids:
+                    plans.append(
+                        build_option_route_plan(
+                            opt,
+                            list(opt.items),
+                            departure_stay=running_departure_stay,
+                            invalidate_item_ids=invalidate_item_ids,
+                            force_refresh=(
+                                force_refresh and opt.id in explicit_ids
+                            ),
+                        )
+                    )
+
+            active_opt = next(
+                (o for o in day.options if o.id == day.active_option_id),
+                day.options[0] if day.options else None,
+            )
+            if active_opt is not None:
+                for item in active_opt.items:
+                    if (
+                        item.is_selected
+                        and item.type == ItemType.STAY.value
+                        and item.latitude is not None
+                        and item.longitude is not None
+                    ):
+                        running_departure_stay = item
+
+        # Close the read-only snapshot transaction so OSRM calls never pin a DB lock.
+        await self.db.commit()
+        if not plans:
+            return
+
+        computed_legs = await compute_missing_route_legs(plans, self.routing_provider)
+
+        option_ids = [plan.option_id for plan in plans]
+        options_by_id = {
+            opt.id: opt
+            for opt in (
+                await self.db.scalars(
+                    select(DayOption).where(DayOption.id.in_(option_ids))
+                )
+            ).all()
+        }
+        referenced_item_ids = {
+            item_id
+            for plan in plans
+            for spec in plan.leg_specs
+            for item_id in (spec.from_item_id, spec.to_item_id)
+        }
+        existing_item_ids: set[str] = (
+            set(
+                (
+                    await self.db.scalars(
+                        select(ItineraryItem.id).where(
+                            ItineraryItem.id.in_(referenced_item_ids)
+                        )
+                    )
+                ).all()
+            )
+            if referenced_item_ids
+            else set()
         )
-        await recalculate_option_routes(
-            self.db,
-            option,
-            items,
-            self.routing_provider,
-            departure_stay=departure_stay,
-            invalidate_item_ids=invalidate_item_ids,
-            force_refresh=force_refresh,
-        )
+
+        for plan in plans:
+            target_opt = options_by_id.get(plan.option_id)
+            if target_opt is not None:
+                await apply_option_route_plan(
+                    self.db,
+                    target_opt,
+                    plan,
+                    computed_legs,
+                    existing_item_ids=existing_item_ids,
+                )
+        await self.db.commit()
 
     async def list_trips(
         self, user_id: str, status_filter: str | None = None
@@ -303,12 +399,16 @@ class TripService:
 
     async def delete_trip(self, trip_id: str, user_id: str) -> None:
         trip = await self.get_trip_detail(trip_id, user_id)
+        # Break circular TripDay.active_option_id <-> DayOption.trip_day_id FKs first.
+        for day in trip.days:
+            day.active_option_id = None
+        await self.db.flush()
         await self.db.delete(trip)
         await self.db.commit()
 
     async def append_day(self, trip_id: str, user_id: str) -> TripDay:
         trip = await self.get_trip_detail(trip_id, user_id)
-        next_index = len(trip.days) + 1
+        next_index = max((d.day_index for d in trip.days), default=0) + 1
         next_date = (
             trip.days[-1].date + timedelta(days=1) if trip.days else trip.start_date
         )
@@ -328,17 +428,24 @@ class TripService:
             date=next_date,
         )
         self.db.add(new_day)
-        await self.db.flush()
+        try:
+            await self.db.flush()
 
-        plan_a = DayOption(trip_day_id=new_day.id, label="Plan A", sort_order=0)
-        self.db.add(plan_a)
-        await self.db.flush()
-        new_day.active_option_id = plan_a.id
+            plan_a = DayOption(trip_day_id=new_day.id, label="Plan A", sort_order=0)
+            self.db.add(plan_a)
+            await self.db.flush()
+            new_day.active_option_id = plan_a.id
 
-        if next_date > trip.end_date:
-            trip.end_date = next_date
+            if next_date > trip.end_date:
+                trip.end_date = next_date
 
-        await self.db.commit()
+            await self.db.commit()
+        except IntegrityError as exc:
+            await self.db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Concurrent day update detected, please retry",
+            ) from exc
         return _require_found(
             await self.repo.get_day_for_user(new_day.id, user_id),
             "Trip day not found",
@@ -371,37 +478,29 @@ class TripService:
                 detail="Cannot delete the last remaining day",
             )
 
-        # Unlink expenses explicitly before deleting so SQLite and PostgreSQL
-        # preserve spending records without foreign-key constraint errors.
+        deleted_day_index = day.day_index
+        had_stay = any(
+            item.type == ItemType.STAY.value
+            for opt in day.options
+            for item in opt.items
+        )
+
+        # Unlink expenses explicitly before deleting so SQLite and Postgres
+        # preserve spending records without FK errors.
         await self.db.execute(
             update(Expense)
             .where(Expense.trip_day_id == day.id)
             .values(trip_day_id=None)
         )
         day_item_ids = [item.id for opt in day.options for item in opt.items]
-        if day_item_ids:
-            await self.db.execute(
-                update(Expense)
-                .where(Expense.itinerary_item_id.in_(day_item_ids))
-                .values(itinerary_item_id=None)
-            )
+        await self._unlink_item_expenses(day_item_ids)
 
         # Clear active_option_id first to break the circular TripDay <-> DayOption FK.
         day.active_option_id = None
         await self.db.flush()
         await self.db.delete(day)
         await self.db.flush()
-
-        # Remove any cross-day route legs pointing to deleted stays on SQLite.
-        if day_item_ids:
-            await self.db.execute(
-                delete(RouteSegment).where(
-                    or_(
-                        RouteSegment.from_item_id.in_(day_item_ids),
-                        RouteSegment.to_item_id.in_(day_item_ids),
-                    )
-                )
-            )
+        await self._delete_item_route_segments(day_item_ids)
 
         remaining = [d for d in days if d.id != day.id]
         # Shift into a disjoint temporary range so sequential re-indexing never
@@ -421,6 +520,15 @@ class TripService:
         self.db.expire(trip, ["days"])
         await self.db.commit()
 
+        if had_stay:
+            await self._sync_routes_after_commit(
+                trip.id,
+                user_id,
+                [],
+                cascade_after_day_index=deleted_day_index - 1,
+                invalidate_item_ids=set(day_item_ids),
+            )
+
     async def add_day_option(
         self, day_id: str, user_id: str, payload: DayOptionCreate
     ) -> DayOption:
@@ -429,7 +537,7 @@ class TripService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Trip day not found"
             )
-        next_order = len(day.options)
+        next_order = max((opt.sort_order for opt in day.options), default=-1) + 1
         option = DayOption(
             trip_day_id=day.id,
             label=payload.label,
@@ -459,7 +567,7 @@ class TripService:
         cloned = DayOption(
             trip_day_id=day.id,
             label=payload.label,
-            sort_order=len(day.options),
+            sort_order=max((opt.sort_order for opt in day.options), default=-1) + 1,
             summary_notes=source.summary_notes,
             cached_ground_distance_km=source.cached_ground_distance_km,
             cached_distance_is_approx=source.cached_distance_is_approx,
@@ -555,17 +663,33 @@ class TripService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Cannot delete the last remaining day option",
             )
+        was_active = day.active_option_id == option.id
+        opt_item_ids = [item.id for item in option.items]
+        had_stay = any(item.type == ItemType.STAY.value for item in option.items)
         remaining = [opt for opt in day.options if opt.id != option.id]
-        if day.active_option_id == option.id:
+        if was_active:
             day.active_option_id = remaining[0].id
             await self.db.flush()
+        await self._unlink_item_expenses(opt_item_ids)
         await self.db.delete(option)
+        await self.db.flush()
+        await self._delete_item_route_segments(opt_item_ids)
         for idx, opt in enumerate(remaining):
             opt.sort_order = idx
         await self.db.commit()
-        self.db.expire(day, ["options"])
+        if was_active and had_stay:
+            await self._sync_routes_after_commit(
+                day.trip_id,
+                user_id,
+                [],
+                cascade_after_day_index=day.day_index,
+                invalidate_item_ids=set(opt_item_ids),
+            )
         return _require_found(
-            await self.repo.get_day_for_user(day.id, user_id), "Trip day not found"
+            await self.repo.get_day_for_user(
+                day.id, user_id, populate_existing=True
+            ),
+            "Trip day not found",
         )
 
     async def set_active_option(
@@ -581,10 +705,26 @@ class TripService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Day option does not belong to this day",
             )
+        changed = day.active_option_id != option_id
+        any_stay = any(
+            item.type == ItemType.STAY.value
+            for opt in day.options
+            for item in opt.items
+        )
         day.active_option_id = option_id
         await self.db.commit()
+        if changed and any_stay:
+            await self._sync_routes_after_commit(
+                day.trip_id,
+                user_id,
+                [],
+                cascade_after_day_index=day.day_index,
+            )
         return _require_found(
-            await self.repo.get_day_for_user(day_id, user_id), "Trip day not found"
+            await self.repo.get_day_for_user(
+                day_id, user_id, populate_existing=True
+            ),
+            "Trip day not found",
         )
 
     async def update_day(
@@ -599,7 +739,10 @@ class TripService:
             setattr(day, field, value)
         await self.db.commit()
         return _require_found(
-            await self.repo.get_day_for_user(day_id, user_id), "Trip day not found"
+            await self.repo.get_day_for_user(
+                day_id, user_id, populate_existing=True
+            ),
+            "Trip day not found",
         )
 
     async def _resolve_chronological_sort_order(
@@ -661,7 +804,7 @@ class TripService:
                 option.id, parsed_start
             )
         else:
-            sort_order = len(option.items)
+            sort_order = max((i.sort_order for i in option.items), default=-1) + 1
 
         enriched_details = _enrich_flight_details(payload.type.value, payload.details)
         lat = payload.latitude
@@ -690,17 +833,23 @@ class TripService:
             is_selected=is_selected,
         )
         self.db.add(item)
-        await self.db.flush()
-        if (
+        needs_route_recalc = (
             item.is_selected
             and item.latitude is not None
             and item.longitude is not None
-        ):
-            await self._recalculate_routes_for_option(
-                option, [*option.items, item], user_id
-            )
+        )
+        cascade_downstream = needs_route_recalc and item.type == ItemType.STAY.value
+        day_loc = await self._get_day_location_for_option(option.id)
         await self.db.commit()
-        self.db.expire(option, ["items", "route_segments"])
+
+        if needs_route_recalc and day_loc is not None:
+            trip_id, day_index = day_loc
+            await self._sync_routes_after_commit(
+                trip_id,
+                user_id,
+                [option.id],
+                cascade_after_day_index=day_index if cascade_downstream else None,
+            )
         await self.db.refresh(item)
         return item
 
@@ -715,18 +864,30 @@ class TripService:
             "Day option not found",
         )
 
+        affects_stay = item.type == ItemType.STAY.value
         if item.choice_group_id:
             for sibling in option.items:
                 if sibling.choice_group_id == item.choice_group_id:
                     sibling.is_selected = sibling.id == item.id
+                    if sibling.type == ItemType.STAY.value:
+                        affects_stay = True
         else:
             item.is_selected = True
 
-        await self._recalculate_routes_for_option(option, option.items, user_id)
+        day_loc = await self._get_day_location_for_option(option.id)
         await self.db.commit()
-        self.db.expire(option, ["items", "route_segments"])
+        if day_loc is not None:
+            trip_id, day_index = day_loc
+            await self._sync_routes_after_commit(
+                trip_id,
+                user_id,
+                [option.id],
+                cascade_after_day_index=day_index if affects_stay else None,
+            )
         return _require_found(
-            await self.repo.get_option_for_user(option.id, user_id),
+            await self.repo.get_option_for_user(
+                option.id, user_id, populate_existing=True
+            ),
             "Day option not found",
         )
 
@@ -738,13 +899,20 @@ class TripService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Day option not found"
             )
-        await self._recalculate_routes_for_option(
-            option, option.items, user_id, force_refresh=True
-        )
+        day_loc = await self._get_day_location_for_option(option.id)
         await self.db.commit()
-        self.db.expire(option, ["route_segments"])
+        if day_loc is not None:
+            trip_id, _ = day_loc
+            await self._sync_routes_after_commit(
+                trip_id,
+                user_id,
+                [option_id],
+                force_refresh=True,
+            )
         return _require_found(
-            await self.repo.get_option_for_user(option_id, user_id),
+            await self.repo.get_option_for_user(
+                option_id, user_id, populate_existing=True
+            ),
             "Day option not found",
         )
 
@@ -756,6 +924,7 @@ class TripService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Itinerary item not found"
             )
+        was_stay = item.type == ItemType.STAY.value
         updates = payload.model_dump(exclude_unset=True)
         if "type" in updates and updates["type"] is not None:
             updates["type"] = updates["type"].value
@@ -792,18 +961,25 @@ class TripService:
         for field, value in updates.items():
             setattr(item, field, value)
 
-        await self.db.flush()
-        if needs_route_recalc:
-            option = await self.repo.get_option_for_user(item.day_option_id, user_id)
-            if option is not None:
-                await self._recalculate_routes_for_option(
-                    option,
-                    option.items,
-                    user_id,
-                    invalidate_item_ids={item.id},
-                )
-
+        is_stay = item.type == ItemType.STAY.value
+        day_loc = (
+            await self._get_day_location_for_option(item.day_option_id)
+            if needs_route_recalc
+            else None
+        )
         await self.db.commit()
+
+        if needs_route_recalc and day_loc is not None:
+            trip_id, day_index = day_loc
+            await self._sync_routes_after_commit(
+                trip_id,
+                user_id,
+                [item.day_option_id],
+                cascade_after_day_index=(
+                    day_index if (was_stay or is_stay) else None
+                ),
+                invalidate_item_ids={item.id},
+            )
         await self.db.refresh(item)
         return item
 
@@ -816,15 +992,20 @@ class TripService:
         option_id = item.day_option_id
         deleted_group_id = item.choice_group_id
         was_selected = item.is_selected
+        was_stay = item.type == ItemType.STAY.value
         had_coords = item.latitude is not None and item.longitude is not None
 
+        day_loc = await self._get_day_location_for_option(option_id)
+        await self._unlink_item_expenses([item_id])
         await self.db.delete(item)
         await self.db.flush()
+        await self._delete_item_route_segments([item_id])
 
         option = await self.repo.get_option_for_user(option_id, user_id)
+        promoted_has_coords = False
+        promoted_is_stay = False
         if option is not None:
             remaining = [i for i in option.items if i.id != item_id]
-            promoted_has_coords = False
             # Promote a sibling when the active choice in a slot is deleted.
             if deleted_group_id and was_selected:
                 siblings = [
@@ -832,13 +1013,24 @@ class TripService:
                 ]
                 if siblings and not any(s.is_selected for s in siblings):
                     siblings[0].is_selected = True
+                    promoted_is_stay = siblings[0].type == ItemType.STAY.value
                     promoted_has_coords = (
                         siblings[0].latitude is not None
                         and siblings[0].longitude is not None
                     )
-            if had_coords or promoted_has_coords:
-                await self._recalculate_routes_for_option(option, remaining, user_id)
         await self.db.commit()
+
+        if (had_coords or promoted_has_coords) and day_loc is not None:
+            trip_id, day_index = day_loc
+            await self._sync_routes_after_commit(
+                trip_id,
+                user_id,
+                [option_id],
+                cascade_after_day_index=(
+                    day_index if (was_stay or promoted_is_stay) else None
+                ),
+                invalidate_item_ids={item_id},
+            )
 
     async def reorder_items(
         self, option_id: str, user_id: str, item_ids: list[str]
@@ -856,13 +1048,22 @@ class TripService:
             )
         for index, item_id in enumerate(item_ids):
             items_by_id[item_id].sort_order = index
-        await self.db.flush()
-        await self._recalculate_routes_for_option(option, option.items, user_id)
+        has_stay = any(item.type == ItemType.STAY.value for item in option.items)
+        day_loc = await self._get_day_location_for_option(option.id)
         await self.db.commit()
-        # Expire cached relationship order so SQLAlchemy reloads by updated sort_order.
-        self.db.expire(option, ["items", "route_segments"])
+
+        if day_loc is not None:
+            trip_id, day_index = day_loc
+            await self._sync_routes_after_commit(
+                trip_id,
+                user_id,
+                [option.id],
+                cascade_after_day_index=day_index if has_stay else None,
+            )
         return _require_found(
-            await self.repo.get_option_for_user(option_id, user_id),
+            await self.repo.get_option_for_user(
+                option_id, user_id, populate_existing=True
+            ),
             "Day option not found",
         )
 

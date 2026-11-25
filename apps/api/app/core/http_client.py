@@ -50,12 +50,18 @@ class CircuitBreaker:
         self.state: Literal["closed", "open", "half_open"] = "closed"
         self.failure_count = 0
         self._opened_at: float | None = None
+        self._half_open_probe_in_flight = False
 
     def _now(self) -> float:
         return self._clock() if self._clock is not None else time.monotonic()
 
     def before_call(self) -> None:
-        """Fail fast while open, or transition to half-open once cooldown elapses."""
+        """Fail fast while open, allowing only a single in-flight half-open probe."""
+        if self.state == "half_open":
+            if self._half_open_probe_in_flight:
+                raise UpstreamUnavailableError(self.name)
+            self._half_open_probe_in_flight = True
+            return
         if self.state != "open":
             return
         if (
@@ -63,6 +69,7 @@ class CircuitBreaker:
             and self._now() - self._opened_at >= self.recovery_sec
         ):
             self.state = "half_open"
+            self._half_open_probe_in_flight = True
             return
         raise UpstreamUnavailableError(self.name)
 
@@ -70,10 +77,12 @@ class CircuitBreaker:
         """Reset failure tracking and close the circuit after a healthy response."""
         self.failure_count = 0
         self._opened_at = None
+        self._half_open_probe_in_flight = False
         self.state = "closed"
 
     def record_failure(self) -> None:
         """Increment consecutive failures and open the circuit when threshold trips."""
+        self._half_open_probe_in_flight = False
         if self.state == "half_open":
             self.state = "open"
             self._opened_at = self._now()
@@ -83,6 +92,10 @@ class CircuitBreaker:
         if self.failure_count >= self.failure_threshold:
             self.state = "open"
             self._opened_at = self._now()
+
+    def abort_probe(self) -> None:
+        """Release the half-open probe slot if a probe is cancelled before settling."""
+        self._half_open_probe_in_flight = False
 
 
 def get_circuit_breaker(name: str) -> CircuitBreaker:
@@ -147,34 +160,43 @@ async def request_with_resilience(
     active_client = client if client is not None else get_shared_http_client()
     attempts = max(1, max_attempts)
     last_exc: Exception | None = None
+    settled = False
 
-    for attempt in range(attempts):
-        try:
-            response = await active_client.request(method, url, **kwargs)
-        except (httpx.TimeoutException, httpx.TransportError) as exc:
-            last_exc = exc
-            if attempt + 1 < attempts:
-                if backoff_sec > 0:
-                    await asyncio.sleep(backoff_sec)
-                continue
-            breaker.record_failure()
-            raise
+    try:
+        for attempt in range(attempts):
+            try:
+                response = await active_client.request(method, url, **kwargs)
+            except (httpx.TimeoutException, httpx.TransportError) as exc:
+                last_exc = exc
+                if attempt + 1 < attempts:
+                    if backoff_sec > 0:
+                        await asyncio.sleep(backoff_sec)
+                    continue
+                breaker.record_failure()
+                settled = True
+                raise
 
-        if response.status_code in _RETRYABLE_STATUS_CODES:
-            if attempt + 1 < attempts:
-                if backoff_sec > 0:
-                    await asyncio.sleep(backoff_sec)
-                continue
-            breaker.record_failure()
+            if response.status_code in _RETRYABLE_STATUS_CODES:
+                if attempt + 1 < attempts:
+                    if backoff_sec > 0:
+                        await asyncio.sleep(backoff_sec)
+                    continue
+                breaker.record_failure()
+                settled = True
+                return response
+
+            if response.status_code < 500 and response.status_code != 429:
+                breaker.record_success()
+            else:
+                breaker.record_failure()
+            settled = True
             return response
 
-        if response.status_code < 500 and response.status_code != 429:
-            breaker.record_success()
-        else:
-            breaker.record_failure()
-        return response
-
-    breaker.record_failure()
-    if last_exc is not None:
-        raise last_exc
-    raise UpstreamUnavailableError(upstream)
+        breaker.record_failure()
+        settled = True
+        if last_exc is not None:
+            raise last_exc
+        raise UpstreamUnavailableError(upstream)
+    finally:
+        if not settled:
+            breaker.abort_probe()

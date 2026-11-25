@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from app.core.config import Settings, get_settings
-from app.core.database import Base, get_db
+from app.core.database import Base, configure_sqlite_foreign_keys, get_db
 from app.main import create_app
 
 
@@ -19,6 +19,7 @@ from app.main import create_app
 async def api_client() -> AsyncGenerator[AsyncClient, None]:
     """Yield an AsyncClient backed by a fresh in-memory SQLite database."""
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    configure_sqlite_foreign_keys(engine)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 

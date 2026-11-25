@@ -1,5 +1,6 @@
 """Unit tests for outbound HTTP pool retries, circuit breaker, and error mapping."""
 
+import asyncio
 from collections.abc import Generator
 from unittest.mock import patch
 
@@ -141,3 +142,57 @@ async def test_places_search_maps_circuit_open_to_503(
         )
 
     assert resp.status_code == 503
+
+
+@pytest.mark.asyncio
+async def test_half_open_circuit_allows_single_probe_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    now = 200.0
+    monkeypatch.setattr("app.core.http_client.time.monotonic", lambda: now)
+
+    breaker = get_circuit_breaker("test-half-open-single")
+    for _ in range(CIRCUIT_BREAKER_FAILURE_THRESHOLD):
+        breaker.record_failure()
+    assert breaker.state == "open"
+
+    now += CIRCUIT_BREAKER_RECOVERY_SEC + 1.0
+    probe_started = asyncio.Event()
+    release_probe = asyncio.Event()
+
+    async def _slow_transport(_request: httpx.Request) -> httpx.Response:
+        probe_started.set()
+        await release_probe.wait()
+        return httpx.Response(200, json={"ok": True})
+
+    transport = httpx.MockTransport(_slow_transport)
+    async with httpx.AsyncClient(transport=transport) as client:
+        probe_task = asyncio.create_task(
+            request_with_resilience(
+                "test-half-open-single",
+                "GET",
+                "https://example.test/probe",
+                client=client,
+                max_attempts=1,
+                backoff_sec=0.0,
+            )
+        )
+        await probe_started.wait()
+        assert breaker.state == "half_open"
+
+        # Concurrent callers must fail fast while the single half-open probe runs.
+        with pytest.raises(UpstreamUnavailableError):
+            await request_with_resilience(
+                "test-half-open-single",
+                "GET",
+                "https://example.test/probe",
+                client=client,
+                max_attempts=1,
+                backoff_sec=0.0,
+            )
+
+        release_probe.set()
+        probe_resp = await probe_task
+
+    assert probe_resp.status_code == 200
+    assert breaker.state == "closed"

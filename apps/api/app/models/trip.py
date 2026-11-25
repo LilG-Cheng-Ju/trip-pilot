@@ -231,6 +231,8 @@ class RouteSegment(Base):
     """Cached ground routing leg between two consecutive geolocated items."""
 
     __tablename__ = "route_segments"
+    # Multiple CASCADE paths (day_option_id and from/to_item_id) can delete rows first.
+    __mapper_args__ = {"confirm_deleted_rows": False}
 
     id: Mapped[str] = mapped_column(
         String(36), primary_key=True, default=lambda: str(uuid.uuid4())
