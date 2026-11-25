@@ -407,8 +407,7 @@ export interface ItemFormSubmitEvent {
       font-weight: 600;
       color: var(--color-text-secondary);
     }
-    .field input,
-    .field select {
+    .field input {
       padding: 9px 10px;
       border: 1px solid var(--color-border);
       border-radius: var(--radius-sm);

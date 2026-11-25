@@ -97,7 +97,7 @@ describe('AdminPageComponent', () => {
     expect(el.textContent).toContain('Travel Buddy');
 
     // Role select is hidden on self OWNER row and present on manageable user row.
-    const roleSelects = el.querySelectorAll('select.role-select');
+    const roleSelects = el.querySelectorAll('mat-select.role-select');
     expect(roleSelects.length).toBe(1);
 
     const tabs = el.querySelectorAll('.tab-switch button.seg-btn');

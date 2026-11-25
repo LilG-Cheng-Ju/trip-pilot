@@ -2,6 +2,13 @@
 
 <!-- Auto-generated from releases.json. Run `node scripts/sync-releases.mjs` after editing releases.json. -->
 
+## v0.9.2-beta (2026-11-25) — 行程時間輸入升級、下拉選單與按鈕修正
+*Time Input Picker, Dropdown Styling & Onboarding Button Fix*
+
+- 行程項目表單的開始與結束時間支援直接鍵盤輸入 24 小時制時間，也可點擊開啟時間選項清單點選
+- 統一管理後台與各頁面表單下拉選單的外觀樣式與焦點框
+- 移除新手引導「前往設定」按鈕多餘的連結底線
+
 ## v0.9.1-beta (2026-11-25) — 邀請連結自動開通、新手引導與轉乘卡片修正
 *Direct Invite Links, Empty-State Guide & Transit Card Fix*
 

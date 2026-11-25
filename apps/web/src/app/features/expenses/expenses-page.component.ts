@@ -701,9 +701,14 @@ import { ItineraryStore } from '../../state/itinerary.store';
       padding: 10px 12px;
       border: 1px solid var(--color-border);
       border-radius: var(--radius-sm);
-      background: var(--color-bg);
+      background-color: var(--color-bg);
       color: var(--color-text-primary);
       font: inherit;
+    }
+    select.input-main,
+    select.input-currency {
+      background-color: var(--color-surface);
+      padding-right: 32px;
     }
     .amount-row {
       display: grid;
@@ -721,7 +726,7 @@ import { ItineraryStore } from '../../state/itinerary.store';
     }
     .input-currency {
       font-weight: 600;
-      padding: 9px 6px;
+      padding: 9px 28px 9px 8px;
     }
     .rate-box {
       display: flex;

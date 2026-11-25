@@ -17,6 +17,7 @@
           "builder": "@angular/build:application",
           "options": {
             "browser": "src/main.ts",
+            "inlineStyleLanguage": "scss",
             "tsConfig": "tsconfig.app.json",
             "assets": [
               {
@@ -25,7 +26,7 @@
               }
             ],
             "styles": [
-              "src/styles.css"
+              "src/styles.scss"
             ],
             "allowedCommonJsDependencies": [
               "maplibre-gl"

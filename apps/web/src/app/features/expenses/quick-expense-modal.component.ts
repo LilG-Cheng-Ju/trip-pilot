@@ -264,10 +264,14 @@ import { ExpenseStore } from '../../state/expense.store';
       padding: 9px 11px;
       border: 1px solid var(--color-border);
       border-radius: var(--radius-sm);
-      background: var(--color-bg);
+      background-color: var(--color-bg);
       color: var(--color-text-primary);
       font: inherit;
       font-size: 0.875rem;
+    }
+    select.input-control {
+      background-color: var(--color-surface);
+      padding-right: 32px;
     }
     .amount-grid {
       display: grid;

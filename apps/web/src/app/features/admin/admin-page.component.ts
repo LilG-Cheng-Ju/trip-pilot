@@ -6,6 +6,8 @@ import {
   OnInit,
   signal,
 } from '@angular/core';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatSelectModule } from '@angular/material/select';
 
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -33,7 +35,7 @@ interface PendingAdminAction {
   selector: 'app-admin-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [AdminStore],
-  imports: [TranslatePipe, AppConfirmModalComponent],
+  imports: [TranslatePipe, AppConfirmModalComponent, MatFormFieldModule, MatSelectModule],
   template: `
     <div class="page">
       <div class="page-header">
@@ -111,29 +113,31 @@ interface PendingAdminAction {
               (input)="onSearchInput($event)"
             />
 
-            <select
-              class="filter-select"
-              [attr.aria-label]="'admin.filterAllRoles' | t"
-              [value]="adminStore.roleFilter()"
-              (change)="onRoleFilterChange($event)"
-            >
-              <option value="">{{ 'admin.filterAllRoles' | t }}</option>
-              <option value="OWNER">OWNER</option>
-              <option value="ADMIN">ADMIN</option>
-              <option value="FRIEND">FRIEND</option>
-              <option value="USER">USER</option>
-            </select>
+            <mat-form-field class="filter-field" appearance="outline" subscriptSizing="dynamic">
+              <mat-select
+                [aria-label]="'admin.filterAllRoles' | t"
+                [value]="adminStore.roleFilter()"
+                (selectionChange)="onRoleFilterChange($event.value)"
+              >
+                <mat-option value="">{{ 'admin.filterAllRoles' | t }}</mat-option>
+                <mat-option value="OWNER">OWNER</mat-option>
+                <mat-option value="ADMIN">ADMIN</mat-option>
+                <mat-option value="FRIEND">FRIEND</mat-option>
+                <mat-option value="USER">USER</mat-option>
+              </mat-select>
+            </mat-form-field>
 
-            <select
-              class="filter-select"
-              [attr.aria-label]="'admin.sortCreated' | t"
-              [value]="adminStore.sortBy()"
-              (change)="onSortChange($event)"
-            >
-              <option value="created_at">{{ 'admin.sortCreated' | t }}</option>
-              <option value="last_login_at">{{ 'admin.sortLastLogin' | t }}</option>
-              <option value="role">{{ 'admin.sortRole' | t }}</option>
-            </select>
+            <mat-form-field class="filter-field" appearance="outline" subscriptSizing="dynamic">
+              <mat-select
+                [aria-label]="'admin.sortCreated' | t"
+                [value]="adminStore.sortBy()"
+                (selectionChange)="onSortChange($event.value)"
+              >
+                <mat-option value="created_at">{{ 'admin.sortCreated' | t }}</mat-option>
+                <mat-option value="last_login_at">{{ 'admin.sortLastLogin' | t }}</mat-option>
+                <mat-option value="role">{{ 'admin.sortRole' | t }}</mat-option>
+              </mat-select>
+            </mat-form-field>
           </div>
 
           <div class="record-list">
@@ -174,17 +178,19 @@ interface PendingAdminAction {
 
                 @if (canManageUser(u)) {
                   <div class="record-actions">
-                    <select
-                      class="role-select"
-                      [attr.aria-label]="u.email || u.id"
-                      [disabled]="adminStore.mutating()"
-                      [value]="u.role"
-                      (change)="onUserRoleChange(u, $event)"
-                    >
-                      @for (r of assignableRoles(); track r) {
-                        <option [value]="r" [selected]="u.role === r">{{ r }}</option>
-                      }
-                    </select>
+                    <mat-form-field class="role-field" appearance="outline" subscriptSizing="dynamic">
+                      <mat-select
+                        class="role-select"
+                        [aria-label]="u.email || u.id"
+                        [disabled]="adminStore.mutating()"
+                        [value]="u.role"
+                        (selectionChange)="onUserRoleChange(u, $event.value)"
+                      >
+                        @for (r of assignableRoles(); track r) {
+                          <mat-option [value]="r">{{ r }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
 
                     @if (u.is_active) {
                       <button
@@ -241,14 +247,24 @@ interface PendingAdminAction {
             class="invite-gen-form"
             (submit)="$event.preventDefault(); generateInvites()"
           >
-            <label class="field compact-field">
+            <div class="field compact-field">
               <span>{{ 'admin.inviteCount' | t }}</span>
-              <select [value]="inviteCount()" (change)="onInviteCountChange($event)">
-                @for (n of [1, 3, 5, 10]; track n) {
-                  <option [value]="n">{{ n }}</option>
-                }
-              </select>
-            </label>
+              <mat-form-field
+                class="compact-select-field"
+                appearance="outline"
+                subscriptSizing="dynamic"
+              >
+                <mat-select
+                  [aria-label]="'admin.inviteCount' | t"
+                  [value]="inviteCount()"
+                  (selectionChange)="inviteCount.set($event.value)"
+                >
+                  @for (n of [1, 3, 5, 10]; track n) {
+                    <mat-option [value]="n">{{ n }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            </div>
 
             <label class="field note-field">
               <span>{{ 'admin.inviteNote' | t }}</span>
@@ -260,18 +276,25 @@ interface PendingAdminAction {
               />
             </label>
 
-            <label class="field compact-field">
+            <div class="field compact-field">
               <span>{{ 'admin.inviteExpiry' | t }}</span>
-              <select
-                [value]="inviteExpiryDays()"
-                (change)="inviteExpiryDays.set(readInputValue($event))"
+              <mat-form-field
+                class="expiry-select-field"
+                appearance="outline"
+                subscriptSizing="dynamic"
               >
-                <option value="">{{ 'admin.expiryNever' | t }}</option>
-                <option value="7">{{ 'admin.expiryDays' | t:{ days: 7 } }}</option>
-                <option value="30">{{ 'admin.expiryDays' | t:{ days: 30 } }}</option>
-                <option value="90">{{ 'admin.expiryDays' | t:{ days: 90 } }}</option>
-              </select>
-            </label>
+                <mat-select
+                  [aria-label]="'admin.inviteExpiry' | t"
+                  [value]="inviteExpiryDays()"
+                  (selectionChange)="inviteExpiryDays.set($event.value)"
+                >
+                  <mat-option value="">{{ 'admin.expiryNever' | t }}</mat-option>
+                  <mat-option value="7">{{ 'admin.expiryDays' | t:{ days: 7 } }}</mat-option>
+                  <mat-option value="30">{{ 'admin.expiryDays' | t:{ days: 30 } }}</mat-option>
+                  <mat-option value="90">{{ 'admin.expiryDays' | t:{ days: 90 } }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
 
             <button
               type="submit"
@@ -445,20 +468,28 @@ interface PendingAdminAction {
       margin-bottom: var(--space-4);
     }
 
-    .search-input,
-    .filter-select,
-    .role-select {
+    .search-input {
+      height: 40px;
       padding: 8px 11px;
       border: 1px solid var(--color-border);
       border-radius: var(--radius-sm);
-      background: var(--color-bg);
+      background-color: var(--color-bg);
       color: var(--color-text-primary);
       font: inherit;
       font-size: 0.84rem;
+      flex: 1 1 220px;
     }
 
-    .search-input {
-      flex: 1 1 220px;
+    .filter-field {
+      min-width: 136px;
+    }
+
+    .compact-select-field {
+      width: 82px;
+    }
+
+    .expiry-select-field {
+      width: 132px;
     }
 
     .compact-field {
@@ -469,8 +500,12 @@ interface PendingAdminAction {
       flex: 1 1 200px;
     }
 
+    .note-field input {
+      height: 40px;
+    }
+
     .gen-btn {
-      height: 38px;
+      height: 40px;
     }
 
     .fresh-batch {
@@ -574,9 +609,14 @@ interface PendingAdminAction {
       gap: 6px;
     }
 
+    .role-field {
+      width: 108px;
+      --mat-form-field-container-height: 32px;
+      --mat-form-field-container-vertical-padding: 5px;
+      --mat-select-trigger-text-size: 0.78rem;
+    }
+
     .role-select {
-      padding: 5px 8px;
-      font-size: 0.78rem;
       font-weight: 600;
     }
 
@@ -707,24 +747,18 @@ export class AdminPageComponent implements OnInit {
     void this.adminStore.setSearchQuery(readInputValue(event));
   }
 
-  protected onRoleFilterChange(event: Event): void {
-    void this.adminStore.setRoleFilter(readInputValue(event) as UserRole | '');
+  protected onRoleFilterChange(role: UserRole | ''): void {
+    void this.adminStore.setRoleFilter(role);
   }
 
-  protected onSortChange(event: Event): void {
-    void this.adminStore.setSortBy(readInputValue(event) as AdminUserSortField);
+  protected onSortChange(sortBy: AdminUserSortField): void {
+    void this.adminStore.setSortBy(sortBy);
   }
 
-  protected onUserRoleChange(user: AdminUserItem, event: Event): void {
-    const nextRole = readInputValue(event) as UserRole;
+  protected onUserRoleChange(user: AdminUserItem, nextRole: UserRole): void {
     if (nextRole !== user.role) {
       void this.adminStore.updateUserRole(user.id, nextRole);
     }
-  }
-
-  protected onInviteCountChange(event: Event): void {
-    const parsed = Number(readInputValue(event));
-    this.inviteCount.set(Number.isFinite(parsed) && parsed > 0 ? parsed : 1);
   }
 
   protected async generateInvites(): Promise<void> {

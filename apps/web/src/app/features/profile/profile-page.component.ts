@@ -256,7 +256,6 @@ import { AuthStore } from '../../state/auth.store';
       font-weight: 600;
       color: var(--color-text-secondary);
     }
-    .field select,
     .token-form input {
       padding: 10px 12px;
       border: 1px solid var(--color-border);

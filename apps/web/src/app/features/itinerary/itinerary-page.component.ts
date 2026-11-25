@@ -959,6 +959,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       font: inherit;
       font-size: 0.78rem;
       font-weight: 600;
+      text-decoration: none;
       cursor: pointer;
     }
     .summary-bar {

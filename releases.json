@@ -1,5 +1,25 @@
 [
   {
+    "version": "0.9.2-beta",
+    "date": "2026-11-25",
+    "title": {
+      "zh-TW": "行程時間輸入升級、下拉選單與按鈕修正",
+      "en": "Time Input Picker, Dropdown Styling & Onboarding Button Fix"
+    },
+    "changes": {
+      "zh-TW": [
+        "行程項目表單的開始與結束時間支援直接鍵盤輸入 24 小時制時間，也可點擊開啟時間選項清單點選",
+        "統一管理後台與各頁面表單下拉選單的外觀樣式與焦點框",
+        "移除新手引導「前往設定」按鈕多餘的連結底線"
+      ],
+      "en": [
+        "Upgraded itinerary item start and end time inputs to support both manual 24-hour typing and preset slot selection",
+        "Unified dropdown menu borders, chevrons, and focus states across Admin Console and app forms",
+        "Removed the unintended link underline on the empty-state Settings button"
+      ]
+    }
+  },
+  {
     "version": "0.9.1-beta",
     "date": "2026-11-25",
     "title": {
