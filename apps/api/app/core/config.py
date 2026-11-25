@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "Tripilot API"
-    app_version: str = "0.7.3-beta"
+    app_version: str = "0.8.0-beta"
     app_env: Literal["DEV", "PROD"] = "PROD"
 
     # Strictly honored only when app_env == "DEV".

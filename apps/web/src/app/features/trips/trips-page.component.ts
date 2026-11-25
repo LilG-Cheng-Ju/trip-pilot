@@ -46,7 +46,7 @@ type DateEndMode = 'end' | 'duration' | 'open';
   template: `
     <div class="page">
       <header class="page-header">
-        <h2 class="page-title">{{ 'trips.title' | t }}</h2>
+        <h2 class="page-title font-display">{{ 'trips.title' | t }}</h2>
         <button type="button" class="btn-primary" (click)="openCreateModal()">
           <span class="ms-icon sm" aria-hidden="true">add</span>
           <span>{{ 'trips.new' | t }}</span>

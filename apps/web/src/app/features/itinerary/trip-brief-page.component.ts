@@ -52,32 +52,30 @@ interface TripAttachmentEntry {
           <!-- 1. Accommodations & Hotel Changes -->
           <section class="brief-section">
             <div class="section-head">
-              <span class="ms-icon sm section-ico stay" aria-hidden="true">hotel</span>
-              <h3>{{ 'brief.stays' | t }}</h3>
-              <span class="count-badge tabular-nums">{{ staySpans().length }}</span>
+              <h3 class="font-display">{{ 'brief.stays' | t }}</h3>
+              <span class="section-count font-mono tabular-nums">{{ staySpans().length }}</span>
             </div>
 
             @if (staySpans().length === 0) {
               <p class="empty-hint">{{ 'brief.staysEmpty' | t }}</p>
             } @else {
-              <div class="card-stack">
+              <div class="dossier-list">
                 @for (stay of staySpans(); track stay.item.id + '-' + stay.startDayIndex) {
-                  <article class="brief-card stay-card">
-                    <div class="brief-card-top">
-                      <div class="date-span tabular-nums">
-                        <span>{{ stay.checkInDate }}</span>
-                        <span class="arrow">→</span>
-                        <span>{{ stay.checkOutDate }}</span>
-                        <span class="nights-pill">
-                          {{
-                            stay.nights === 1
-                              ? ('brief.nightSingle' | t)
-                              : ('brief.nights' | t: { count: stay.nights })
-                          }}
-                        </span>
-                      </div>
+                  <article class="dossier-row">
+                    <div class="dossier-kicker tabular-nums">
+                      <span class="kicker-dates">
+                        {{ stay.checkInDate }} → {{ stay.checkOutDate }}
+                      </span>
+                      <span class="kicker-sep" aria-hidden="true">·</span>
+                      <span class="kicker-nights">
+                        {{
+                          stay.nights === 1
+                            ? ('brief.nightSingle' | t)
+                            : ('brief.nights' | t: { count: stay.nights })
+                        }}
+                      </span>
                       @if (stay.isHotelChange) {
-                        <span class="change-badge">
+                        <span class="change-inline">
                           <span class="ms-icon sm" aria-hidden="true">swap_horiz</span>
                           <span>{{ 'brief.hotelChange' | t }}</span>
                         </span>
@@ -89,35 +87,43 @@ interface TripAttachmentEntry {
                       <p class="item-sub">{{ stay.item.address }}</p>
                     }
 
-                    <div class="chip-row">
-                      @if (detail(stay.item, 'confirmation_code') || detail(stay.item, 'booking_ref'); as conf) {
-                        <span class="info-chip">{{ 'detail.confirmation' | t }} {{ conf }}</span>
-                      }
-                      @if (detail(stay.item, 'free_cancellation_deadline'); as cancel) {
-                        <span class="alert-chip">
-                          <span class="ms-icon sm" aria-hidden="true">warning</span>
-                          <span>{{ 'detail.freeCancelBy' | t }} {{ cancel }}</span>
-                        </span>
-                      }
-                      @if (detail(stay.item, 'local_name'); as localName) {
-                        <button
-                          type="button"
-                          class="action-chip"
-                          (click)="copyText(stay.item.id, localName)"
-                        >
-                          <span class="ms-icon sm" aria-hidden="true">
-                            {{ copiedId() === stay.item.id ? 'check' : 'content_copy' }}
+                    @if (
+                      detail(stay.item, 'confirmation_code') ||
+                      detail(stay.item, 'booking_ref') ||
+                      detail(stay.item, 'free_cancellation_deadline') ||
+                      detail(stay.item, 'local_name') ||
+                      mapsUrl(stay.item)
+                    ) {
+                      <div class="dossier-meta">
+                        @if (detail(stay.item, 'confirmation_code') || detail(stay.item, 'booking_ref'); as conf) {
+                          <span class="meta-code font-mono">{{ 'detail.confirmation' | t }} {{ conf }}</span>
+                        }
+                        @if (detail(stay.item, 'free_cancellation_deadline'); as cancel) {
+                          <span class="meta-alert">
+                            <span class="ms-icon sm" aria-hidden="true">warning</span>
+                            <span>{{ 'detail.freeCancelBy' | t }} {{ cancel }}</span>
                           </span>
-                          <span>{{ copiedId() === stay.item.id ? ('common.copied' | t) : localName }}</span>
-                        </button>
-                      }
-                      @if (mapsUrl(stay.item); as url) {
-                        <a class="action-chip" [href]="url" target="_blank" rel="noopener noreferrer">
-                          <span class="ms-icon sm" aria-hidden="true">near_me</span>
-                          <span>{{ 'common.navigate' | t }}</span>
-                        </a>
-                      }
-                    </div>
+                        }
+                        @if (detail(stay.item, 'local_name'); as localName) {
+                          <button
+                            type="button"
+                            class="dossier-action"
+                            (click)="copyText(stay.item.id, localName)"
+                          >
+                            <span class="ms-icon sm" aria-hidden="true">
+                              {{ copiedId() === stay.item.id ? 'check' : 'content_copy' }}
+                            </span>
+                            <span>{{ copiedId() === stay.item.id ? ('common.copied' | t) : localName }}</span>
+                          </button>
+                        }
+                        @if (mapsUrl(stay.item); as url) {
+                          <a class="dossier-action" [href]="url" target="_blank" rel="noopener noreferrer">
+                            <span class="ms-icon sm" aria-hidden="true">near_me</span>
+                            <span>{{ 'common.navigate' | t }}</span>
+                          </a>
+                        }
+                      </div>
+                    }
                   </article>
                 }
               </div>
@@ -127,30 +133,31 @@ interface TripAttachmentEntry {
           <!-- 2. Flights -->
           <section class="brief-section">
             <div class="section-head">
-              <span class="ms-icon sm section-ico flight" aria-hidden="true">flight</span>
-              <h3>{{ 'brief.flights' | t }}</h3>
-              <span class="count-badge tabular-nums">{{ flights().length }}</span>
+              <h3 class="font-display">{{ 'brief.flights' | t }}</h3>
+              <span class="section-count font-mono tabular-nums">{{ flights().length }}</span>
             </div>
 
             @if (flights().length === 0) {
               <p class="empty-hint">{{ 'brief.flightsEmpty' | t }}</p>
             } @else {
-              <div class="card-stack">
+              <div class="dossier-list">
                 @for (entry of flights(); track entry.item.id) {
-                  <article class="brief-card flight-card">
-                    <div class="brief-card-top">
-                      <span class="day-tag tabular-nums">
-                        Day {{ entry.dayIndex }} · {{ entry.date }}
-                      </span>
+                  <article class="dossier-row">
+                    <div class="dossier-kicker tabular-nums">
+                      <span>Day {{ entry.dayIndex }} · {{ entry.date }}</span>
                       @if (detail(entry.item, 'booking_ref'); as ref) {
-                        <span class="ref-pill">{{ 'detail.bookingRef' | t }} {{ ref }}</span>
+                        <span class="meta-code font-mono kicker-right">
+                          {{ 'detail.bookingRef' | t }} {{ ref }}
+                        </span>
                       } @else if (detail(entry.item, 'confirmation_code'); as conf) {
-                        <span class="ref-pill">{{ 'detail.confirmation' | t }} {{ conf }}</span>
+                        <span class="meta-code font-mono kicker-right">
+                          {{ 'detail.confirmation' | t }} {{ conf }}
+                        </span>
                       }
                     </div>
                     <div class="flight-line tabular-nums">
                       <div class="flight-end">
-                        <strong class="iata">{{ detail(entry.item, 'origin_iata') || '---' }}</strong>
+                        <strong class="iata font-display">{{ detail(entry.item, 'origin_iata') || '---' }}</strong>
                         <span class="time">{{ entry.item.start_time || '--:--' }}</span>
                       </div>
                       <div class="flight-mid">
@@ -163,7 +170,7 @@ interface TripAttachmentEntry {
                         }
                       </div>
                       <div class="flight-end right">
-                        <strong class="iata">{{ detail(entry.item, 'dest_iata') || '---' }}</strong>
+                        <strong class="iata font-display">{{ detail(entry.item, 'dest_iata') || '---' }}</strong>
                         <span class="time">{{ entry.item.end_time || '--:--' }}</span>
                       </div>
                     </div>
@@ -176,23 +183,21 @@ interface TripAttachmentEntry {
           <!-- 3. Reserved Transit -->
           <section class="brief-section">
             <div class="section-head">
-              <span class="ms-icon sm section-ico transit" aria-hidden="true">train</span>
-              <h3>{{ 'brief.transit' | t }}</h3>
-              <span class="count-badge tabular-nums">{{ reservedTransits().length }}</span>
+              <h3 class="font-display">{{ 'brief.transit' | t }}</h3>
+              <span class="section-count font-mono tabular-nums">{{ reservedTransits().length }}</span>
             </div>
 
             @if (reservedTransits().length === 0) {
               <p class="empty-hint">{{ 'brief.transitEmpty' | t }}</p>
             } @else {
-              <div class="card-stack">
+              <div class="dossier-list">
                 @for (entry of reservedTransits(); track entry.item.id) {
-                  <article class="brief-card transit-card">
-                    <div class="brief-card-top">
-                      <span class="day-tag light tabular-nums">
-                        Day {{ entry.dayIndex }} · {{ entry.date }}
-                      </span>
+                  <article class="dossier-row">
+                    <div class="dossier-kicker tabular-nums">
+                      <span>Day {{ entry.dayIndex }} · {{ entry.date }}</span>
                       @if (entry.item.start_time) {
-                        <span class="time-tag tabular-nums">
+                        <span class="kicker-sep" aria-hidden="true">·</span>
+                        <span class="time-tag">
                           {{ entry.item.start_time }}@if (entry.item.end_time) { – {{ entry.item.end_time }} }
                         </span>
                       }
@@ -201,26 +206,34 @@ interface TripAttachmentEntry {
                     @if (entry.item.address) {
                       <p class="item-sub">{{ entry.item.address }}</p>
                     }
-                    <div class="chip-row">
-                      @if (detail(entry.item, 'line_or_train_no'); as line) {
-                        <span class="info-chip">{{ line }}</span>
-                      }
-                      @if (detail(entry.item, 'seat'); as seat) {
-                        <span class="info-chip">{{ seat }}</span>
-                      }
-                      @if (detail(entry.item, 'booking_ref'); as ref) {
-                        <span class="info-chip">{{ 'detail.bookingRef' | t }} {{ ref }}</span>
-                      }
-                      @if (detail(entry.item, 'confirmation_code'); as conf) {
-                        <span class="info-chip">{{ 'detail.confirmation' | t }} {{ conf }}</span>
-                      }
-                      @if (detail(entry.item, 'free_cancellation_deadline'); as cancel) {
-                        <span class="alert-chip">
-                          <span class="ms-icon sm" aria-hidden="true">warning</span>
-                          <span>{{ 'detail.freeCancelBy' | t }} {{ cancel }}</span>
-                        </span>
-                      }
-                    </div>
+                    @if (
+                      detail(entry.item, 'line_or_train_no') ||
+                      detail(entry.item, 'seat') ||
+                      detail(entry.item, 'booking_ref') ||
+                      detail(entry.item, 'confirmation_code') ||
+                      detail(entry.item, 'free_cancellation_deadline')
+                    ) {
+                      <div class="dossier-meta">
+                        @if (detail(entry.item, 'line_or_train_no'); as line) {
+                          <span class="meta-text">{{ line }}</span>
+                        }
+                        @if (detail(entry.item, 'seat'); as seat) {
+                          <span class="meta-text">{{ seat }}</span>
+                        }
+                        @if (detail(entry.item, 'booking_ref'); as ref) {
+                          <span class="meta-code font-mono">{{ 'detail.bookingRef' | t }} {{ ref }}</span>
+                        }
+                        @if (detail(entry.item, 'confirmation_code'); as conf) {
+                          <span class="meta-code font-mono">{{ 'detail.confirmation' | t }} {{ conf }}</span>
+                        }
+                        @if (detail(entry.item, 'free_cancellation_deadline'); as cancel) {
+                          <span class="meta-alert">
+                            <span class="ms-icon sm" aria-hidden="true">warning</span>
+                            <span>{{ 'detail.freeCancelBy' | t }} {{ cancel }}</span>
+                          </span>
+                        }
+                      </div>
+                    }
                   </article>
                 }
               </div>
@@ -230,18 +243,17 @@ interface TripAttachmentEntry {
           <!-- 4. All Cloud Attachments Vault -->
           <section class="brief-section">
             <div class="section-head">
-              <span class="ms-icon sm section-ico files" aria-hidden="true">folder_open</span>
-              <h3>{{ 'brief.attachments' | t }}</h3>
-              <span class="count-badge tabular-nums">{{ allAttachments().length }}</span>
+              <h3 class="font-display">{{ 'brief.attachments' | t }}</h3>
+              <span class="section-count font-mono tabular-nums">{{ allAttachments().length }}</span>
             </div>
 
             @if (allAttachments().length === 0) {
               <p class="empty-hint">{{ 'brief.attachmentsEmpty' | t }}</p>
             } @else {
-              <div class="vault-grid">
+              <div class="dossier-list">
                 @for (entry of allAttachments(); track entry.attachment.url + '-' + $index) {
                   <a
-                    class="vault-card"
+                    class="vault-row"
                     [href]="entry.attachment.url"
                     target="_blank"
                     rel="noopener noreferrer"
@@ -289,7 +301,7 @@ interface TripAttachmentEntry {
     }
     .brief-section {
       min-width: 0;
-      padding: var(--space-4);
+      padding: var(--space-5);
       border-radius: var(--radius-md);
       background: var(--color-surface);
       border: 1px solid var(--color-border);
@@ -297,41 +309,27 @@ interface TripAttachmentEntry {
     }
     .section-head {
       display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: var(--space-3);
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 10px;
+      margin-bottom: 2px;
+      border-bottom: 1px solid var(--color-border);
     }
     .section-head h3 {
       margin: 0;
-      font-size: 0.98rem;
+      font-size: 1.12rem;
       font-weight: 600;
       color: var(--color-primary);
     }
-    .section-ico {
-      width: 28px;
-      height: 28px;
-      border-radius: 8px;
-      background: var(--color-primary-tint);
-      color: var(--color-primary);
-    }
-    .section-ico.stay {
-      background: var(--color-accent-soft);
-      color: var(--color-accent-ink);
-    }
-    .count-badge {
-      margin-left: auto;
-      padding: 2px 8px;
-      border-radius: var(--radius-pill);
-      background: var(--color-surface-muted);
-      color: var(--color-text-secondary);
-      font-size: 0.74rem;
+    .section-count {
+      font-size: 0.78rem;
       font-weight: 600;
+      color: var(--color-accent);
     }
     .empty-hint {
       margin: 0;
-      padding: var(--space-3);
-      border-radius: var(--radius-sm);
-      background: var(--color-bg);
+      padding: 14px 0 4px;
       color: var(--color-text-muted);
       font-size: 0.82rem;
     }
@@ -361,138 +359,113 @@ interface TripAttachmentEntry {
       gap: 8px;
       margin-top: 4px;
     }
-    .card-stack {
+    .dossier-list {
       display: flex;
       flex-direction: column;
-      gap: 10px;
     }
-    .brief-card {
-      padding: 12px 14px;
-      border-radius: var(--radius-sm);
-      background: var(--color-bg);
-      border: 1px solid var(--color-border);
+    .dossier-row {
+      padding: 14px 0;
+      border-bottom: 1px solid var(--color-border-soft);
     }
-    .stay-card,
-    .transit-card {
-      background: var(--color-surface);
-      border: 1px solid var(--color-border);
+    .dossier-row:last-child {
+      border-bottom: none;
+      padding-bottom: 2px;
     }
-    .flight-card {
-      background: var(--color-primary);
-      color: var(--color-text-on-primary);
-      border-color: var(--color-primary);
-    }
-    .brief-card-top {
+    .dossier-kicker {
       display: flex;
       align-items: center;
-      justify-content: space-between;
       flex-wrap: wrap;
       gap: 6px;
-      margin-bottom: 6px;
-    }
-    .date-span {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.78rem;
+      margin-bottom: 5px;
+      font-size: 0.76rem;
       font-weight: 600;
-      color: var(--color-primary);
-    }
-    .arrow {
       color: var(--color-text-muted);
     }
-    .nights-pill {
-      padding: 2px 8px;
-      border-radius: var(--radius-pill);
-      background: var(--color-accent-soft);
-      color: var(--color-accent-ink);
-      font-size: 0.72rem;
+    .kicker-dates {
+      color: var(--color-primary);
     }
-    .change-badge {
+    .kicker-sep {
+      color: var(--color-text-muted);
+    }
+    .kicker-nights {
+      color: var(--color-accent-ink);
+    }
+    .kicker-right {
+      margin-left: auto;
+    }
+    .change-inline {
+      margin-left: auto;
       display: inline-flex;
       align-items: center;
       gap: 3px;
-      padding: 2px 8px;
-      border-radius: var(--radius-pill);
-      background: var(--color-primary-tint);
-      color: var(--color-primary);
-      font-size: 0.72rem;
+      color: var(--color-accent);
+      font-size: 0.73rem;
       font-weight: 600;
     }
     .item-title {
-      margin: 0 0 3px;
-      font-size: 0.95rem;
+      margin: 0 0 2px;
+      font-size: 0.98rem;
       font-weight: 600;
-      color: var(--color-text-primary);
+      color: var(--color-primary);
     }
     .item-sub {
-      margin: 0 0 8px;
-      font-size: 0.78rem;
+      margin: 0;
+      font-size: 0.8rem;
       color: var(--color-text-secondary);
     }
-    .chip-row {
+    .dossier-meta {
       display: flex;
       flex-wrap: wrap;
-      gap: 6px;
-      margin-top: 6px;
+      align-items: center;
+      gap: 6px 14px;
+      margin-top: 8px;
+      font-size: 0.76rem;
     }
-    .info-chip,
-    .alert-chip,
-    .action-chip {
+    .meta-text {
+      font-weight: 600;
+      color: var(--color-text-secondary);
+    }
+    .meta-code {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--color-primary);
+    }
+    .meta-alert {
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      padding: 3px 8px;
-      border-radius: 7px;
-      font-size: 0.74rem;
       font-weight: 600;
-      text-decoration: none;
-    }
-    .info-chip {
-      background: var(--color-primary-tint);
-      color: var(--color-primary);
-    }
-    .alert-chip {
-      background: var(--color-alert-soft);
       color: var(--color-alert);
     }
-    .action-chip {
-      border: 1px solid var(--color-border);
-      background: var(--color-surface);
+    .dossier-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 6px;
+      border: none;
+      border-radius: var(--radius-xs);
+      background: transparent;
       color: var(--color-primary);
-      font-family: inherit;
-      cursor: pointer;
-    }
-    .action-chip:hover {
-      border-color: var(--color-primary);
-    }
-    .day-tag {
-      font-size: 0.76rem;
+      font: inherit;
+      font-size: 0.75rem;
       font-weight: 600;
-      opacity: 0.85;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background-color 140ms ease, color 140ms ease;
     }
-    .day-tag.light {
-      color: var(--color-primary);
-      opacity: 1;
+    .dossier-action:hover {
+      background: var(--color-surface-alt);
+      color: var(--color-accent-ink);
     }
     .time-tag {
-      font-size: 0.76rem;
-      font-weight: 600;
       color: var(--color-text-secondary);
-    }
-    .ref-pill {
-      padding: 2px 8px;
-      border-radius: var(--radius-pill);
-      background: rgba(255, 255, 255, 0.16);
-      font-family: var(--font-mono);
-      font-size: 0.74rem;
     }
     .flight-line {
       display: grid;
       grid-template-columns: auto 1fr auto;
       align-items: center;
-      gap: 12px;
-      margin-top: 4px;
+      gap: 14px;
+      margin-top: 6px;
     }
     .flight-end {
       display: flex;
@@ -502,13 +475,15 @@ interface TripAttachmentEntry {
       text-align: right;
     }
     .iata {
-      font-size: 1.35rem;
+      font-size: 1.4rem;
       font-weight: 600;
-      letter-spacing: 0.04em;
+      line-height: 1.15;
+      letter-spacing: 0.02em;
+      color: var(--color-primary);
     }
     .time {
       font-size: 0.78rem;
-      opacity: 0.8;
+      color: var(--color-text-secondary);
     }
     .flight-mid {
       display: flex;
@@ -519,37 +494,33 @@ interface TripAttachmentEntry {
     .flight-no {
       font-size: 0.76rem;
       font-weight: 600;
-      opacity: 0.9;
+      color: var(--color-primary);
     }
     .arc-bar {
       width: 100%;
       height: 1px;
-      background: rgba(200, 155, 91, 0.6);
+      background: var(--color-accent-border);
     }
     .flight-km {
       font-size: 0.72rem;
       font-weight: 600;
       color: var(--color-accent);
     }
-    .vault-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 8px;
-    }
-    .vault-card {
+    .vault-row {
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 10px 12px;
-      border-radius: 9px;
-      background: var(--color-bg);
-      border: 1px solid var(--color-border);
+      padding: 12px 6px;
+      border-bottom: 1px solid var(--color-border-soft);
       color: var(--color-text-primary);
       text-decoration: none;
+      transition: background-color 140ms ease;
     }
-    .vault-card:hover {
-      border-color: var(--color-primary);
-      background: var(--color-primary-tint);
+    .vault-row:last-child {
+      border-bottom: none;
+    }
+    .vault-row:hover {
+      background: var(--color-surface-alt);
     }
     .vault-ico {
       color: var(--color-accent);

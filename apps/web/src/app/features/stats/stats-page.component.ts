@@ -5,6 +5,7 @@ import { findCountry } from '../../core/constants/travel-options';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ExpenseCategory, StatsScope } from '../../core/models/tripilot.models';
+import { createAnimatedNumber } from '../../core/utils/count-up.utils';
 import { expenseCategoryKey, formatMoney } from '../../core/utils/travel-format.utils';
 import { StatsStore } from '../../state/stats.store';
 
@@ -26,7 +27,7 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
   template: `
     <div class="page">
       <header class="page-head">
-        <h2 class="page-title">{{ 'stats.title' | t }}</h2>
+        <h2 class="page-title font-display">{{ 'stats.title' | t }}</h2>
 
         <div class="controls-bar">
           <div class="segmented" role="tablist" [attr.aria-label]="'stats.scopeAria' | t">
@@ -67,9 +68,9 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
         <div class="dashboard-body" [class.refreshing]="store.loading()">
         <!-- 4 Core KPI Cards -->
         <section class="kpi-grid">
-          <div class="kpi-card highlight">
+          <div class="kpi-card">
             <span class="kpi-label">{{ 'stats.trips' | t }}</span>
-            <strong class="kpi-value tabular-nums">{{ s.total_trips }}</strong>
+            <strong class="kpi-value tabular-nums">{{ animatedTrips() }}</strong>
             <span class="kpi-sub tabular-nums">
               @if (s.scope === 'all') {
                 {{ 'stats.scope.international' | t }} {{ s.international_trips }} ·
@@ -82,7 +83,7 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
 
           <div class="kpi-card">
             <span class="kpi-label">{{ 'stats.travelDays' | t }}</span>
-            <strong class="kpi-value tabular-nums">{{ s.total_travel_days }}</strong>
+            <strong class="kpi-value tabular-nums">{{ animatedTravelDays() }}</strong>
             <span class="kpi-sub tabular-nums">
               {{ 'stats.avgTripDays' | t: { days: avgTripDays() } }}
             </span>
@@ -91,7 +92,7 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
           <div class="kpi-card">
             <span class="kpi-label">{{ 'stats.flightDistance' | t }}</span>
             <strong class="kpi-value tabular-nums">
-              {{ formatMoney(s.total_flight_distance_km) }} km
+              {{ formatMoney(animatedFlightKm()) }} km
             </strong>
             <span class="kpi-sub tabular-nums">
               {{ 'stats.flightsCount' | t: { count: s.flight_count } }} ·
@@ -102,7 +103,7 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
           <div class="kpi-card">
             <span class="kpi-label">{{ 'stats.totalSpend' | t }}</span>
             <strong class="kpi-value tabular-nums">
-              {{ s.home_currency }} {{ formatMoney(s.total_spend_home) }}
+              {{ s.home_currency }} {{ formatMoney(animatedTotalSpend()) }}
             </strong>
             <span class="kpi-sub tabular-nums">
               {{
@@ -117,11 +118,8 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
         <div class="insights-grid">
           <section class="panel spend-panel">
             <div class="panel-head">
-              <div class="panel-title-wrap">
-                <span class="ms-icon sm panel-ico spend" aria-hidden="true">pie_chart</span>
-                <h3>{{ 'stats.spendBreakdown' | t }}</h3>
-              </div>
-              <span class="panel-total tabular-nums">
+              <h3 class="font-display">{{ 'stats.spendBreakdown' | t }}</h3>
+              <span class="panel-total font-mono tabular-nums">
                 {{ s.home_currency }} {{ formatMoney(s.total_spend_home) }}
               </span>
             </div>
@@ -162,11 +160,8 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
 
           <section class="panel">
             <div class="panel-head">
-              <div class="panel-title-wrap">
-                <span class="ms-icon sm panel-ico" aria-hidden="true">public</span>
-                <h3>{{ 'stats.countriesVisited' | t }}</h3>
-              </div>
-              <span class="count-pill tabular-nums">{{ countryRanking().length }}</span>
+              <h3 class="font-display">{{ 'stats.countriesVisited' | t }}</h3>
+              <span class="panel-count font-mono tabular-nums">{{ countryRanking().length }}</span>
             </div>
 
             @if (countryRanking().length === 0) {
@@ -194,11 +189,8 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
         <!-- Clickable Trips List for This Period -->
         <section class="panel trips-panel">
           <div class="panel-head">
-            <div class="panel-title-wrap">
-              <span class="ms-icon sm panel-ico" aria-hidden="true">luggage</span>
-              <h3>{{ 'stats.tripsInPeriod' | t }}</h3>
-            </div>
-            <span class="count-pill tabular-nums">{{ s.trips.length }}</span>
+            <h3 class="font-display">{{ 'stats.tripsInPeriod' | t }}</h3>
+            <span class="panel-count font-mono tabular-nums">{{ s.trips.length }}</span>
           </div>
 
           @if (s.trips.length === 0) {
@@ -289,7 +281,7 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
       max-width: 100%;
       overflow-x: auto;
       scrollbar-width: none;
-      border-radius: 10px;
+      border-radius: var(--radius-sm);
       background: var(--color-surface-muted);
       border: 1px solid var(--color-border);
     }
@@ -299,7 +291,7 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
     .seg-btn {
       padding: 6px 12px;
       border: none;
-      border-radius: 7px;
+      border-radius: var(--radius-xs);
       background: transparent;
       color: var(--color-text-secondary);
       font: inherit;
@@ -330,39 +322,36 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
       min-width: 0;
       display: flex;
       flex-direction: column;
-      gap: 5px;
-      padding: var(--space-3) var(--space-4);
+      padding: 18px 20px;
       border-radius: var(--radius-md);
       background: var(--color-surface);
       border: 1px solid var(--color-border);
       box-shadow: var(--shadow-card);
     }
-    .kpi-card.highlight {
-      background: var(--color-primary);
-      color: var(--color-text-on-primary);
-      border-color: var(--color-primary);
-    }
     .kpi-label {
+      margin-bottom: 10px;
       font-size: 0.72rem;
       font-weight: 600;
+      line-height: 1.3;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
-      opacity: 0.75;
+      letter-spacing: 0.06em;
+      color: var(--color-text-muted);
     }
     .kpi-value {
+      margin-bottom: 8px;
       font-family: var(--font-display);
-      font-size: 1.55rem;
+      font-size: 1.6rem;
       font-weight: 600;
+      line-height: 1.18;
       letter-spacing: -0.02em;
       color: var(--color-primary);
       overflow-wrap: anywhere;
     }
-    .kpi-card.highlight .kpi-value {
-      color: var(--color-accent);
-    }
     .kpi-sub {
+      margin-top: auto;
       font-size: 0.75rem;
-      opacity: 0.78;
+      line-height: 1.35;
+      color: var(--color-text-secondary);
     }
     .insights-grid {
       display: grid;
@@ -380,45 +369,28 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
     }
     .panel-head {
       display: flex;
-      align-items: center;
+      align-items: baseline;
       justify-content: space-between;
-      gap: 8px;
+      gap: 12px;
+      padding-bottom: 10px;
       margin-bottom: var(--space-3);
-    }
-    .panel-title-wrap {
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      border-bottom: 1px solid var(--color-border);
     }
     .panel-head h3 {
       margin: 0;
-      font-size: 0.98rem;
+      font-size: 1.08rem;
       font-weight: 600;
       color: var(--color-primary);
-    }
-    .panel-ico {
-      width: 28px;
-      height: 28px;
-      border-radius: 8px;
-      background: var(--color-primary-tint);
-      color: var(--color-primary);
-    }
-    .panel-ico.spend {
-      background: var(--color-accent-soft);
-      color: var(--color-accent-ink);
     }
     .panel-total {
-      font-size: 0.88rem;
+      font-size: 0.86rem;
       font-weight: 600;
       color: var(--color-primary);
     }
-    .count-pill {
-      padding: 2px 9px;
-      border-radius: var(--radius-pill);
-      background: var(--color-surface-muted);
-      color: var(--color-text-secondary);
-      font-size: 0.74rem;
+    .panel-count {
+      font-size: 0.78rem;
       font-weight: 600;
+      color: var(--color-accent);
     }
     .stacked-bar {
       display: flex;
@@ -511,24 +483,23 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
     .trip-rows {
       display: flex;
       flex-direction: column;
-      gap: 8px;
     }
     .trip-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      padding: 11px 14px;
-      border-radius: 10px;
-      background: var(--color-bg);
-      border: 1px solid var(--color-border);
+      padding: 12px 6px;
+      border-bottom: 1px solid var(--color-border-soft);
       color: inherit;
       text-decoration: none;
-      transition: border-color 140ms ease, background-color 140ms ease;
+      transition: background-color 140ms ease;
+    }
+    .trip-row:last-child {
+      border-bottom: none;
     }
     .trip-row:hover {
-      border-color: var(--color-primary);
-      background: var(--color-primary-tint);
+      background: var(--color-surface-alt);
     }
     .trip-row-left {
       min-width: 0;
@@ -590,10 +561,10 @@ const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
         gap: var(--space-4);
       }
       .kpi-card {
-        padding: var(--space-4) var(--space-5);
+        padding: 22px 24px;
       }
       .kpi-value {
-        font-size: 1.8rem;
+        font-size: 1.85rem;
       }
       .insights-grid {
         grid-template-columns: 1.15fr 0.85fr;
@@ -610,6 +581,22 @@ export class StatsPageComponent implements OnInit {
   protected readonly scopes: readonly StatsScope[] = ['all', 'international', 'domestic'];
   protected readonly categoryKey = expenseCategoryKey;
   protected readonly formatMoney = formatMoney;
+
+  protected readonly animatedTrips = createAnimatedNumber(
+    computed(() => this.store.stats()?.total_trips ?? null),
+  );
+  protected readonly animatedTravelDays = createAnimatedNumber(
+    computed(() => this.store.stats()?.total_travel_days ?? null),
+  );
+  protected readonly animatedFlightKm = createAnimatedNumber(
+    computed(() => this.store.stats()?.total_flight_distance_km ?? null),
+  );
+  protected readonly animatedTotalSpend = createAnimatedNumber(
+    computed(() => {
+      const s = this.store.stats();
+      return s ? Number(s.total_spend_home) : null;
+    }),
+  );
 
   protected readonly yearOptions = computed<(number | null)[]>(() => {
     const years = new Set<number>([this.currentYear]);

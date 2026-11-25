@@ -8,30 +8,77 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { readInputValue } from '../../core/utils/form-events.utils';
 
-/** Full-bleed split-screen login page with scenic travel photography, Email/Password, and Google Sign-In. */
+/** Split-screen editorial login page with cartographic vector artwork, Email/Password, and Google Sign-In. */
 @Component({
   selector: 'app-login-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TranslatePipe],
   template: `
     <div class="login-shell">
-      <!-- Left Scenic Travel Visual (Unsplash royalty-free photography) -->
+      <!-- Left Cartographic Editorial Artwork (zero external image dependencies) -->
       <section class="visual-pane" aria-hidden="true">
+        <svg
+          class="carto-backdrop"
+          viewBox="0 0 800 900"
+          preserveAspectRatio="xMidYMid slice"
+          fill="none"
+        >
+          <!-- Fine meridian and latitude map grid -->
+          <g stroke="rgba(248, 247, 244, 0.05)" stroke-width="1">
+            <line x1="140" y1="0" x2="140" y2="900" />
+            <line x1="320" y1="0" x2="320" y2="900" />
+            <line x1="500" y1="0" x2="500" y2="900" />
+            <line x1="680" y1="0" x2="680" y2="900" />
+            <line x1="0" y1="180" x2="800" y2="180" />
+            <line x1="0" y1="380" x2="800" y2="380" />
+            <line x1="0" y1="580" x2="800" y2="580" />
+            <line x1="0" y1="780" x2="800" y2="780" />
+          </g>
+
+          <!-- Organic topographic contours -->
+          <g stroke="rgba(196, 146, 76, 0.14)" stroke-width="1.15">
+            <path d="M -80 280 C 120 210, 260 320, 440 240 C 600 170, 710 250, 880 180" />
+            <path d="M -60 340 C 140 270, 290 385, 470 305 C 625 235, 730 315, 890 250" />
+            <path d="M -40 410 C 160 345, 330 455, 515 375 C 660 310, 755 385, 900 325" />
+            <circle cx="585" cy="285" r="145" stroke-opacity="0.55" />
+            <circle cx="585" cy="285" r="220" stroke-opacity="0.35" />
+          </g>
+
+          <!-- Signature Tripilot Bezier route legs (solid flight + schematic transit arc) -->
+          <path
+            d="M 118 690 C 210 530, 345 480, 470 430"
+            stroke="#C4924C"
+            stroke-width="2"
+            stroke-opacity="0.72"
+            stroke-linecap="round"
+          />
+          <path
+            d="M 470 430 C 555 395, 615 310, 678 196"
+            stroke="#C4924C"
+            stroke-width="1.8"
+            stroke-dasharray="5 7"
+            stroke-opacity="0.62"
+            stroke-linecap="round"
+          />
+
+          <!-- Route waypoints -->
+          <circle cx="118" cy="690" r="8" fill="#162136" stroke="#C4924C" stroke-width="2.5" />
+          <circle cx="470" cy="430" r="5.5" fill="#C4924C" />
+          <circle cx="678" cy="196" r="6" fill="#F8F7F4" stroke="#C4924C" stroke-width="2.5" />
+        </svg>
+
         <div class="visual-overlay">
           <div class="brand-lockup">
-            <svg class="logo-svg" viewBox="0 0 24 24" fill="none">
+            <svg class="logo-svg" viewBox="104 98 302 312" fill="none">
+              <circle cx="134" cy="382" r="19" stroke="#C4924C" stroke-width="12" />
               <path
-                d="M3.5 11.2L20.5 3.5L13.2 20.5L10.6 13.4L3.5 11.2Z"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linejoin="round"
+                d="M 127 363 C 134 313, 168 285, 224 280 C 174 295, 152 323, 145 365 Z"
+                fill="#C4924C"
               />
-              <path
-                d="M10.6 13.4L20.5 3.5"
-                stroke="currentColor"
-                stroke-width="1.6"
-                stroke-linecap="round"
-              />
+              <polygon points="229,278 276,267 254,248" fill="#9F7236" />
+              <polygon points="396,108 224,226 229,278 258,252" fill="#C4924C" />
+              <polygon points="396,108 172,190 224,226" fill="#F8F7F4" />
+              <polygon points="396,108 258,252 310,308" fill="#F8F7F4" />
             </svg>
             <span class="brand-title">{{ 'app.name' | t }}</span>
             @if (isBeta) {
@@ -40,25 +87,24 @@ import { readInputValue } from '../../core/utils/form-events.utils';
           </div>
 
           <div class="visual-copy">
-            <h2>{{ 'login.heroHeadline' | t }}</h2>
-            <p>{{ 'app.tagline' | t }}</p>
-            <div class="visual-tags">
-              <span>
-                <span class="ms-icon sm">map</span>
-                {{ 'login.featureMap' | t }}
-              </span>
-              <span>
-                <span class="ms-icon sm">summarize</span>
-                {{ 'login.featureBrief' | t }}
-              </span>
-              <span>
-                <span class="ms-icon sm">offline_pin</span>
-                {{ 'login.featureOffline' | t }}
-              </span>
-            </div>
-          </div>
+            <h2 class="hero-headline font-display">{{ 'login.heroHeadline' | t }}</h2>
+            <p class="hero-tagline">{{ 'app.tagline' | t }}</p>
 
-          <span class="photo-credit">Photo via Unsplash</span>
+            <ol class="editorial-features">
+              <li>
+                <span class="feat-idx font-mono tabular-nums">01</span>
+                <span>{{ 'login.featureMap' | t }}</span>
+              </li>
+              <li>
+                <span class="feat-idx font-mono tabular-nums">02</span>
+                <span>{{ 'login.featureBrief' | t }}</span>
+              </li>
+              <li>
+                <span class="feat-idx font-mono tabular-nums">03</span>
+                <span>{{ 'login.featureOffline' | t }}</span>
+              </li>
+            </ol>
+          </div>
         </div>
       </section>
 
@@ -73,7 +119,7 @@ import { readInputValue } from '../../core/utils/form-events.utils';
 
         <div class="form-card">
           <div class="form-head">
-            <h1>
+            <h1 class="font-display">
               {{ (authMode() === 'signin' ? 'login.welcomeBack' : 'login.createAccount') | t }}
             </h1>
             <p class="head-sub">
@@ -197,25 +243,26 @@ import { readInputValue } from '../../core/utils/form-events.utils';
     }
     .visual-pane {
       position: relative;
-      min-height: 210px;
-      background-color: var(--color-primary);
-      background-image: url('https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=1600&q=80');
-      background-size: cover;
-      background-position: center;
+      overflow: hidden;
+      min-height: 204px;
+      background: var(--color-primary);
     }
-    .visual-overlay {
+    .carto-backdrop {
       position: absolute;
       inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    .visual-overlay {
+      position: relative;
+      z-index: 1;
+      height: 100%;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+      gap: var(--space-5);
       padding: var(--space-5);
-      background: linear-gradient(
-        160deg,
-        rgba(27, 42, 74, 0.72) 0%,
-        rgba(27, 42, 74, 0.45) 45%,
-        rgba(15, 23, 42, 0.85) 100%
-      );
       color: var(--color-text-on-primary);
     }
     .brand-lockup {
@@ -226,55 +273,58 @@ import { readInputValue } from '../../core/utils/form-events.utils';
     .logo-svg {
       width: 26px;
       height: 26px;
-      color: var(--color-accent);
+      flex-shrink: 0;
     }
     .brand-title {
-      font-size: 1.35rem;
+      font-size: 1.25rem;
       font-weight: 600;
       letter-spacing: 0.03em;
     }
     .beta-chip {
       padding: 2px 6px;
       border-radius: var(--radius-xs);
-      border: 1px solid rgba(200, 155, 91, 0.65);
-      background: rgba(200, 155, 91, 0.2);
+      border: 1px solid var(--color-accent-border);
+      background: var(--color-accent-tint);
       color: var(--color-accent-light);
       font-size: 0.65rem;
       font-weight: 600;
       letter-spacing: 0.08em;
     }
-    .visual-copy h2 {
-      margin: 0 0 6px;
-      font-size: 1.35rem;
-      font-weight: 600;
-      line-height: 1.3;
+    .hero-headline {
+      margin: 0 0 8px;
+      font-size: 1.48rem;
+      font-weight: 500;
+      line-height: 1.26;
+      color: var(--color-text-on-primary);
     }
-    .visual-copy p {
+    .hero-tagline {
       margin: 0;
       font-size: 0.88rem;
-      color: rgba(255, 255, 255, 0.86);
+      color: rgba(248, 247, 244, 0.78);
     }
-    .visual-tags {
+    .editorial-features {
       display: none;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 16px;
+      flex-direction: column;
+      margin: 26px 0 0;
+      padding: 0;
+      list-style: none;
+      max-width: 380px;
+      border-top: 1px solid rgba(248, 247, 244, 0.14);
     }
-    .visual-tags > span {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 5px 11px;
-      border-radius: var(--radius-pill);
-      background: rgba(255, 255, 255, 0.14);
-      backdrop-filter: blur(6px);
-      font-size: 0.78rem;
+    .editorial-features li {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(248, 247, 244, 0.14);
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: rgba(248, 247, 244, 0.88);
+    }
+    .feat-idx {
+      font-size: 0.72rem;
       font-weight: 600;
-    }
-    .photo-credit {
-      display: none;
-      font-size: 0.7rem;
-      opacity: 0.6;
+      color: var(--color-accent);
     }
     .form-pane {
       display: flex;
@@ -484,14 +534,11 @@ import { readInputValue } from '../../core/utils/form-events.utils';
       .visual-overlay {
         padding: var(--space-6) 44px;
       }
-      .visual-copy h2 {
-        font-size: 2rem;
+      .hero-headline {
+        font-size: 2.15rem;
       }
-      .visual-tags {
+      .editorial-features {
         display: flex;
-      }
-      .photo-credit {
-        display: block;
       }
     }
   `,

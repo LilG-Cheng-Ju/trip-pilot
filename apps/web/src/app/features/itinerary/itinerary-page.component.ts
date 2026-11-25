@@ -32,6 +32,7 @@ import {
   buildGoogleMapsUrl,
   buildPinOrderMap,
   DayMapRoutes,
+  formatDayNumber,
   getItemDetailString,
   groupItemsIntoSlots,
   ItinerarySlot,
@@ -169,28 +170,34 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
               </div>
             }
             @if (store.selectedDay(); as day) {
-              <!-- Inline Editable Day Theme / Focus -->
-              <div class="day-theme-bar">
-                <span class="ms-icon sm theme-ico" aria-hidden="true">flag</span>
+              <!-- Magazine Chapter Opener (Inline Editable Day Theme) -->
+              <div class="day-chapter">
+                <div class="day-chapter-kicker">
+                  <span class="chapter-num font-display-italic">
+                    Day {{ formatDayNumber(day.day_index) }}
+                  </span>
+                  <span class="chapter-sep" aria-hidden="true">·</span>
+                  <span class="chapter-date tabular-nums">{{ day.date }}</span>
+                  @if (trip.days.length > 1) {
+                    <button
+                      type="button"
+                      class="icon-btn icon-btn--danger chapter-del-btn"
+                      [title]="'itinerary.deleteDay' | t"
+                      [attr.aria-label]="'itinerary.deleteDay' | t"
+                      (click)="pendingDeleteDay.set(day)"
+                    >
+                      <span class="ms-icon sm" aria-hidden="true">delete</span>
+                    </button>
+                  }
+                </div>
                 <input
                   type="text"
-                  class="day-theme-input"
+                  class="day-chapter-input font-display"
                   [value]="day.title || ''"
                   (blur)="saveDayTheme(day.id, readInputValue($event), day.title)"
                   (keydown.enter)="blurInput($event)"
                   [placeholder]="'itinerary.dayThemePlaceholder' | t"
                 />
-                @if (trip.days.length > 1) {
-                  <button
-                    type="button"
-                    class="icon-btn icon-btn--danger"
-                    [title]="'itinerary.deleteDay' | t"
-                    [attr.aria-label]="'itinerary.deleteDay' | t"
-                    (click)="pendingDeleteDay.set(day)"
-                  >
-                    <span class="ms-icon sm" aria-hidden="true">delete</span>
-                  </button>
-                }
               </div>
 
               <!-- Whole-Day Plan A / Plan B Segmented Switcher (shown once a day has 2+ plans) -->
@@ -775,37 +782,58 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       background: var(--color-surface);
       color: var(--color-primary);
     }
-    .day-theme-bar {
+    .day-chapter {
+      padding: 2px 0 6px;
+      margin-bottom: 10px;
+      border-bottom: 1px solid var(--color-border);
+      transition: border-color 150ms ease;
+    }
+    .day-chapter:focus-within {
+      border-bottom-color: var(--color-accent);
+    }
+    .day-chapter-kicker {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 5px 10px;
-      margin-bottom: 8px;
-      border-radius: var(--radius-sm);
-      background: var(--color-surface);
-      border: 1px solid var(--color-border);
+      gap: 7px;
+      margin-bottom: 2px;
     }
-    .day-theme-bar:focus-within {
-      border-color: var(--color-accent);
-    }
-    .theme-ico {
+    .chapter-num {
       color: var(--color-accent);
-      flex-shrink: 0;
+      font-size: 0.96rem;
+      font-weight: 500;
+      line-height: 1.2;
     }
-    .day-theme-input {
-      flex: 1;
-      min-width: 0;
+    .chapter-sep {
+      color: var(--color-text-muted);
+      font-size: 0.78rem;
+    }
+    .chapter-date {
+      font-size: 0.76rem;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      color: var(--color-text-muted);
+    }
+    .chapter-del-btn {
+      margin-left: auto;
+    }
+    .day-chapter-input {
+      width: 100%;
       border: none;
       background: transparent;
-      color: var(--color-primary);
-      font: inherit;
-      font-size: 0.82rem;
+      padding: 0;
+      font-family: var(--font-display);
+      font-size: 1.38rem;
       font-weight: 600;
+      line-height: 1.22;
+      letter-spacing: -0.015em;
+      color: var(--color-primary);
       outline: none;
     }
-    .day-theme-input::placeholder {
+    .day-chapter-input::placeholder {
       color: var(--color-text-muted);
-      font-weight: 400;
+      font-style: italic;
+      font-weight: 500;
+      opacity: 0.65;
     }
     .plan-bar {
       display: flex;
@@ -1274,6 +1302,7 @@ export class ItineraryPageComponent implements OnInit {
   private readonly dayStrip = viewChild<ElementRef<HTMLDivElement>>('dayStrip');
   private readonly timelineScroll = viewChild<ElementRef<HTMLDivElement>>('timelineScroll');
   protected readonly dayStripScrollStepPx = DAY_STRIP_SCROLL_STEP_PX;
+  protected readonly formatDayNumber = formatDayNumber;
 
   protected onSlotDropped(event: CdkDragDrop<ItinerarySlot[]>): void {
     if (event.previousIndex === event.currentIndex) {

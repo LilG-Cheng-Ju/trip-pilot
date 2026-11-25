@@ -605,36 +605,40 @@ import { ItineraryStore } from '../../state/itinerary.store';
     }
     .hero-card {
       padding: var(--space-5);
-      border-radius: var(--radius-lg);
-      background: var(--color-primary);
-      color: var(--color-text-on-primary);
+      border-radius: var(--radius-md);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      color: var(--color-text-primary);
       box-shadow: var(--shadow-card);
     }
     .hero-label {
       font-size: 0.75rem;
+      font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.06em;
-      opacity: 0.75;
+      color: var(--color-text-muted);
     }
     .hero-amount {
       display: flex;
       align-items: baseline;
       gap: 8px;
-      margin: 6px 0;
+      margin: 10px 0 8px;
       font-family: var(--font-display);
       font-size: 2.1rem;
       font-weight: 600;
+      line-height: 1.18;
       letter-spacing: -0.02em;
-      color: var(--color-accent);
+      color: var(--color-primary);
     }
     .hero-amount .currency {
-      font-size: 1rem;
+      font-family: var(--font-sans);
+      font-size: 0.95rem;
       font-weight: 600;
-      color: var(--color-text-on-primary);
+      color: var(--color-accent);
     }
     .hero-count {
       font-size: 0.8125rem;
-      opacity: 0.8;
+      color: var(--color-text-secondary);
     }
     .currency-breakdown {
       display: flex;
@@ -642,13 +646,13 @@ import { ItineraryStore } from '../../state/itinerary.store';
       gap: 6px;
       margin-top: 12px;
       padding-top: 10px;
-      border-top: 1px solid rgba(255, 255, 255, 0.14);
+      border-top: 1px solid var(--color-border-soft);
     }
     .currency-pill {
       padding: 3px 9px;
       border-radius: var(--radius-pill);
-      background: rgba(255, 255, 255, 0.12);
-      color: rgba(255, 255, 255, 0.92);
+      background: var(--color-surface-alt);
+      color: var(--color-text-secondary);
       font-size: 0.75rem;
       font-weight: 600;
     }

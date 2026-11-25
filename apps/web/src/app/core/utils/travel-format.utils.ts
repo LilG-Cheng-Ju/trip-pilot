@@ -36,6 +36,11 @@ export type ExpenseCategoryTranslationKey =
 
 const HTTP_URL_RE = /^https?:\/\//i;
 
+/** Format a 1-based day index as zero-padded editorial chapter numeral (e.g. 01). */
+export function formatDayNumber(dayIndex: number): string {
+  return String(dayIndex).padStart(2, '0');
+}
+
 /** Return the typed i18n key for an expense category. */
 export function expenseCategoryKey(cat: ExpenseCategory): ExpenseCategoryTranslationKey {
   return `expenses.cat.${cat}`;

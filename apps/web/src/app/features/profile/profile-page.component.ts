@@ -31,7 +31,7 @@ import { AuthStore } from '../../state/auth.store';
   template: `
     <div class="page">
       <div class="page-head">
-        <h2 class="page-title">{{ 'profile.title' | t }}</h2>
+        <h2 class="page-title font-display">{{ 'profile.title' | t }}</h2>
         @if (session.isFirebaseEnabled()) {
           <button type="button" class="pill-btn danger" (click)="signOut()">
             {{ 'profile.signOut' | t }}

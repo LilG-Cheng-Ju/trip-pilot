@@ -1054,7 +1054,7 @@ wheels = [
 
 [[package]]
 name = "tripilot-mcp"
-version = "0.7.3"
+version = "0.8.0"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },

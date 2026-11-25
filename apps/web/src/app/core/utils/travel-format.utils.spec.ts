@@ -13,6 +13,7 @@ import {
   decodePolyline,
   estimateOfflineFxRate,
   extractItemAttachments,
+  formatDayNumber,
   groupItemsIntoSlots,
   removeItemWithChoicePromotion,
   roundFxRate,
@@ -439,5 +440,11 @@ describe('travel-format.utils', () => {
     expect(lastDay.stayLegs).toHaveLength(1);
     expect(lastDay.mainLegs).toHaveLength(1);
     expect(lastDay.expectedPairs).toEqual(['stay-1->spot-ueno', 'spot-ueno->flt-dep']);
+  });
+
+  it('formats single and double digit day numbers cleanly', () => {
+    expect(formatDayNumber(1)).toBe('01');
+    expect(formatDayNumber(9)).toBe('09');
+    expect(formatDayNumber(12)).toBe('12');
   });
 });
