@@ -18,7 +18,7 @@ class ExpenseCreate(BaseModel):
     currency_original: str = Field(
         min_length=ISO_CURRENCY_CODE_LENGTH, max_length=ISO_CURRENCY_CODE_LENGTH
     )
-    exchange_rate: Decimal = Field(default=Decimal("1.0"), gt=Decimal("0"))
+    exchange_rate: Decimal | None = Field(default=None, gt=Decimal("0"))
     amount_home: Decimal | None = Field(default=None, gt=Decimal("0"))
     paid_at: datetime | None = None
     payment_method: str | None = Field(default=None, max_length=60)

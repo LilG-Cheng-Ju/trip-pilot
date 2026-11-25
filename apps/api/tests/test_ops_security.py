@@ -298,3 +298,11 @@ async def test_ensure_public_url_target_blocks_private_addresses() -> None:
         pytest.raises(ValueError),
     ):
         await ensure_public_url_target("rebind.example.test")
+
+
+def test_blank_rate_limit_enabled_env_defaults_cleanly(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("RATE_LIMIT_ENABLED", "")
+    assert Settings().rate_limit_enabled is None
+

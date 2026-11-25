@@ -2,21 +2,36 @@
 # ruff: noqa: E501
 
 import json
-from dataclasses import asdict
+import logging
+from collections.abc import AsyncGenerator, AsyncIterator
+from contextlib import asynccontextmanager
+from contextvars import ContextVar
+from dataclasses import asdict, dataclass
 from datetime import date
 from decimal import Decimal
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Depends, Request, Response, status
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi.responses import PlainTextResponse
+from mcp import MCPError
+from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
+from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.types import Message
 
 from app.core.auth import AuthContext, get_auth_context
-from app.core.config import get_settings
-from app.core.constants import AIRPORTS_DEFAULT_LIMIT, AIRPORTS_MAX_LIMIT
+from app.core.config import Settings, get_settings
+from app.core.constants import (
+    AIRPORTS_DEFAULT_LIMIT,
+    AIRPORTS_MAX_LIMIT,
+    PLACES_DEFAULT_LIMIT,
+    PLACES_MAX_LIMIT,
+)
 from app.core.database import get_db
-from app.core.rate_limit import limit_public_endpoint
-from app.schemas.expense import ExpenseCreate
+from app.core.rate_limit import enforce_user_rate_limit, limit_public_endpoint
+from app.models.enums import ExpenseCategory, ItemType
+from app.schemas.expense import ExpenseCreate, ExpenseResponse
 from app.schemas.trip import (
     DayOptionCloneRequest,
     DayOptionCreate,
@@ -34,763 +49,650 @@ from app.schemas.trip import (
 from app.services.airport_service import search_airports as svc_search_airports
 from app.services.expense_service import ExpenseService
 from app.services.fx_service import get_fx_provider
-from app.services.places import get_place_search_provider, resolve_google_maps_url
+from app.services.places import get_place_search_provider
+from app.services.places import resolve_google_maps_url as svc_resolve_google_maps_url
 from app.services.stats_service import StatsService
 from app.services.trip_service import TripService
 
 router = APIRouter(tags=["mcp"])
+logger = logging.getLogger(__name__)
 
 AuthDep = Annotated[AuthContext, Depends(get_auth_context)]
 DbSession = Annotated[AsyncSession, Depends(get_db)]
+SettingsDep = Annotated[Settings, Depends(get_settings)]
 
-MCP_PROTOCOL_VERSION = "2025-03-26"
-
-_TOOL_SCOPES: dict[str, str] = {
-    "list_trips": "trips:read",
-    "get_trip": "trips:read",
-    "create_trip": "trips:write",
-    "append_day": "trips:write",
-    "update_day_title": "trips:write",
-    "delete_trip_day": "trips:write",
-    "create_day_option": "trips:write",
-    "clone_day_option": "trips:write",
-    "rename_day_option": "trips:write",
-    "delete_day_option": "trips:write",
-    "set_active_option": "trips:write",
-    "add_itinerary_item": "trips:write",
-    "add_item_by_date": "trips:write",
-    "update_itinerary_item": "trips:write",
-    "delete_itinerary_item": "trips:write",
-    "select_choice_item": "trips:write",
-    "search_places": "trips:read",
-    "resolve_google_maps_url": "trips:read",
-    "search_airports": "trips:read",
-    "list_expenses": "expenses:read",
-    "add_expense": "expenses:write",
-    "get_fx_rate": "expenses:read",
-    "get_travel_stats": "stats:read",
-}
-
-_TOOL_DEFINITIONS: list[dict[str, Any]] = [
-    {
-        "name": "list_trips",
-        "description": "List trips belonging to the authenticated user, optionally filtered by status.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "status": {
-                    "type": "string",
-                    "enum": ["PLANNING", "ACTIVE", "COMPLETED", "ARCHIVED"],
-                }
-            },
-            "additionalProperties": False,
-        },
-    },
-    {
-        "name": "get_trip",
-        "description": "Get full trip details including all days, Plan A/B options, and items.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "trip_id": {"type": "string"},
-                "day_index": {"type": "integer", "minimum": 1},
-            },
-            "required": ["trip_id"],
-        },
-    },
-    {
-        "name": "create_trip",
-        "description": "Create a new trip (automatically scaffolds Day 1..N with Plan A).",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "title": {"type": "string"},
-                "start_date": {"type": "string", "description": "YYYY-MM-DD"},
-                "end_date": {"type": "string", "description": "YYYY-MM-DD"},
-                "country_codes": {"type": "array", "items": {"type": "string"}},
-                "default_currency": {"type": "string", "default": "JPY"},
-                "destination_summary": {"type": "string"},
-            },
-            "required": ["title", "start_date", "end_date", "country_codes"],
-        },
-    },
-    {
-        "name": "update_day_title",
-        "description": "Set or update the Day Theme / focus headline for a specific TripDay.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "day_id": {"type": "string"},
-                "title": {"type": ["string", "null"]},
-            },
-            "required": ["day_id", "title"],
-        },
-    },
-    {
-        "name": "add_itinerary_item",
-        "description": (
-            "Add an itinerary item (FLIGHT, RESERVED_TRANSIT, LOCAL_TRANSIT, STAY, SPOT, FOOD) "
-            "to a day option. Supports details.local_name, details.attachments ([{name,url}]), "
-            "and alternative_for_item_id for slot-level choices."
-        ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "option_id": {"type": "string"},
-                "type": {
-                    "type": "string",
-                    "enum": [
-                        "FLIGHT",
-                        "RESERVED_TRANSIT",
-                        "LOCAL_TRANSIT",
-                        "STAY",
-                        "SPOT",
-                        "FOOD",
-                    ],
-                },
-                "title": {"type": "string"},
-                "start_time": {"type": "string"},
-                "end_time": {"type": "string"},
-                "address": {"type": "string"},
-                "latitude": {"type": "number"},
-                "longitude": {"type": "number"},
-                "google_maps_url": {"type": "string"},
-                "notes": {"type": "string"},
-                "details": {"type": "object"},
-                "alternative_for_item_id": {"type": "string"},
-            },
-            "required": ["option_id", "type", "title"],
-        },
-    },
-    {
-        "name": "add_item_by_date",
-        "description": (
-            "Add an itinerary item to a trip by calendar date (YYYY-MM-DD), targeting either "
-            "option_label (case-insensitive) or the day's active_option_id."
-        ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "trip_id": {"type": "string"},
-                "target_date": {"type": "string", "description": "YYYY-MM-DD"},
-                "option_label": {"type": "string"},
-                "type": {
-                    "type": "string",
-                    "enum": [
-                        "FLIGHT",
-                        "RESERVED_TRANSIT",
-                        "LOCAL_TRANSIT",
-                        "STAY",
-                        "SPOT",
-                        "FOOD",
-                    ],
-                },
-                "title": {"type": "string"},
-                "start_time": {"type": "string"},
-                "end_time": {"type": "string"},
-                "address": {"type": "string"},
-                "latitude": {"type": "number"},
-                "longitude": {"type": "number"},
-                "google_maps_url": {"type": "string"},
-                "notes": {"type": "string"},
-                "details": {"type": "object"},
-                "alternative_for_item_id": {"type": "string"},
-            },
-            "required": ["trip_id", "target_date", "type", "title"],
-        },
-    },
-    {
-        "name": "update_itinerary_item",
-        "description": "Partially update an existing itinerary item.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "item_id": {"type": "string"},
-                "type": {
-                    "type": "string",
-                    "enum": [
-                        "FLIGHT",
-                        "RESERVED_TRANSIT",
-                        "LOCAL_TRANSIT",
-                        "STAY",
-                        "SPOT",
-                        "FOOD",
-                    ],
-                },
-                "sort_order": {"type": "integer"},
-                "is_selected": {"type": "boolean"},
-                "title": {"type": "string"},
-                "start_time": {"type": "string"},
-                "end_time": {"type": "string"},
-                "address": {"type": "string"},
-                "latitude": {"type": "number"},
-                "longitude": {"type": "number"},
-                "google_maps_url": {"type": "string"},
-                "notes": {"type": "string"},
-                "details": {"type": "object"},
-            },
-            "required": ["item_id"],
-        },
-    },
-    {
-        "name": "delete_itinerary_item",
-        "description": "Delete an itinerary item by ID.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {"item_id": {"type": "string"}},
-            "required": ["item_id"],
-        },
-    },
-    {
-        "name": "select_choice_item",
-        "description": "Switch the active choice inside a slot-level multi-choice group.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {"item_id": {"type": "string"}},
-            "required": ["item_id"],
-        },
-    },
-    {
-        "name": "clone_day_option",
-        "description": "Clone a day option into a new Plan B / alternative day plan.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "option_id": {"type": "string"},
-                "label": {"type": "string"},
-            },
-            "required": ["option_id", "label"],
-        },
-    },
-    {
-        "name": "search_places",
-        "description": "Search real places via Google Places (New) / Photon to get coordinates and Maps URLs.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "query": {"type": "string"},
-                "lang": {"type": "string", "default": "zh-TW"},
-            },
-            "required": ["query"],
-        },
-    },
-    {
-        "name": "resolve_google_maps_url",
-        "description": "Resolve a Google Maps share URL into coordinates, address, and place name.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {"url": {"type": "string"}},
-            "required": ["url"],
-        },
-    },
-    {
-        "name": "search_airports",
-        "description": "Search commercial airports by IATA code, city, or airport name.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "query": {"type": "string"},
-                "limit": {"type": "integer", "minimum": 1, "maximum": 30},
-            },
-            "required": ["query"],
-        },
-    },
-    {
-        "name": "list_expenses",
-        "description": "List all expenses and category totals for a trip.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {"trip_id": {"type": "string"}},
-            "required": ["trip_id"],
-        },
-    },
-    {
-        "name": "add_expense",
-        "description": "Record a trip expense (optionally linked to a trip_day_id and itinerary_item_id).",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "trip_id": {"type": "string"},
-                "title": {"type": "string"},
-                "category": {
-                    "type": "string",
-                    "enum": [
-                        "FLIGHT",
-                        "LODGING",
-                        "TRANSIT",
-                        "FOOD",
-                        "ACTIVITY",
-                        "SHOPPING",
-                        "OTHER",
-                    ],
-                },
-                "amount_original": {"type": "number"},
-                "currency_original": {"type": "string"},
-                "exchange_rate": {"type": "number"},
-                "trip_day_id": {"type": "string"},
-                "itinerary_item_id": {"type": "string"},
-                "payment_method": {"type": "string"},
-                "notes": {"type": "string"},
-            },
-            "required": ["trip_id", "title", "category", "amount_original", "currency_original"],
-        },
-    },
-    {
-        "name": "get_fx_rate",
-        "description": "Get the cached live exchange rate between two ISO-4217 currency codes.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "from_currency": {"type": "string"},
-                "to_currency": {"type": "string", "default": "TWD"},
-            },
-            "required": ["from_currency"],
-        },
-    },
-    {
-        "name": "append_day",
-        "description": "Append one new day (with a default Plan A) to the end of a trip.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {"trip_id": {"type": "string"}},
-            "required": ["trip_id"],
-        },
-    },
-    {
-        "name": "delete_trip_day",
-        "description": "Delete a trip day, unlink its expenses, and re-index remaining days (rejected if sole day).",
-        "inputSchema": {
-            "type": "object",
-            "properties": {"day_id": {"type": "string"}},
-            "required": ["day_id"],
-        },
-    },
-    {
-        "name": "create_day_option",
-        "description": "Create a new Plan B / alternative day option (blank or cloned) on a trip day.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "day_id": {"type": "string"},
-                "label": {"type": "string"},
-                "clone_from_option_id": {"type": "string"},
-                "summary_notes": {"type": "string"},
-            },
-            "required": ["day_id", "label"],
-        },
-    },
-    {
-        "name": "rename_day_option",
-        "description": "Rename an existing day option (e.g. rename Plan A to 'Sunny Outdoor').",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "option_id": {"type": "string"},
-                "label": {"type": "string"},
-            },
-            "required": ["option_id", "label"],
-        },
-    },
-    {
-        "name": "delete_day_option",
-        "description": "Delete a day option (rejected if it is the last remaining option on the day).",
-        "inputSchema": {
-            "type": "object",
-            "properties": {"option_id": {"type": "string"}},
-            "required": ["option_id"],
-        },
-    },
-    {
-        "name": "set_active_option",
-        "description": "Set which Plan A/B day option is active for a trip day.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "day_id": {"type": "string"},
-                "option_id": {"type": "string"},
-            },
-            "required": ["day_id", "option_id"],
-        },
-    },
-    {
-        "name": "get_travel_stats",
-        "description": "Get travel dashboard statistics filtered by optional year and scope (all|domestic|international).",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "year": {"type": "integer"},
-                "scope": {
-                    "type": "string",
-                    "enum": ["all", "domestic", "international"],
-                    "default": "all",
-                },
-            },
-        },
-    },
+TripStatusLiteral = Literal["PLANNING", "ACTIVE", "COMPLETED", "ARCHIVED"]
+ItemTypeLiteral = Literal[
+    "FLIGHT",
+    "RESERVED_TRANSIT",
+    "LOCAL_TRANSIT",
+    "STAY",
+    "SPOT",
+    "FOOD",
 ]
+ExpenseCategoryLiteral = Literal[
+    "FLIGHT",
+    "LODGING",
+    "TRANSIT",
+    "FOOD",
+    "ACTIVITY",
+    "SHOPPING",
+    "OTHER",
+]
+StatsScopeLiteral = Literal["all", "domestic", "international"]
+
+_INSUFFICIENT_SCOPE_CODE = -32003
 
 
-def _jsonrpc_ok(req_id: Any, result: Any) -> JSONResponse:
-    return JSONResponse({"jsonrpc": "2.0", "id": req_id, "result": result})
+@dataclass(frozen=True)
+class _McpRequestContext:
+    auth_ctx: AuthContext
+    db: AsyncSession
+    settings: Settings
 
 
-def _jsonrpc_err(req_id: Any, code: int, message: str) -> JSONResponse:
-    return JSONResponse(
-        {"jsonrpc": "2.0", "id": req_id, "error": {"code": code, "message": message}}
+_mcp_ctx: ContextVar[_McpRequestContext | None] = ContextVar("_mcp_ctx", default=None)
+
+mcp_server = MCPServer(
+    "tripilot",
+    version=get_settings().app_version,
+    instructions=(
+        "Tripilot remote MCP server for trips, Plan A/B day options, "
+        "itinerary items, places/airports lookups, expenses with live FX, "
+        "and travel statistics."
+    ),
+)
+
+_active_session_manager: StreamableHTTPSessionManager | None = None
+
+
+@asynccontextmanager
+async def mcp_lifespan() -> AsyncGenerator[None, None]:
+    """Start and cleanly shut down the shared stateless MCP session manager."""
+    global _active_session_manager
+    # Create a fresh manager per lifespan because run() is single-use across test apps.
+    manager = StreamableHTTPSessionManager(
+        app=mcp_server._lowlevel_server,
+        json_response=True,
+        stateless=True,
     )
+    async with manager.run():
+        _active_session_manager = manager
+        try:
+            yield
+        finally:
+            _active_session_manager = None
 
 
-async def _dispatch_tool(
-    name: str,
-    args: dict[str, Any],
-    auth_ctx: AuthContext,
-    db: AsyncSession,
-) -> Any:
-    required_scope = _TOOL_SCOPES.get(name)
-    if required_scope is None:
-        raise KeyError(f"Unknown tool: {name}")
-    if not auth_ctx.has_scope(required_scope):
-        raise PermissionError(f"Missing required scope: {required_scope}")
+def _json_text(payload: Any) -> str:
+    return json.dumps(payload, ensure_ascii=False, indent=2, default=str)
 
-    trip_svc = TripService(db)
-    user_id = auth_ctx.user.id
 
-    if name == "list_trips":
-        raw_status = args.get("status")
-        status_filter = str(raw_status).upper() if raw_status else None
-        trips = await trip_svc.list_trips(user_id, status_filter)
-        return [
-            TripSummaryResponse.model_validate(t).model_dump(mode="json")
-            for t in trips
-        ]
+def _dump_model(schema_cls: Any, obj: Any) -> dict[str, Any]:
+    return schema_cls.model_validate(obj).model_dump(mode="json")
 
-    if name == "get_trip":
-        trip = await trip_svc.get_trip_detail(str(args["trip_id"]), user_id)
-        data = TripDetailResponse.model_validate(trip).model_dump(mode="json")
-        day_index = args.get("day_index")
+
+@asynccontextmanager
+async def _tool_session(
+    scope: str, *, rate_limit_bucket: str | None = None
+) -> AsyncIterator[_McpRequestContext]:
+    """Enforce PAT scope, optional rate limits, and clean DB rollback on errors."""
+    ctx = _mcp_ctx.get()
+    if ctx is None:
+        raise ToolError("MCP request context unavailable.")
+    if not ctx.auth_ctx.has_scope(scope):
+        raise MCPError(
+            code=_INSUFFICIENT_SCOPE_CODE,
+            message=f"Missing required scope: {scope}",
+        )
+    try:
+        if rate_limit_bucket is not None:
+            enforce_user_rate_limit(
+                ctx.auth_ctx, ctx.settings, bucket=rate_limit_bucket
+            )
+        yield ctx
+    except MCPError:
+        raise
+    except HTTPException as exc:
+        await ctx.db.rollback()
+        raise ToolError(str(exc.detail)) from exc
+    except ValueError as exc:
+        await ctx.db.rollback()
+        raise ToolError(str(exc)) from exc
+    except Exception as exc:
+        await ctx.db.rollback()
+        logger.exception("Unhandled MCP tool error (%s)", type(exc).__name__)
+        raise ToolError("Unexpected server error while executing tool.") from exc
+
+
+def _build_item_create(
+    *,
+    item_type: ItemTypeLiteral,
+    title: str,
+    start_time: str | None = None,
+    end_time: str | None = None,
+    address: str | None = None,
+    latitude: float | None = None,
+    longitude: float | None = None,
+    google_maps_url: str | None = None,
+    notes: str | None = None,
+    details: dict[str, Any] | None = None,
+    alternative_for_item_id: str | None = None,
+) -> ItineraryItemCreate:
+    raw: dict[str, Any] = {
+        "type": ItemType(item_type),
+        "title": title,
+        "start_time": start_time,
+        "end_time": end_time,
+        "address": address,
+        "latitude": latitude,
+        "longitude": longitude,
+        "google_maps_url": google_maps_url,
+        "notes": notes,
+        "details": details,
+        "alternative_for_item_id": alternative_for_item_id,
+    }
+    return ItineraryItemCreate(**{k: v for k, v in raw.items() if v is not None})
+
+
+def _resolve_option_id_for_date(
+    trip: Any, trip_id: str, target_date: str, option_label: str | None
+) -> str:
+    matching_day = next(
+        (day for day in trip.days if day.date.isoformat() == target_date),
+        None,
+    )
+    if matching_day is None:
+        available = [day.date.isoformat() for day in trip.days]
+        raise ValueError(
+            f"Date '{target_date}' not found in trip '{trip_id}'. "
+            f"Available dates: {available}"
+        )
+    if option_label is not None:
+        needle = option_label.strip().lower()
+        matched_opt = next(
+            (o for o in matching_day.options if o.label.strip().lower() == needle),
+            None,
+        )
+        if matched_opt is None:
+            labels = [o.label for o in matching_day.options]
+            raise ValueError(
+                f"Option label '{option_label}' not found on {target_date}. "
+                f"Available options: {labels}"
+            )
+        return str(matched_opt.id)
+    if not matching_day.active_option_id:
+        raise ValueError(
+            f"TripDay for '{target_date}' has no active_option_id set."
+        )
+    return str(matching_day.active_option_id)
+
+
+@mcp_server.tool()
+async def list_trips(status: TripStatusLiteral | None = None) -> str:
+    """List trips belonging to the authenticated user, optionally filtered by status."""
+    async with _tool_session("trips:read") as ctx:
+        trips = await TripService(ctx.db).list_trips(ctx.auth_ctx.user.id, status)
+        return _json_text([_dump_model(TripSummaryResponse, t) for t in trips])
+
+
+@mcp_server.tool()
+async def get_trip(trip_id: str, day_index: int | None = None) -> str:
+    """Get full trip details including all days, Plan A/B options, and items."""
+    async with _tool_session("trips:read") as ctx:
+        trip = await TripService(ctx.db).get_trip_detail(
+            trip_id, ctx.auth_ctx.user.id
+        )
+        data = _dump_model(TripDetailResponse, trip)
         if day_index is not None:
-            filtered = [d for d in data.get("days", []) if d.get("day_index") == day_index]
+            filtered = [
+                d for d in data.get("days", []) if d.get("day_index") == day_index
+            ]
             if not filtered:
                 available = [d.get("day_index") for d in data.get("days", [])]
                 raise ValueError(
-                    f"day_index {day_index} not found in trip '{args['trip_id']}'. "
+                    f"day_index {day_index} not found in trip '{trip_id}'. "
                     f"Available day_index values: {available}"
                 )
             data["days"] = filtered
-        return data
+        return _json_text(data)
 
-    if name == "create_trip":
+
+@mcp_server.tool()
+async def create_trip(
+    title: str,
+    start_date: str,
+    end_date: str,
+    country_codes: list[str],
+    default_currency: str = "JPY",
+    destination_summary: str | None = None,
+) -> str:
+    """Create a new trip and auto-generate its days and default Plan A options."""
+    async with _tool_session("trips:write") as ctx:
         payload = TripCreate(
-            title=str(args["title"]),
-            start_date=date.fromisoformat(str(args["start_date"])),
-            end_date=date.fromisoformat(str(args["end_date"])),
-            country_codes=[str(c).upper() for c in args["country_codes"]],
-            default_currency=str(args.get("default_currency", "JPY")).upper(),
-            destination_summary=args.get("destination_summary"),
+            title=title,
+            start_date=date.fromisoformat(start_date),
+            end_date=date.fromisoformat(end_date),
+            country_codes=[c.upper() for c in country_codes],
+            default_currency=default_currency.upper(),
+            destination_summary=destination_summary,
         )
-        trip = await trip_svc.create_trip(user_id, payload)
-        return TripDetailResponse.model_validate(trip).model_dump(mode="json")
+        trip = await TripService(ctx.db).create_trip(ctx.auth_ctx.user.id, payload)
+        return _json_text(_dump_model(TripDetailResponse, trip))
 
-    if name == "append_day":
-        day = await trip_svc.append_day(str(args["trip_id"]), user_id)
-        return TripDayResponse.model_validate(day).model_dump(mode="json")
 
-    if name == "delete_trip_day":
-        day_id = str(args["day_id"])
-        await trip_svc.delete_day(day_id, user_id)
-        return {"deleted": True, "day_id": day_id}
+@mcp_server.tool()
+async def append_day(trip_id: str) -> str:
+    """Append one new day (with a default Plan A) to the end of a trip."""
+    async with _tool_session("trips:write") as ctx:
+        day = await TripService(ctx.db).append_day(trip_id, ctx.auth_ctx.user.id)
+        return _json_text(_dump_model(TripDayResponse, day))
 
-    if name == "update_day_title":
-        day_id = str(args.get("day_id") or args["trip_day_id"])
-        day = await trip_svc.update_day(
-            day_id, user_id, TripDayUpdate(title=args.get("title"))
+
+@mcp_server.tool()
+async def update_day_title(
+    day_id: str,
+    title: str | None = None,
+    notes: str | None = None,
+) -> str:
+    """Set or update a TripDay's theme title or notes."""
+    async with _tool_session("trips:write") as ctx:
+        fields = {
+            k: v
+            for k, v in {"title": title, "notes": notes}.items()
+            if v is not None
+        }
+        day = await TripService(ctx.db).update_day(
+            day_id, ctx.auth_ctx.user.id, TripDayUpdate(**fields)
         )
-        return TripDayResponse.model_validate(day).model_dump(mode="json")
+        return _json_text(_dump_model(TripDayResponse, day))
 
-    if name == "create_day_option":
-        clone_from_id = args.get("clone_from_option_id")
-        if clone_from_id:
+
+@mcp_server.tool()
+async def delete_trip_day(day_id: str) -> str:
+    """Delete a trip day, unlink its expenses, and re-index remaining days (rejected if sole day)."""
+    async with _tool_session("trips:write") as ctx:
+        await TripService(ctx.db).delete_day(day_id, ctx.auth_ctx.user.id)
+        return _json_text({"deleted": True, "day_id": day_id})
+
+
+@mcp_server.tool()
+async def create_day_option(
+    day_id: str,
+    label: str,
+    clone_from_option_id: str | None = None,
+    summary_notes: str | None = None,
+) -> str:
+    """Create a new Plan B / alternative day option (blank or cloned) on a trip day."""
+    async with _tool_session("trips:write") as ctx:
+        trip_svc = TripService(ctx.db)
+        if clone_from_option_id:
             opt = await trip_svc.clone_day_option(
-                str(clone_from_id),
-                user_id,
-                DayOptionCloneRequest(label=str(args["label"])),
+                clone_from_option_id,
+                ctx.auth_ctx.user.id,
+                DayOptionCloneRequest(label=label),
             )
-            return DayOptionResponse.model_validate(opt).model_dump(mode="json")
-        day_id = str(args.get("day_id") or args["trip_day_id"])
-        opt = await trip_svc.add_day_option(
-            day_id,
-            user_id,
-            DayOptionCreate(
-                label=str(args["label"]),
-                summary_notes=args.get("summary_notes"),
-            ),
-        )
-        return DayOptionResponse.model_validate(opt).model_dump(mode="json")
-
-    if name == "rename_day_option":
-        opt = await trip_svc.update_day_option(
-            str(args["option_id"]),
-            user_id,
-            DayOptionUpdate(label=str(args["label"])),
-        )
-        return DayOptionResponse.model_validate(opt).model_dump(mode="json")
-
-    if name == "delete_day_option":
-        day = await trip_svc.delete_day_option(str(args["option_id"]), user_id)
-        return TripDayResponse.model_validate(day).model_dump(mode="json")
-
-    if name == "set_active_option":
-        day_id = str(args.get("day_id") or args["trip_day_id"])
-        option_id = str(args.get("option_id") or args["day_option_id"])
-        day = await trip_svc.set_active_option(day_id, user_id, option_id)
-        return TripDayResponse.model_validate(day).model_dump(mode="json")
-
-    if name == "add_itinerary_item":
-        option_id = str(args.get("option_id") or args["day_option_id"])
-        item_fields = {
-            k: v
-            for k, v in args.items()
-            if k not in {"option_id", "day_option_id"}
-        }
-        if "type" not in item_fields and "item_type" in item_fields:
-            item_fields["type"] = item_fields.pop("item_type")
-        item = await trip_svc.add_item(
-            option_id, user_id, ItineraryItemCreate(**item_fields)
-        )
-        return ItineraryItemResponse.model_validate(item).model_dump(mode="json")
-
-    if name == "add_item_by_date":
-        trip_id = str(args["trip_id"])
-        target_date = str(args["target_date"])
-        option_label = args.get("option_label")
-        trip = await trip_svc.get_trip_detail(trip_id, user_id)
-        matching_day = next(
-            (day for day in trip.days if day.date.isoformat() == target_date),
-            None,
-        )
-        if matching_day is None:
-            available = [day.date.isoformat() for day in trip.days]
-            raise ValueError(
-                f"Date '{target_date}' not found in trip '{trip_id}'. "
-                f"Available dates: {available}"
-            )
-        if option_label is not None:
-            needle = str(option_label).strip().lower()
-            matched_opt = next(
-                (o for o in matching_day.options if o.label.strip().lower() == needle),
-                None,
-            )
-            if matched_opt is None:
-                labels = [o.label for o in matching_day.options]
-                raise ValueError(
-                    f"Option label '{option_label}' not found on {target_date}. "
-                    f"Available options: {labels}"
-                )
-            option_id = matched_opt.id
         else:
-            if not matching_day.active_option_id:
-                raise ValueError(
-                    f"TripDay for '{target_date}' has no active_option_id set."
-                )
-            option_id = matching_day.active_option_id
+            opt = await trip_svc.add_day_option(
+                day_id,
+                ctx.auth_ctx.user.id,
+                DayOptionCreate(label=label, summary_notes=summary_notes),
+            )
+        return _json_text(_dump_model(DayOptionResponse, opt))
 
-        item_fields = {
-            k: v
-            for k, v in args.items()
-            if k not in {"trip_id", "target_date", "option_label"}
+
+@mcp_server.tool()
+async def clone_day_option(option_id: str, label: str) -> str:
+    """Deep-clone an existing Plan A/B day option into a new alternative plan."""
+    async with _tool_session("trips:write") as ctx:
+        opt = await TripService(ctx.db).clone_day_option(
+            option_id, ctx.auth_ctx.user.id, DayOptionCloneRequest(label=label)
+        )
+        return _json_text(_dump_model(DayOptionResponse, opt))
+
+
+@mcp_server.tool()
+async def rename_day_option(option_id: str, label: str) -> str:
+    """Rename an existing day option (e.g. rename Plan A to 'Sunny Outdoor')."""
+    async with _tool_session("trips:write") as ctx:
+        opt = await TripService(ctx.db).update_day_option(
+            option_id, ctx.auth_ctx.user.id, DayOptionUpdate(label=label)
+        )
+        return _json_text(_dump_model(DayOptionResponse, opt))
+
+
+@mcp_server.tool()
+async def delete_day_option(option_id: str) -> str:
+    """Delete a day option (rejected if it is the last remaining option on the day)."""
+    async with _tool_session("trips:write") as ctx:
+        day = await TripService(ctx.db).delete_day_option(
+            option_id, ctx.auth_ctx.user.id
+        )
+        return _json_text(_dump_model(TripDayResponse, day))
+
+
+@mcp_server.tool()
+async def set_active_option(day_id: str, option_id: str) -> str:
+    """Set which Plan A/B day option is active for a trip day."""
+    async with _tool_session("trips:write") as ctx:
+        day = await TripService(ctx.db).set_active_option(
+            day_id, ctx.auth_ctx.user.id, option_id
+        )
+        return _json_text(_dump_model(TripDayResponse, day))
+
+
+@mcp_server.tool()
+async def add_itinerary_item(
+    option_id: str,
+    type: ItemTypeLiteral,
+    title: str,
+    start_time: str | None = None,
+    end_time: str | None = None,
+    address: str | None = None,
+    latitude: float | None = None,
+    longitude: float | None = None,
+    google_maps_url: str | None = None,
+    notes: str | None = None,
+    details: dict[str, Any] | None = None,
+    alternative_for_item_id: str | None = None,
+) -> str:
+    """Add an itinerary item to a day option."""
+    async with _tool_session("trips:write") as ctx:
+        payload = _build_item_create(
+            item_type=type,
+            title=title,
+            start_time=start_time,
+            end_time=end_time,
+            address=address,
+            latitude=latitude,
+            longitude=longitude,
+            google_maps_url=google_maps_url,
+            notes=notes,
+            details=details,
+            alternative_for_item_id=alternative_for_item_id,
+        )
+        item = await TripService(ctx.db).add_item(
+            option_id, ctx.auth_ctx.user.id, payload
+        )
+        return _json_text(_dump_model(ItineraryItemResponse, item))
+
+
+@mcp_server.tool()
+async def add_item_by_date(
+    trip_id: str,
+    target_date: str,
+    type: ItemTypeLiteral,
+    title: str,
+    option_label: str | None = None,
+    start_time: str | None = None,
+    end_time: str | None = None,
+    address: str | None = None,
+    latitude: float | None = None,
+    longitude: float | None = None,
+    google_maps_url: str | None = None,
+    notes: str | None = None,
+    details: dict[str, Any] | None = None,
+    alternative_for_item_id: str | None = None,
+) -> str:
+    """Add an itinerary item to a trip by calendar date (YYYY-MM-DD)."""
+    async with _tool_session("trips:write") as ctx:
+        trip_svc = TripService(ctx.db)
+        trip = await trip_svc.get_trip_detail(trip_id, ctx.auth_ctx.user.id)
+        option_id = _resolve_option_id_for_date(
+            trip, trip_id, target_date, option_label
+        )
+        payload = _build_item_create(
+            item_type=type,
+            title=title,
+            start_time=start_time,
+            end_time=end_time,
+            address=address,
+            latitude=latitude,
+            longitude=longitude,
+            google_maps_url=google_maps_url,
+            notes=notes,
+            details=details,
+            alternative_for_item_id=alternative_for_item_id,
+        )
+        item = await trip_svc.add_item(option_id, ctx.auth_ctx.user.id, payload)
+        return _json_text(_dump_model(ItineraryItemResponse, item))
+
+
+@mcp_server.tool()
+async def update_itinerary_item(
+    item_id: str,
+    type: ItemTypeLiteral | None = None,
+    sort_order: int | None = None,
+    is_selected: bool | None = None,
+    title: str | None = None,
+    start_time: str | None = None,
+    end_time: str | None = None,
+    address: str | None = None,
+    latitude: float | None = None,
+    longitude: float | None = None,
+    google_maps_url: str | None = None,
+    notes: str | None = None,
+    details: dict[str, Any] | None = None,
+) -> str:
+    """Partially update an existing itinerary item (time, coordinates, notes, details, etc.)."""
+    async with _tool_session("trips:write") as ctx:
+        raw_patch: dict[str, Any] = {
+            "type": ItemType(type) if type is not None else None,
+            "sort_order": sort_order,
+            "is_selected": is_selected,
+            "title": title,
+            "start_time": start_time,
+            "end_time": end_time,
+            "address": address,
+            "latitude": latitude,
+            "longitude": longitude,
+            "google_maps_url": google_maps_url,
+            "notes": notes,
+            "details": details,
         }
-        if "type" not in item_fields and "item_type" in item_fields:
-            item_fields["type"] = item_fields.pop("item_type")
-        item = await trip_svc.add_item(
-            option_id, user_id, ItineraryItemCreate(**item_fields)
+        patch = {k: v for k, v in raw_patch.items() if v is not None}
+        item = await TripService(ctx.db).update_item(
+            item_id, ctx.auth_ctx.user.id, ItineraryItemUpdate(**patch)
         )
-        return ItineraryItemResponse.model_validate(item).model_dump(mode="json")
+        return _json_text(_dump_model(ItineraryItemResponse, item))
 
-    if name == "update_itinerary_item":
-        item_id = str(args["item_id"])
-        patch_fields = {k: v for k, v in args.items() if k != "item_id"}
-        item = await trip_svc.update_item(
-            item_id, user_id, ItineraryItemUpdate(**patch_fields)
+
+@mcp_server.tool()
+async def delete_itinerary_item(item_id: str) -> str:
+    """Delete an itinerary item by ID."""
+    async with _tool_session("trips:write") as ctx:
+        await TripService(ctx.db).delete_item(item_id, ctx.auth_ctx.user.id)
+        return _json_text({"deleted": True, "item_id": item_id})
+
+
+@mcp_server.tool()
+async def select_choice_item(item_id: str) -> str:
+    """Select an alternative item as the active choice within its slot choice group."""
+    async with _tool_session("trips:write") as ctx:
+        opt = await TripService(ctx.db).select_choice_item(
+            item_id, ctx.auth_ctx.user.id
         )
-        return ItineraryItemResponse.model_validate(item).model_dump(mode="json")
+        return _json_text(_dump_model(DayOptionResponse, opt))
 
-    if name == "delete_itinerary_item":
-        await trip_svc.delete_item(str(args["item_id"]), user_id)
-        return {"deleted": True, "item_id": str(args["item_id"])}
 
-    if name == "select_choice_item":
-        opt = await trip_svc.select_choice_item(str(args["item_id"]), user_id)
-        return DayOptionResponse.model_validate(opt).model_dump(mode="json")
-
-    if name == "clone_day_option":
-        opt = await trip_svc.clone_day_option(
-            str(args["option_id"]),
-            user_id,
-            DayOptionCloneRequest(label=str(args["label"])),
-        )
-        return DayOptionResponse.model_validate(opt).model_dump(mode="json")
-
-    if name == "search_places":
+@mcp_server.tool()
+async def search_places(
+    query: str,
+    lang: str = "zh-TW",
+    limit: int = PLACES_DEFAULT_LIMIT,
+) -> str:
+    """Geocode places/venues to obtain coordinates, address, and Google Maps link."""
+    async with _tool_session("trips:read", rate_limit_bucket="places"):
+        clamped_limit = max(1, min(limit, PLACES_MAX_LIMIT))
         provider = get_place_search_provider()
         results = await provider.search(
-            str(args["query"]), language=str(args.get("lang", "zh-TW"))
+            query, language=lang, limit=clamped_limit
         )
-        return [asdict(r) for r in results]
+        return _json_text([asdict(r) for r in results])
 
-    if name == "resolve_google_maps_url":
-        resolved = await resolve_google_maps_url(str(args["url"]))
+
+@mcp_server.tool()
+async def resolve_google_maps_url(url: str) -> str:
+    """Resolve a Google Maps URL (full or maps.app.goo.gl) into coordinates."""
+    async with _tool_session("trips:read", rate_limit_bucket="places"):
+        resolved = await svc_resolve_google_maps_url(url)
         if resolved is None:
             raise ValueError(
                 "Could not extract coordinates from the provided Google Maps URL"
             )
-        return asdict(resolved)
+        return _json_text(asdict(resolved))
 
-    if name == "search_airports":
-        raw_limit = args.get("limit")
-        limit = (
-            max(1, min(int(raw_limit), AIRPORTS_MAX_LIMIT))
-            if raw_limit is not None
-            else AIRPORTS_DEFAULT_LIMIT
-        )
-        return [
-            asdict(a) for a in svc_search_airports(str(args["query"]), limit=limit)
-        ]
 
-    if name == "list_expenses":
-        summary = await ExpenseService(db).list_trip_expenses(
-            str(args["trip_id"]), auth_ctx.user
+@mcp_server.tool()
+async def search_airports(
+    query: str,
+    limit: int = AIRPORTS_DEFAULT_LIMIT,
+) -> str:
+    """Search commercial airports by IATA code, city, or airport name."""
+    async with _tool_session("trips:read"):
+        clamped_limit = max(1, min(limit, AIRPORTS_MAX_LIMIT))
+        return _json_text(
+            [asdict(a) for a in svc_search_airports(query, limit=clamped_limit)]
         )
-        return summary.model_dump(mode="json")
 
-    if name == "add_expense":
-        trip_id = str(args["trip_id"])
-        src_cur = str(args["currency_original"]).upper()
-        home_cur = auth_ctx.user.home_currency.upper()
-        rate_val = args.get("exchange_rate")
-        if rate_val is None:
-            rate_val, _, _ = await get_fx_provider().get_rate(src_cur, home_cur)
-        expense_payload = ExpenseCreate(
-            title=str(args["title"]),
-            category=args["category"],
-            amount_original=Decimal(str(args["amount_original"])),
-            currency_original=src_cur,
-            exchange_rate=Decimal(str(rate_val)),
-            trip_day_id=args.get("trip_day_id"),
-            itinerary_item_id=args.get("itinerary_item_id"),
-            payment_method=args.get("payment_method"),
-            notes=args.get("notes"),
-        )
-        created = await ExpenseService(db).create_expense(
-            trip_id, auth_ctx.user, expense_payload
-        )
-        return {
-            "id": created.id,
-            "title": created.title,
-            "amount_home": str(created.amount_home),
-            "currency_home": created.currency_home,
-        }
 
-    if name == "get_fx_rate":
-        src = str(args["from_currency"]).upper()
-        dst = str(args.get("to_currency") or auth_ctx.user.home_currency).upper()
+@mcp_server.tool()
+async def list_expenses(trip_id: str) -> str:
+    """List all expenses and category totals for a trip."""
+    async with _tool_session("expenses:read") as ctx:
+        summary = await ExpenseService(ctx.db).list_trip_expenses(
+            trip_id, ctx.auth_ctx.user
+        )
+        return _json_text(summary.model_dump(mode="json"))
+
+
+@mcp_server.tool()
+async def add_expense(
+    trip_id: str,
+    title: str,
+    category: ExpenseCategoryLiteral,
+    amount_original: float,
+    currency_original: str,
+    exchange_rate: float | None = None,
+    trip_day_id: str | None = None,
+    itinerary_item_id: str | None = None,
+    payment_method: str | None = None,
+    notes: str | None = None,
+) -> str:
+    """Record a trip expense (auto-fetches live FX when exchange_rate is omitted)."""
+    async with _tool_session("expenses:write") as ctx:
+        payload = ExpenseCreate(
+            title=title,
+            category=ExpenseCategory(category),
+            amount_original=Decimal(str(amount_original)),
+            currency_original=currency_original.upper(),
+            exchange_rate=(
+                Decimal(str(exchange_rate))
+                if exchange_rate is not None
+                else None
+            ),
+            trip_day_id=trip_day_id,
+            itinerary_item_id=itinerary_item_id,
+            payment_method=payment_method,
+            notes=notes,
+        )
+        created = await ExpenseService(ctx.db).create_expense(
+            trip_id, ctx.auth_ctx.user, payload
+        )
+        return _json_text(_dump_model(ExpenseResponse, created))
+
+
+@mcp_server.tool()
+async def get_fx_rate(
+    from_currency: str,
+    to_currency: str = "TWD",
+) -> str:
+    """Get the cached live exchange rate between two ISO-4217 currency codes."""
+    async with _tool_session("expenses:read") as ctx:
+        src = from_currency.upper()
+        dst = (to_currency or ctx.auth_ctx.user.home_currency).upper()
         rate, source, cached = await get_fx_provider().get_rate(src, dst)
-        return {
-            "from_currency": src,
-            "to_currency": dst,
-            "rate": rate,
-            "source": source,
-            "cached": cached,
-        }
-
-    if name == "get_travel_stats":
-        stats = await StatsService(db).get_travel_stats(
-            auth_ctx.user,
-            year=args.get("year"),
-            scope=args.get("scope", "all"),
+        return _json_text(
+            {
+                "from_currency": src,
+                "to_currency": dst,
+                "rate": rate,
+                "source": source,
+                "cached": cached,
+            }
         )
-        return stats.model_dump(mode="json")
 
-    raise KeyError(f"Unknown tool: {name}")
+
+@mcp_server.tool()
+async def get_travel_stats(
+    year: int | None = None,
+    scope: StatsScopeLiteral = "all",
+) -> str:
+    """Get travel dashboard statistics filtered by optional year and scope (all|domestic|international)."""
+    async with _tool_session("stats:read") as ctx:
+        stats = await StatsService(ctx.db).get_travel_stats(
+            ctx.auth_ctx.user,
+            year=year,
+            scope=scope,
+        )
+        return _json_text(stats.model_dump(mode="json"))
+
+
+async def _dispatch_stateless_mcp(request: Request) -> Response:
+    status_code = 200
+    response_headers: dict[str, str] = {}
+    body_chunks: list[bytes] = []
+
+    async def capture_send(message: Message) -> None:
+        nonlocal status_code
+        msg_type = message["type"]
+        if msg_type == "http.response.start":
+            status_code = int(message["status"])
+            for raw_name, raw_val in message.get("headers", []):
+                name = raw_name.decode("latin-1")
+                if name.lower() != "content-length":
+                    response_headers[name] = raw_val.decode("latin-1")
+        elif msg_type == "http.response.body":
+            body_chunks.append(bytes(message.get("body", b"")))
+
+    if _active_session_manager is not None:
+        await _active_session_manager.handle_request(
+            request.scope, request.receive, capture_send
+        )
+    else:
+        # Support ASGITransport test runs that skip FastAPI lifespan startup.
+        ephemeral_manager = StreamableHTTPSessionManager(
+            app=mcp_server._lowlevel_server,
+            json_response=True,
+            stateless=True,
+        )
+        async with ephemeral_manager.run():
+            await ephemeral_manager.handle_request(
+                request.scope, request.receive, capture_send
+            )
+
+    return Response(
+        content=b"".join(body_chunks),
+        status_code=status_code,
+        headers=response_headers,
+    )
 
 
 @router.post("/mcp")
-async def mcp_streamable_http(
+async def mcp_endpoint(
     request: Request,
     auth_ctx: AuthDep,
     db: DbSession,
+    settings: SettingsDep,
 ) -> Response:
-    """Remote Streamable HTTP MCP endpoint authenticated via Personal API Token."""
+    """Stateless Streamable HTTP MCP transport backed by the official MCP SDK."""
+    token = _mcp_ctx.set(
+        _McpRequestContext(auth_ctx=auth_ctx, db=db, settings=settings)
+    )
     try:
-        body = await request.json()
-    except Exception:
-        return _jsonrpc_err(None, -32700, "Parse error")
-
-    method = body.get("method")
-    req_id = body.get("id")
-    params = body.get("params") or {}
-
-    if method == "initialize":
-        base = str(request.base_url).rstrip("/")
-        return _jsonrpc_ok(
-            req_id,
-            {
-                "protocolVersion": MCP_PROTOCOL_VERSION,
-                "capabilities": {"tools": {}},
-                "serverInfo": {
-                    "name": "tripilot",
-                    "version": get_settings().app_version,
-                },
-                "instructions": (
-                    "Tripilot travel planning MCP server. Always geocode STAY/SPOT/FOOD/RESERVED_TRANSIT "
-                    "items via search_places, set details.local_name for non-English venues, attach cloud "
-                    "files in details.attachments as [{name, url}], and use get_fx_rate before add_expense. "
-                    f"Full reference: {base}/llms.txt"
-                ),
-            },
-        )
-
-    if method in {"notifications/initialized", "notifications/cancelled"}:
-        return Response(status_code=status.HTTP_202_ACCEPTED)
-
-    if method == "ping":
-        return _jsonrpc_ok(req_id, {})
-
-    if method == "tools/list":
-        return _jsonrpc_ok(req_id, {"tools": _TOOL_DEFINITIONS})
-
-    if method == "tools/call":
-        tool_name = params.get("name")
-        tool_args = params.get("arguments") or {}
-        if not isinstance(tool_name, str):
-            return _jsonrpc_err(req_id, -32602, "Missing tool name")
-        try:
-            result = await _dispatch_tool(tool_name, tool_args, auth_ctx, db)
-            return _jsonrpc_ok(
-                req_id,
-                {
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": json.dumps(result, ensure_ascii=False, indent=2),
-                        }
-                    ],
-                    "isError": False,
-                },
-            )
-        except KeyError as exc:
-            return _jsonrpc_err(req_id, -32601, str(exc))
-        except PermissionError as exc:
-            return _jsonrpc_err(req_id, -32003, str(exc))
-        except Exception as exc:
-            return _jsonrpc_ok(
-                req_id,
-                {
-                    "content": [{"type": "text", "text": f"Error: {exc}"}],
-                    "isError": True,
-                },
-            )
-
-    return _jsonrpc_err(req_id, -32601, f"Method not found: {method}")
+        return await _dispatch_stateless_mcp(request)
+    finally:
+        _mcp_ctx.reset(token)
 
 
 @router.get(
@@ -811,17 +713,18 @@ Send it on every request as:
 `Authorization: Bearer tp_pat_...`
 
 ## 2. Option A — Remote MCP (Recommended)
-Endpoint: `POST {base}/mcp` (Streamable HTTP / JSON-RPC 2.0)
+Endpoint: `POST {base}/mcp` (Official Stateless Streamable HTTP / JSON-RPC 2.0)
 Headers:
 - `Authorization: Bearer <TOKEN>`
 - `Content-Type: application/json`
+- `Accept: application/json, text/event-stream`
 
-Available MCP tools:
-- Trips & Days: `list_trips`, `get_trip`, `create_trip`, `append_day`, `update_day_title`, `delete_trip_day`
+Available MCP tools (23 total, schema-aligned with local `tripilot-mcp`):
+- Trips & Days: `list_trips`, `get_trip`, `create_trip`, `append_day`, `update_day_title` (`title`, `notes`), `delete_trip_day`
 - Day Options (Plan A/B): `create_day_option`, `clone_day_option`, `rename_day_option`, `delete_day_option`, `set_active_option`
-- Itinerary Items: `add_itinerary_item`, `add_item_by_date`, `update_itinerary_item`, `delete_itinerary_item`, `select_choice_item`
-- Places & Airports: `search_places`, `resolve_google_maps_url`, `search_airports`
-- Expenses & FX: `list_expenses`, `add_expense`, `get_fx_rate`
+- Itinerary Items: `add_itinerary_item` (`type`), `add_item_by_date` (`type`), `update_itinerary_item` (flat fields), `delete_itinerary_item`, `select_choice_item`
+- Places & Airports: `search_places` (`query`, `lang`, `limit`), `resolve_google_maps_url`, `search_airports` (`query`, `limit`)
+- Expenses & FX: `list_expenses`, `add_expense` (omit `exchange_rate` to auto-fetch live FX), `get_fx_rate`
 - Dashboard: `get_travel_stats` (supports `year` and `scope`: `all` | `domestic` | `international`)
 
 ## 3. Option B — REST API (OpenAPI)
@@ -834,7 +737,7 @@ Key endpoints:
 - `GET /api/v1/trips/{{trip_id}}` — full trip with days, options, and items
 - `PATCH /api/v1/trips/{{trip_id}}` — update trip metadata or shift `start_date` (shifts all day dates and `end_date`)
 - `POST /api/v1/trips/{{trip_id}}/days` — append a new day (with default Plan A)
-- `PATCH /api/v1/days/{{day_id}}` — set Day Theme (`title`)
+- `PATCH /api/v1/days/{{day_id}}` — set Day Theme (`title`) or `notes`
 - `DELETE /api/v1/days/{{day_id}}` — delete a day, unlink its expenses, and re-index remaining days (rejected if sole day)
 - `POST /api/v1/options/{{option_id}}/items` — add item (`FLIGHT`, `RESERVED_TRANSIT`, `LOCAL_TRANSIT`, `STAY`, `SPOT`, `FOOD`)
 - `PATCH /api/v1/items/{{item_id}}` — update item
@@ -843,7 +746,7 @@ Key endpoints:
 - `POST /api/v1/places/resolve-url` — resolve Google Maps URL
 - `GET /api/v1/fx/rate?from=JPY&to=TWD` — live cached exchange rate
 - `POST /api/v1/links/resolve-title` — extract filename from whitelisted cloud links (Google Drive, Dropbox, OneDrive)
-- `GET /api/v1/trips/{{trip_id}}/expenses` & `POST /api/v1/trips/{{trip_id}}/expenses`
+- `GET /api/v1/trips/{{trip_id}}/expenses` & `POST /api/v1/trips/{{trip_id}}/expenses` (omit `exchange_rate` for auto live FX)
 - `GET /api/v1/stats?year=2026&scope=all|domestic|international`
 
 ## 4. Planning Best Practices

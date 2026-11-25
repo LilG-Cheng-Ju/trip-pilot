@@ -33,7 +33,16 @@ async def test_remote_mcp_lifecycle_and_tool_calls(
     init = await api_client.post(
         "/mcp",
         headers=dev_headers,
-        json={"jsonrpc": "2.0", "id": 1, "method": "initialize"},
+        json={
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2025-03-26",
+                "capabilities": {},
+                "clientInfo": {"name": "pytest-client", "version": "1.0.0"},
+            },
+        },
     )
     assert init.status_code == 200
     assert init.json()["result"]["serverInfo"]["name"] == "tripilot"
@@ -342,3 +351,175 @@ async def test_mcp_places_tools_serialize_dataclasses_and_enforce_pat_scopes(
         )
         assert denied.status_code == 200
         assert denied.json()["error"]["code"] == -32003
+
+
+@pytest.mark.asyncio
+async def test_mcp_protocol_validation_and_notifications(
+    api_client: AsyncClient, dev_headers: dict[str, str]
+) -> None:
+    malformed = await api_client.post(
+        "/mcp",
+        headers={**dev_headers, "Content-Type": "application/json"},
+        content=b"{not-valid-json",
+    )
+    assert malformed.status_code == 400
+    assert malformed.json()["error"]["code"] == -32700
+
+    batch = await api_client.post(
+        "/mcp",
+        headers=dev_headers,
+        json=[{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}],
+    )
+    assert batch.status_code == 400
+    assert batch.json()["error"]["code"] == -32602
+
+    notif = await api_client.post(
+        "/mcp",
+        headers=dev_headers,
+        json={"jsonrpc": "2.0", "method": "notifications/initialized"},
+    )
+    assert notif.status_code == 202
+
+
+@pytest.mark.asyncio
+async def test_mcp_auto_fx_expense_flat_patches_and_schema_parity(
+    api_client: AsyncClient, dev_headers: dict[str, str]
+) -> None:
+    tools_res = await api_client.post(
+        "/mcp",
+        headers=dev_headers,
+        json={"jsonrpc": "2.0", "id": 20, "method": "tools/list"},
+    )
+    assert tools_res.status_code == 200
+    tools_by_name = {t["name"]: t for t in tools_res.json()["result"]["tools"]}
+    assert len(tools_by_name) == 23
+    add_props = tools_by_name["add_itinerary_item"]["inputSchema"]["properties"]
+    assert "type" in add_props
+    assert "item_type" not in add_props
+    upd_props = tools_by_name["update_itinerary_item"]["inputSchema"]["properties"]
+    assert "title" in upd_props
+    assert "limit" in tools_by_name["search_airports"]["inputSchema"]["properties"]
+    assert "notes" in tools_by_name["update_day_title"]["inputSchema"]["properties"]
+    assert "exchange_rate" not in tools_by_name["add_expense"]["inputSchema"].get(
+        "required", []
+    )
+
+    trip_res = await api_client.post(
+        "/mcp",
+        headers=dev_headers,
+        json={
+            "jsonrpc": "2.0",
+            "id": 21,
+            "method": "tools/call",
+            "params": {
+                "name": "create_trip",
+                "arguments": {
+                    "title": "Kyoto AutoFX Test",
+                    "start_date": "2026-09-10",
+                    "end_date": "2026-09-10",
+                    "country_codes": ["JP"],
+                },
+            },
+        },
+    )
+    trip = json.loads(trip_res.json()["result"]["content"][0]["text"])
+    day_id = trip["days"][0]["id"]
+    opt_id = trip["days"][0]["active_option_id"]
+
+    day_res = await api_client.post(
+        "/mcp",
+        headers=dev_headers,
+        json={
+            "jsonrpc": "2.0",
+            "id": 22,
+            "method": "tools/call",
+            "params": {
+                "name": "update_day_title",
+                "arguments": {
+                    "day_id": day_id,
+                    "title": "Higashiyama Walk",
+                    "notes": "Bring ICOCA",
+                },
+            },
+        },
+    )
+    updated_day = json.loads(day_res.json()["result"]["content"][0]["text"])
+    assert updated_day["title"] == "Higashiyama Walk"
+    assert updated_day["notes"] == "Bring ICOCA"
+
+    item_res = await api_client.post(
+        "/mcp",
+        headers=dev_headers,
+        json={
+            "jsonrpc": "2.0",
+            "id": 23,
+            "method": "tools/call",
+            "params": {
+                "name": "add_itinerary_item",
+                "arguments": {
+                    "option_id": opt_id,
+                    "type": "SPOT",
+                    "title": "Kiyomizu",
+                },
+            },
+        },
+    )
+    item = json.loads(item_res.json()["result"]["content"][0]["text"])
+
+    patch_res = await api_client.post(
+        "/mcp",
+        headers=dev_headers,
+        json={
+            "jsonrpc": "2.0",
+            "id": 24,
+            "method": "tools/call",
+            "params": {
+                "name": "update_itinerary_item",
+                "arguments": {
+                    "item_id": item["id"],
+                    "title": "Kiyomizu-dera",
+                    "start_time": "8:30",
+                    "notes": "Arrive early",
+                },
+            },
+        },
+    )
+    patched = json.loads(patch_res.json()["result"]["content"][0]["text"])
+    assert patched["title"] == "Kiyomizu-dera"
+    assert patched["start_time"] == "08:30"
+    assert patched["notes"] == "Arrive early"
+
+    class _FakeFx:
+        async def get_rate(self, src: str, dst: str) -> tuple[float, str, bool]:
+            assert src == "JPY"
+            assert dst == "TWD"
+            return 0.215, "fake-fx", False
+
+    with patch("app.services.expense_service.get_fx_provider", return_value=_FakeFx()):
+        exp_res = await api_client.post(
+            "/mcp",
+            headers=dev_headers,
+            json={
+                "jsonrpc": "2.0",
+                "id": 25,
+                "method": "tools/call",
+                "params": {
+                    "name": "add_expense",
+                    "arguments": {
+                        "trip_id": trip["id"],
+                        "title": "Matcha Parfait",
+                        "category": "FOOD",
+                        "amount_original": 2000,
+                        "currency_original": "JPY",
+                        "itinerary_item_id": item["id"],
+                    },
+                },
+            },
+        )
+    exp = json.loads(exp_res.json()["result"]["content"][0]["text"])
+    assert exp["trip_id"] == trip["id"]
+    assert exp["currency_home"] == "TWD"
+    assert float(exp["exchange_rate"]) == pytest.approx(0.215)
+    assert float(exp["amount_home"]) == pytest.approx(430.0)
+    assert "paid_at" in exp
+

@@ -16,7 +16,7 @@ Use Tripilot's Remote MCP endpoint (`POST <API_URL>/mcp`), local MCP tools, or `
 - **Trip -> TripDay -> DayOption -> ItineraryItem**:
   - Every trip auto-generates one `TripDay` per calendar date (`day_index` 1..N), each with a default `Plan A` `DayOption` set as `active_option_id`.
   - Always set a concise **Day Theme (`TripDay.title`)** summarizing the main area/focus of each day (e.g., `東釜山體驗日 · 滑車＋天空膠囊`, `Prague Old Town & Castle`) via `update_day_title` or `PATCH /api/v1/days/{day_id}`.
-- **Item types (`type` / `item_type`)**:
+- **Item types (`type`)**:
   - `FLIGHT`: Commercial flights. Include `origin_iata`, `dest_iata`, `flight_number`, `booking_ref`, `origin_terminal`, `dest_terminal`, `seat` in `details`. The backend auto-computes Great-Circle `distance_km` and auto-pins the destination/foreign airport coordinates on the map.
   - `RESERVED_TRANSIT`: Booked rail, Shinkansen, KTX, ÖBB, RegioJet, express bus, or ferry (`operator`, `line_or_train_no`, `car_number`, `seat`, `booking_ref`, `local_name` in `details`). Automatically listed in the Trip Brief page.
   - `LOCAL_TRANSIT`: Metro, bus, taxi, or walking connectors between stops (`mode`, `duration_minutes` in `details`).
@@ -34,7 +34,9 @@ Use Tripilot's Remote MCP endpoint (`POST <API_URL>/mcp`), local MCP tools, or `
 - **Expenses & Live FX**:
   - Categories: `FLIGHT`, `LODGING`, `TRANSIT`, `FOOD`, `ACTIVITY`, `SHOPPING`, `OTHER`.
   - Link expenses to a specific stop via `trip_day_id` and `itinerary_item_id` so they group cleanly on cards and filter in `/trips/:id/expenses?itemId=...`.
-  - Query live cached exchange rates with `get_fx_rate` (`GET /api/v1/fx/rate?from=JPY&to=TWD`) — never fabricate exchange rates.
+  - Omit `exchange_rate` in `add_expense` (or `POST /api/v1/trips/{trip_id}/expenses`) to auto-resolve the live FX rate into the user's home currency, or call `get_fx_rate` (`GET /api/v1/fx/rate?from=JPY&to=TWD`) when inspecting rates directly — never fabricate exchange rates.
+- **Updating Itinerary Items**:
+  - Call `update_itinerary_item` with flat optional fields (`title`, `start_time`, `end_time`, `notes`, `details`, `is_selected`, `sort_order`, etc.) across both Remote and Local MCP.
 
 ---
 
@@ -46,7 +48,7 @@ Use Tripilot's Remote MCP endpoint (`POST <API_URL>/mcp`), local MCP tools, or `
 3. **Insert items by date & attach cloud links**:
    - Add `FLIGHT`, `STAY` (on check-in dates), and `RESERVED_TRANSIT` items with `details.attachments` pointing to any Drive tickets/vouchers.
 4. **Log paid costs**:
-   - Fetch the live rate via `get_fx_rate` and call `add_expense` with `itinerary_item_id` linked to the created item.
+   - Call `add_expense` (omit `exchange_rate` to auto-fetch live FX, or inspect rates first with `get_fx_rate`) with `itinerary_item_id` linked to the created item.
 
 ---
 

@@ -59,10 +59,11 @@ async def _lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
                         "ADD COLUMN is_selected BOOLEAN NOT NULL DEFAULT 1"
                     )
                 )
-    try:
-        yield
-    finally:
-        await close_shared_http_client()
+    async with mcp_router.mcp_lifespan():
+        try:
+            yield
+        finally:
+            await close_shared_http_client()
 
 
 def create_app(settings_override: Settings | None = None) -> FastAPI:

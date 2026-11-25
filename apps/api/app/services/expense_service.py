@@ -162,12 +162,21 @@ class ExpenseService:
         await self._validate_expense_links(
             trip_id, payload.trip_day_id, payload.itinerary_item_id
         )
+        # Resolve live FX outside the write transaction when exchange_rate is omitted.
+        if payload.exchange_rate is not None:
+            resolved_rate = payload.exchange_rate
+        elif payload.currency_original.upper() == user.home_currency.upper():
+            resolved_rate = Decimal("1.000000")
+        else:
+            raw_rate, _, _ = await get_fx_provider().get_rate(
+                payload.currency_original, user.home_currency
+            )
+            resolved_rate = Decimal(str(raw_rate))
+
         amount_home = (
             payload.amount_home
             if payload.amount_home is not None
-            else (payload.amount_original * payload.exchange_rate).quantize(
-                Decimal("0.01")
-            )
+            else (payload.amount_original * resolved_rate).quantize(Decimal("0.01"))
         )
         expense = Expense(
             trip_id=trip_id,
@@ -177,7 +186,7 @@ class ExpenseService:
             category=payload.category.value,
             amount_original=payload.amount_original,
             currency_original=payload.currency_original,
-            exchange_rate=payload.exchange_rate,
+            exchange_rate=resolved_rate,
             amount_home=amount_home,
             currency_home=user.home_currency,
             paid_at=payload.paid_at or datetime.now(UTC),

@@ -1,7 +1,7 @@
 """Application configuration loaded from environment variables."""
 
 from functools import lru_cache
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "Tripilot API"
-    app_version: str = "0.8.2-beta"
+    app_version: str = "0.8.3-beta"
     app_env: Literal["DEV", "PROD"] = "PROD"
 
     # Strictly honored only when app_env == "DEV".
@@ -46,13 +46,15 @@ class Settings(BaseSettings):
         "dev_user_id",
         "google_places_api_key",
         "firebase_credentials_path",
+        "rate_limit_enabled",
+        mode="before",
     )
     @classmethod
-    def _empty_string_to_none(cls, value: str | None) -> str | None:
-        if value is None:
-            return None
-        stripped = value.strip()
-        return stripped if stripped else None
+    def _empty_string_to_none(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped if stripped else None
+        return value
 
     @property
     def is_dev(self) -> bool:

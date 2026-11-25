@@ -1,19 +1,78 @@
-"""FastMCP server exposing Tripilot trip, itinerary, expense, and stats tools."""
+"""Official MCPServer exposing Tripilot trip, itinerary, expense, and stats tools."""
 
 from __future__ import annotations
 
-from typing import Any
+import asyncio
+from typing import Any, Literal
 
 from mcp.server.mcpserver import MCPServer
 
+from tripilot_mcp import __version__
 from tripilot_mcp.client import TripilotClient
 
-mcp = MCPServer("tripilot")
+mcp = MCPServer("tripilot", version=__version__)
+
+TripStatusLiteral = Literal["PLANNING", "ACTIVE", "COMPLETED", "ARCHIVED"]
+ItemTypeLiteral = Literal[
+    "FLIGHT",
+    "RESERVED_TRANSIT",
+    "LOCAL_TRANSIT",
+    "STAY",
+    "SPOT",
+    "FOOD",
+]
+ExpenseCategoryLiteral = Literal[
+    "FLIGHT",
+    "LODGING",
+    "TRANSIT",
+    "FOOD",
+    "ACTIVITY",
+    "SHOPPING",
+    "OTHER",
+]
+StatsScopeLiteral = Literal["all", "domestic", "international"]
+
+_PLACES_MAX_LIMIT = 10
+_AIRPORTS_MAX_LIMIT = 30
+
+_shared_client: TripilotClient | None = None
+_shared_client_loop: asyncio.AbstractEventLoop | None = None
+_shared_client_cls: Any = None
+
+
+def _get_shared_client() -> TripilotClient:
+    """Return a loop-scoped TripilotClient so tools reuse one httpx connection pool."""
+    global _shared_client, _shared_client_loop, _shared_client_cls
+    loop = asyncio.get_running_loop()
+    if (
+        _shared_client is None
+        or _shared_client_loop is not loop
+        or _shared_client_cls is not TripilotClient
+    ):
+        _shared_client = TripilotClient()
+        _shared_client_loop = loop
+        _shared_client_cls = TripilotClient
+    return _shared_client
+
+
+async def close_shared_client() -> None:
+    """Close and clear the shared TripilotClient if initialized."""
+    global _shared_client, _shared_client_loop, _shared_client_cls
+    client = _shared_client
+    _shared_client = None
+    _shared_client_loop = None
+    _shared_client_cls = None
+    if client is None:
+        return
+    if hasattr(client, "aclose"):
+        await client.aclose()
+    elif hasattr(client, "close"):
+        await client.close()
 
 
 def _build_item_payload(
     *,
-    item_type: str,
+    item_type: ItemTypeLiteral,
     title: str,
     start_time: str | None = None,
     end_time: str | None = None,
@@ -26,9 +85,8 @@ def _build_item_payload(
     alternative_for_item_id: str | None = None,
 ) -> dict[str, Any]:
     payload: dict[str, Any] = {
-        "type": item_type.strip().upper(),
+        "type": item_type,
         "title": title,
-        "details": details if details is not None else {},
     }
     optional_fields: dict[str, Any] = {
         "start_time": start_time,
@@ -37,6 +95,7 @@ def _build_item_payload(
         "latitude": latitude,
         "longitude": longitude,
         "google_maps_url": google_maps_url,
+        "details": details,
         "notes": notes,
         "alternative_for_item_id": alternative_for_item_id,
     }
@@ -47,14 +106,13 @@ def _build_item_payload(
 
 
 @mcp.tool()
-async def list_trips(status: str | None = None) -> list[dict[str, Any]]:
+async def list_trips(status: TripStatusLiteral | None = None) -> list[dict[str, Any]]:
     """List the user's trips, optionally filtered by status.
 
     Args:
         status: Optional TripStatus filter: PLANNING, ACTIVE, COMPLETED, or ARCHIVED.
     """
-    async with TripilotClient() as client:
-        return await client.list_trips(status=status)
+    return await _get_shared_client().list_trips(status=status)
 
 
 @mcp.tool()
@@ -68,8 +126,7 @@ async def get_trip(
         trip_id: Unique identifier of the trip.
         day_index: Optional 1-based day index to filter the returned days list.
     """
-    async with TripilotClient() as client:
-        trip = await client.get_trip(trip_id)
+    trip = await _get_shared_client().get_trip(trip_id)
 
     if day_index is not None:
         days: list[dict[str, Any]] = trip.get("days", [])
@@ -104,15 +161,53 @@ async def create_trip(
         default_currency: 3-letter ISO currency code for expenses (default "JPY").
         destination_summary: Optional short destination summary.
     """
-    async with TripilotClient() as client:
-        return await client.create_trip(
-            title=title,
-            start_date=start_date,
-            end_date=end_date,
-            country_codes=country_codes,
-            default_currency=default_currency,
-            destination_summary=destination_summary,
-        )
+    return await _get_shared_client().create_trip(
+        title=title,
+        start_date=start_date,
+        end_date=end_date,
+        country_codes=country_codes,
+        default_currency=default_currency,
+        destination_summary=destination_summary,
+    )
+
+
+@mcp.tool()
+async def append_day(trip_id: str) -> dict[str, Any]:
+    """Append a new calendar day (with default Plan A) to an existing trip.
+
+    Args:
+        trip_id: Target trip ID.
+    """
+    return await _get_shared_client().append_day(trip_id=trip_id)
+
+
+@mcp.tool()
+async def update_day_title(
+    day_id: str,
+    title: str | None = None,
+    notes: str | None = None,
+) -> dict[str, Any]:
+    """Set or update a TripDay's theme title or notes.
+
+    Args:
+        day_id: Target TripDay ID.
+        title: Concise day focus/area (e.g. "East Busan · Luge & Sky Capsule").
+        notes: Optional day-level notes.
+    """
+    return await _get_shared_client().update_day(
+        day_id=day_id, title=title, notes=notes
+    )
+
+
+@mcp.tool()
+async def delete_trip_day(day_id: str) -> dict[str, Any]:
+    """Delete a TripDay, unlink its expenses, and re-index remaining days.
+
+    Args:
+        day_id: ID of the TripDay to remove (rejected if it is the sole day).
+    """
+    await _get_shared_client().delete_day(day_id=day_id)
+    return {"deleted": True, "day_id": day_id}
 
 
 @mcp.tool()
@@ -133,17 +228,17 @@ async def create_day_option(
         clone_from_option_id: Optional existing DayOption ID to deep-clone.
         summary_notes: Optional notes (used when creating a fresh empty option).
     """
-    async with TripilotClient() as client:
-        if clone_from_option_id:
-            return await client.clone_day_option(
-                option_id=clone_from_option_id,
-                label=label,
-            )
-        return await client.add_day_option(
-            day_id=day_id,
+    client = _get_shared_client()
+    if clone_from_option_id:
+        return await client.clone_day_option(
+            option_id=clone_from_option_id,
             label=label,
-            summary_notes=summary_notes,
         )
+    return await client.add_day_option(
+        day_id=day_id,
+        label=label,
+        summary_notes=summary_notes,
+    )
 
 
 @mcp.tool()
@@ -152,8 +247,9 @@ async def clone_day_option(
     label: str,
 ) -> dict[str, Any]:
     """Deep-clone an existing DayOption into a new Plan B / alternative day plan."""
-    async with TripilotClient() as client:
-        return await client.clone_day_option(option_id=option_id, label=label)
+    return await _get_shared_client().clone_day_option(
+        option_id=option_id, label=label
+    )
 
 
 @mcp.tool()
@@ -162,15 +258,15 @@ async def rename_day_option(
     label: str,
 ) -> dict[str, Any]:
     """Rename an existing DayOption."""
-    async with TripilotClient() as client:
-        return await client.update_day_option(option_id=option_id, label=label)
+    return await _get_shared_client().update_day_option(
+        option_id=option_id, label=label
+    )
 
 
 @mcp.tool()
 async def delete_day_option(option_id: str) -> dict[str, Any]:
     """Delete a DayOption (rejected if it is the last remaining option on the day)."""
-    async with TripilotClient() as client:
-        return await client.delete_day_option(option_id=option_id)
+    return await _get_shared_client().delete_day_option(option_id=option_id)
 
 
 @mcp.tool()
@@ -184,17 +280,16 @@ async def set_active_option(
         day_id: ID of the TripDay to update.
         option_id: ID of the DayOption belonging to that day to activate.
     """
-    async with TripilotClient() as client:
-        return await client.set_active_option(
-            day_id=day_id,
-            day_option_id=option_id,
-        )
+    return await _get_shared_client().set_active_option(
+        day_id=day_id,
+        day_option_id=option_id,
+    )
 
 
 @mcp.tool()
 async def add_itinerary_item(
     option_id: str,
-    item_type: str,
+    type: ItemTypeLiteral,
     title: str,
     start_time: str | None = None,
     end_time: str | None = None,
@@ -210,22 +305,22 @@ async def add_itinerary_item(
 
     Args:
         option_id: Target DayOption ID.
-        item_type: One of FLIGHT, RESERVED_TRANSIT, LOCAL_TRANSIT, STAY, SPOT, FOOD.
+        type: One of FLIGHT, RESERVED_TRANSIT, LOCAL_TRANSIT, STAY, SPOT, FOOD.
         title: Concise item title.
-        start_time: Optional start time string (e.g. "09:30").
-        end_time: Optional end time string (e.g. "12:15").
+        start_time: Optional start time string (HH:MM, e.g. "09:30").
+        end_time: Optional end time string (HH:MM, e.g. "12:15").
         address: Optional street address or station/airport name.
         latitude: Optional WGS84 latitude (-90 to 90).
         longitude: Optional WGS84 longitude (-180 to 180).
         google_maps_url: Optional Google Maps deep link.
         notes: Optional private notes.
         details: Optional type-specific metadata dictionary (e.g. flight_number,
-            origin_iata, dest_iata, booking_ref, local_name, line_or_train_no).
+            origin_iata, dest_iata, booking_ref, local_name, attachments).
         alternative_for_item_id: Optional existing item ID to attach this item as a
             slot-level multi-choice alternative (e.g. lunch 3-way choice).
     """
     payload = _build_item_payload(
-        item_type=item_type,
+        item_type=type,
         title=title,
         start_time=start_time,
         end_time=end_time,
@@ -237,15 +332,14 @@ async def add_itinerary_item(
         details=details,
         alternative_for_item_id=alternative_for_item_id,
     )
-    async with TripilotClient() as client:
-        return await client.add_item(option_id=option_id, payload=payload)
+    return await _get_shared_client().add_item(option_id=option_id, payload=payload)
 
 
 @mcp.tool()
 async def add_item_by_date(
     trip_id: str,
     target_date: str,
-    item_type: str,
+    type: ItemTypeLiteral,
     title: str,
     option_label: str | None = None,
     start_time: str | None = None,
@@ -266,11 +360,11 @@ async def add_item_by_date(
     Args:
         trip_id: Target trip ID.
         target_date: Calendar date in YYYY-MM-DD format.
-        item_type: One of FLIGHT, RESERVED_TRANSIT, LOCAL_TRANSIT, STAY, SPOT, FOOD.
+        type: One of FLIGHT, RESERVED_TRANSIT, LOCAL_TRANSIT, STAY, SPOT, FOOD.
         title: Concise item title.
         option_label: Optional DayOption label (e.g. "Plan B - Rainy Day").
-        start_time: Optional start time string (e.g. "14:00").
-        end_time: Optional end time string (e.g. "15:30").
+        start_time: Optional start time string (HH:MM, e.g. "14:00").
+        end_time: Optional end time string (HH:MM, e.g. "15:30").
         address: Optional street address or station/airport name.
         latitude: Optional WGS84 latitude (-90 to 90).
         longitude: Optional WGS84 longitude (-180 to 180).
@@ -281,7 +375,7 @@ async def add_item_by_date(
         alternative_for_item_id: Optional existing item ID to attach as a slot choice.
     """
     payload = _build_item_payload(
-        item_type=item_type,
+        item_type=type,
         title=title,
         start_time=start_time,
         end_time=end_time,
@@ -293,28 +387,47 @@ async def add_item_by_date(
         details=details,
         alternative_for_item_id=alternative_for_item_id,
     )
-    async with TripilotClient() as client:
-        return await client.add_item_by_date(
-            trip_id=trip_id,
-            target_date=target_date,
-            payload=payload,
-            option_label=option_label,
-        )
+    return await _get_shared_client().add_item_by_date(
+        trip_id=trip_id,
+        target_date=target_date,
+        payload=payload,
+        option_label=option_label,
+    )
 
 
 @mcp.tool()
 async def update_itinerary_item(
     item_id: str,
-    updates: dict[str, Any],
+    type: ItemTypeLiteral | None = None,
+    sort_order: int | None = None,
+    is_selected: bool | None = None,
+    title: str | None = None,
+    start_time: str | None = None,
+    end_time: str | None = None,
+    address: str | None = None,
+    latitude: float | None = None,
+    longitude: float | None = None,
+    google_maps_url: str | None = None,
+    notes: str | None = None,
+    details: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Partially update fields on an existing itinerary item.
-
-    Args:
-        item_id: ID of the itinerary item to update.
-        updates: Dictionary of fields to patch (e.g. title, start_time, notes, details).
-    """
-    async with TripilotClient() as client:
-        return await client.update_item(item_id=item_id, payload=updates)
+    """Partially update an existing itinerary item (time, coordinates, notes, etc.)."""
+    raw_patch: dict[str, Any] = {
+        "type": type,
+        "sort_order": sort_order,
+        "is_selected": is_selected,
+        "title": title,
+        "start_time": start_time,
+        "end_time": end_time,
+        "address": address,
+        "latitude": latitude,
+        "longitude": longitude,
+        "google_maps_url": google_maps_url,
+        "notes": notes,
+        "details": details,
+    }
+    patch = {k: v for k, v in raw_patch.items() if v is not None}
+    return await _get_shared_client().update_item(item_id=item_id, payload=patch)
 
 
 @mcp.tool()
@@ -324,141 +437,8 @@ async def delete_itinerary_item(item_id: str) -> dict[str, Any]:
     Args:
         item_id: ID of the itinerary item to remove.
     """
-    async with TripilotClient() as client:
-        await client.delete_item(item_id=item_id)
+    await _get_shared_client().delete_item(item_id=item_id)
     return {"deleted": True, "item_id": item_id}
-
-
-@mcp.tool()
-async def list_expenses(trip_id: str) -> dict[str, Any]:
-    """List all expenses and category totals for a trip."""
-    async with TripilotClient() as client:
-        return await client.list_expenses(trip_id=trip_id)
-
-
-@mcp.tool()
-async def add_expense(
-    trip_id: str,
-    title: str,
-    category: str,
-    amount_original: float,
-    currency_original: str,
-    exchange_rate: float = 1.0,
-    payment_method: str | None = None,
-    trip_day_id: str | None = None,
-    itinerary_item_id: str | None = None,
-    notes: str | None = None,
-) -> dict[str, Any]:
-    """Log an actual expense against a trip.
-
-    Args:
-        trip_id: Target trip ID.
-        title: Short description of the purchase or booking.
-        category: One of FLIGHT, LODGING, TRANSIT, FOOD, ACTIVITY, SHOPPING, OTHER.
-        amount_original: Positive amount in the original transaction currency.
-        currency_original: 3-letter ISO currency code (e.g. "JPY", "USD", "TWD").
-        exchange_rate: Multiplier to convert original currency to user's home currency.
-        payment_method: Optional payment method (e.g. "Visa", "Suica", "Cash").
-        trip_day_id: Optional TripDay ID to associate the expense with a specific day.
-        itinerary_item_id: Optional ItineraryItem ID to link the expense to a stop.
-        notes: Optional notes or receipt reference.
-    """
-    payload: dict[str, Any] = {
-        "title": title,
-        "category": category.strip().upper(),
-        "amount_original": amount_original,
-        "currency_original": currency_original.strip().upper(),
-        "exchange_rate": exchange_rate,
-    }
-    if payment_method is not None:
-        payload["payment_method"] = payment_method
-    if trip_day_id is not None:
-        payload["trip_day_id"] = trip_day_id
-    if itinerary_item_id is not None:
-        payload["itinerary_item_id"] = itinerary_item_id
-    if notes is not None:
-        payload["notes"] = notes
-
-    async with TripilotClient() as client:
-        return await client.log_expense(trip_id=trip_id, payload=payload)
-
-
-@mcp.tool()
-async def get_fx_rate(
-    from_currency: str,
-    to_currency: str = "TWD",
-) -> dict[str, Any]:
-    """Get the cached live exchange rate between two ISO-4217 currency codes."""
-    async with TripilotClient() as client:
-        return await client.get_fx_rate(
-            from_currency=from_currency, to_currency=to_currency
-        )
-
-
-@mcp.tool()
-async def get_travel_stats(
-    year: int | None = None,
-    scope: str = "all",
-) -> dict[str, Any]:
-    """Retrieve annual (when year is provided) or lifetime travel statistics.
-
-    Args:
-        year: Optional 4-digit calendar year (e.g. 2026). Omit for lifetime totals.
-        scope: Filter scope: "all", "domestic", or "international".
-    """
-    async with TripilotClient() as client:
-        return await client.get_stats(year=year, scope=scope)
-
-
-@mcp.tool()
-async def search_airports(query: str) -> list[dict[str, Any]]:
-    """Search commercial airports by IATA code, city, or airport name.
-
-    Args:
-        query: Search string (e.g. "NRT", "Tokyo", "Taipei").
-    """
-    async with TripilotClient() as client:
-        return await client.search_airports(q=query)
-
-
-@mcp.tool()
-async def update_day_title(
-    day_id: str,
-    title: str | None = None,
-    notes: str | None = None,
-) -> dict[str, Any]:
-    """Set or update a TripDay's theme title or notes.
-
-    Args:
-        day_id: Target TripDay ID.
-        title: Concise day focus/area (e.g. "East Busan · Luge & Sky Capsule").
-        notes: Optional day-level notes.
-    """
-    async with TripilotClient() as client:
-        return await client.update_day(day_id=day_id, title=title, notes=notes)
-
-
-@mcp.tool()
-async def append_day(trip_id: str) -> dict[str, Any]:
-    """Append a new calendar day (with default Plan A) to an existing trip.
-
-    Args:
-        trip_id: Target trip ID.
-    """
-    async with TripilotClient() as client:
-        return await client.append_day(trip_id=trip_id)
-
-
-@mcp.tool()
-async def delete_trip_day(day_id: str) -> dict[str, Any]:
-    """Delete a TripDay, unlink its expenses, and re-index remaining days.
-
-    Args:
-        day_id: ID of the TripDay to remove (rejected if it is the sole day).
-    """
-    async with TripilotClient() as client:
-        await client.delete_day(day_id=day_id)
-    return {"deleted": True, "day_id": day_id}
 
 
 @mcp.tool()
@@ -468,8 +448,7 @@ async def select_choice_item(item_id: str) -> dict[str, Any]:
     Args:
         item_id: ID of the item to activate.
     """
-    async with TripilotClient() as client:
-        return await client.select_choice_item(item_id=item_id)
+    return await _get_shared_client().select_choice_item(item_id=item_id)
 
 
 @mcp.tool()
@@ -485,8 +464,8 @@ async def search_places(
         lang: Preferred language code (default "zh-TW").
         limit: Maximum number of results (1-10, default 5).
     """
-    async with TripilotClient() as client:
-        return await client.search_places(q=query, lang=lang, limit=limit)
+    clamped = max(1, min(limit, _PLACES_MAX_LIMIT))
+    return await _get_shared_client().search_places(q=query, lang=lang, limit=clamped)
 
 
 @mcp.tool()
@@ -496,8 +475,100 @@ async def resolve_google_maps_url(url: str) -> dict[str, Any]:
     Args:
         url: Google Maps link.
     """
-    async with TripilotClient() as client:
-        return await client.resolve_place_url(url=url)
+    return await _get_shared_client().resolve_place_url(url=url)
+
+
+@mcp.tool()
+async def search_airports(
+    query: str,
+    limit: int = 10,
+) -> list[dict[str, Any]]:
+    """Search commercial airports by IATA code, city, or airport name.
+
+    Args:
+        query: Search string (e.g. "NRT", "Tokyo", "Taipei").
+        limit: Maximum number of results (1-30, default 10).
+    """
+    clamped = max(1, min(limit, _AIRPORTS_MAX_LIMIT))
+    return await _get_shared_client().search_airports(q=query, limit=clamped)
+
+
+@mcp.tool()
+async def list_expenses(trip_id: str) -> dict[str, Any]:
+    """List all expenses and category totals for a trip."""
+    return await _get_shared_client().list_expenses(trip_id=trip_id)
+
+
+@mcp.tool()
+async def add_expense(
+    trip_id: str,
+    title: str,
+    category: ExpenseCategoryLiteral,
+    amount_original: float,
+    currency_original: str,
+    exchange_rate: float | None = None,
+    trip_day_id: str | None = None,
+    itinerary_item_id: str | None = None,
+    payment_method: str | None = None,
+    notes: str | None = None,
+) -> dict[str, Any]:
+    """Log an actual expense (auto-fetches FX when exchange_rate is omitted).
+
+    Args:
+        trip_id: Target trip ID.
+        title: Short description of the purchase or booking.
+        category: One of FLIGHT, LODGING, TRANSIT, FOOD, ACTIVITY, SHOPPING, OTHER.
+        amount_original: Positive amount in the original transaction currency.
+        currency_original: 3-letter ISO currency code (e.g. "JPY", "USD", "TWD").
+        exchange_rate: Optional conversion multiplier to home currency.
+        trip_day_id: Optional TripDay ID to associate the expense with a specific day.
+        itinerary_item_id: Optional ItineraryItem ID to link the expense to a stop.
+        payment_method: Optional payment method (e.g. "Visa", "Suica", "Cash").
+        notes: Optional notes or receipt reference.
+    """
+    payload: dict[str, Any] = {
+        "title": title,
+        "category": category,
+        "amount_original": amount_original,
+        "currency_original": currency_original.strip().upper(),
+    }
+    optional_fields: dict[str, Any] = {
+        "exchange_rate": exchange_rate,
+        "trip_day_id": trip_day_id,
+        "itinerary_item_id": itinerary_item_id,
+        "payment_method": payment_method,
+        "notes": notes,
+    }
+    for key, value in optional_fields.items():
+        if value is not None:
+            payload[key] = value
+
+    return await _get_shared_client().log_expense(trip_id=trip_id, payload=payload)
+
+
+@mcp.tool()
+async def get_fx_rate(
+    from_currency: str,
+    to_currency: str = "TWD",
+) -> dict[str, Any]:
+    """Get the cached live exchange rate between two ISO-4217 currency codes."""
+    return await _get_shared_client().get_fx_rate(
+        from_currency=from_currency, to_currency=to_currency
+    )
+
+
+@mcp.tool()
+async def get_travel_stats(
+    year: int | None = None,
+    scope: StatsScopeLiteral = "all",
+) -> dict[str, Any]:
+    """Retrieve annual (when year is provided) or lifetime travel statistics.
+
+    Args:
+        year: Optional 4-digit calendar year (e.g. 2026). Omit for lifetime totals.
+        scope: Filter scope: "all", "domestic", or "international".
+    """
+    return await _get_shared_client().get_stats(year=year, scope=scope)
 
 
 def main() -> None:
