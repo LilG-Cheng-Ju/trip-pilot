@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "Tripilot API"
-    app_version: str = "0.8.1-beta"
+    app_version: str = "0.8.2-beta"
     app_env: Literal["DEV", "PROD"] = "PROD"
 
     # Strictly honored only when app_env == "DEV".
@@ -31,6 +31,15 @@ class Settings(BaseSettings):
     osrm_base_url: str = "https://router.project-osrm.org"
     google_places_api_key: str | None = None
     firebase_credentials_path: str | None = None
+
+    # Comma-separated developer/admin emails (always exempt from rate limits).
+    admin_emails: str = ""
+    # Optional invite-only allowlist; when non-empty, unlisted Firebase users get 403.
+    allowed_emails: str = ""
+    # When None, rate limiting defaults to enabled in PROD and disabled in DEV.
+    rate_limit_enabled: bool | None = None
+    rate_limit_places_per_min: int = 30
+    rate_limit_public_per_min: int = 60
 
     @field_validator(
         "db_schema",
@@ -48,6 +57,30 @@ class Settings(BaseSettings):
     @property
     def is_dev(self) -> bool:
         return self.app_env == "DEV"
+
+    @property
+    def is_rate_limit_enabled(self) -> bool:
+        return (
+            self.rate_limit_enabled
+            if self.rate_limit_enabled is not None
+            else (not self.is_dev)
+        )
+
+    @property
+    def admin_email_set(self) -> frozenset[str]:
+        return frozenset(
+            email.strip().lower()
+            for email in self.admin_emails.split(",")
+            if email.strip()
+        )
+
+    @property
+    def allowed_email_set(self) -> frozenset[str]:
+        return frozenset(
+            email.strip().lower()
+            for email in self.allowed_emails.split(",")
+            if email.strip()
+        )
 
     @property
     def cors_origin_list(self) -> list[str]:

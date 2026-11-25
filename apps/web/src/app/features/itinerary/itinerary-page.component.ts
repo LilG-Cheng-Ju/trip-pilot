@@ -26,14 +26,13 @@ import {
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ItineraryItem, TripDay } from '../../core/models/tripilot.models';
 import { readCheckedValue, readInputValue } from '../../core/utils/form-events.utils';
+import { ViewportService } from '../../core/utils/viewport.service';
 import {
   buildDayMapPins,
   buildDayMapRoutes,
-  buildGoogleMapsUrl,
   buildPinOrderMap,
   DayMapRoutes,
   formatDayNumber,
-  getItemDetailString,
   groupItemsIntoSlots,
   ItinerarySlot,
   toStayMapPin,
@@ -356,21 +355,23 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
           </div>
         </section>
 
-        <!-- Always-on Desktop Split Map -->
-        <aside class="desktop-map-pane">
-          <app-itinerary-map
-            [pins]="mapPins()"
-            [schematicRoutes]="schematicMapRoutes()"
-            [roadRoutes]="roadMapRoutes()"
-            [allowModeToggle]="true"
-            [routeMode]="store.mapRouteMode()"
-            (routeModeChange)="store.setMapRouteMode($event)"
-            [departureStayPin]="departureStayMapPin()"
-            [stayPin]="stayMapPin()"
-            [selectedPinId]="store.selectedItemId()"
-            (pinSelected)="onMapPinSelected($event)"
-          />
-        </aside>
+        <!-- Always-on Desktop Split Map (never mounted on mobile to avoid duplicate WebGL) -->
+        @if (viewport.isDesktop()) {
+          <aside class="desktop-map-pane">
+            <app-itinerary-map
+              [pins]="mapPins()"
+              [schematicRoutes]="schematicMapRoutes()"
+              [roadRoutes]="roadMapRoutes()"
+              [allowModeToggle]="true"
+              [routeMode]="store.mapRouteMode()"
+              (routeModeChange)="store.setMapRouteMode($event)"
+              [departureStayPin]="departureStayMapPin()"
+              [stayPin]="stayMapPin()"
+              [selectedPinId]="store.selectedItemId()"
+              (pinSelected)="onMapPinSelected($event)"
+            />
+          </aside>
+        }
       </div>
 
       <!-- Mobile Floating Map Pill (Thumb-Zone Airbnb pattern) -->
@@ -1152,6 +1153,7 @@ export class ItineraryPageComponent implements OnInit {
   protected readonly store = inject(ItineraryStore);
   protected readonly expenseStore = inject(ExpenseStore);
   protected readonly authStore = inject(AuthStore);
+  protected readonly viewport = inject(ViewportService);
   private readonly tripStore = inject(TripStore);
   private readonly route = inject(ActivatedRoute);
 

@@ -7,6 +7,6 @@ from tripilot_mcp.client import TripilotAPIError, TripilotClient
 try:
     __version__ = version("tripilot-mcp")
 except PackageNotFoundError:  # pragma: no cover - editable source fallback
-    __version__ = "0.8.1"
+    __version__ = "0.8.2"
 
 __all__ = ["TripilotAPIError", "TripilotClient", "__version__"]

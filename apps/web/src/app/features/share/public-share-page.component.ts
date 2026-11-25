@@ -15,6 +15,7 @@ import { DAY_STRIP_SCROLL_STEP_PX } from '../../core/constants/app-limits';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ItineraryItem, PublicTrip } from '../../core/models/tripilot.models';
+import { ViewportService } from '../../core/utils/viewport.service';
 import {
   buildDayMapPins,
   buildDayMapRoutes,
@@ -197,16 +198,18 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
           </div>
         </section>
 
-        <aside class="desktop-map-pane">
-          <app-itinerary-map
-            [pins]="mapPins()"
-            [schematicRoutes]="schematicMapRoutes()"
-            [departureStayPin]="departureStayMapPin()"
-            [stayPin]="stayMapPin()"
-            [selectedPinId]="selectedItemId()"
-            (pinSelected)="onMapPinSelected($event)"
-          />
-        </aside>
+        @if (viewport.isDesktop()) {
+          <aside class="desktop-map-pane">
+            <app-itinerary-map
+              [pins]="mapPins()"
+              [schematicRoutes]="schematicMapRoutes()"
+              [departureStayPin]="departureStayMapPin()"
+              [stayPin]="stayMapPin()"
+              [selectedPinId]="selectedItemId()"
+              (pinSelected)="onMapPinSelected($event)"
+            />
+          </aside>
+        }
       </div>
 
       @if (!mobileMapOpen() && (mapPins().length > 0 || stayMapPin() || departureStayMapPin())) {
@@ -557,6 +560,7 @@ export class PublicSharePageComponent implements OnInit {
   private readonly api = inject(TripilotApiService);
   private readonly route = inject(ActivatedRoute);
   protected readonly i18n = inject(I18nService);
+  protected readonly viewport = inject(ViewportService);
 
   private readonly dayStrip = viewChild<ElementRef<HTMLDivElement>>('dayStrip');
   private readonly timelineScroll = viewChild<ElementRef<HTMLDivElement>>('timelineScroll');

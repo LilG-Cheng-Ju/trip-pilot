@@ -5,11 +5,14 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
-from app.core.auth import AuthContext, require_scope
+from app.core.auth import AuthContext
+from app.core.rate_limit import require_scope_with_rate_limit
 from app.services.fx_service import get_fx_provider
 
 router = APIRouter(tags=["fx"])
-ReadExpensesAuth = Annotated[AuthContext, Depends(require_scope("expenses:read"))]
+ReadExpensesAuth = Annotated[
+    AuthContext, Depends(require_scope_with_rate_limit("expenses:read", "places"))
+]
 
 
 class FxRateResponse(BaseModel):

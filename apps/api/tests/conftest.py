@@ -12,12 +12,14 @@ from sqlalchemy.ext.asyncio import (
 
 from app.core.config import Settings, get_settings
 from app.core.database import Base, configure_sqlite_foreign_keys, get_db
+from app.core.rate_limit import reset_rate_limiters
 from app.main import create_app
 
 
 @pytest.fixture
 async def api_client() -> AsyncGenerator[AsyncClient, None]:
     """Yield an AsyncClient backed by a fresh in-memory SQLite database."""
+    reset_rate_limiters()
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     configure_sqlite_foreign_keys(engine)
     async with engine.begin() as conn:
@@ -43,6 +45,7 @@ async def api_client() -> AsyncGenerator[AsyncClient, None]:
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
 
+    reset_rate_limiters()
     await engine.dispose()
 
 

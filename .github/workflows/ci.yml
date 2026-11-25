@@ -6,6 +6,9 @@ on:
       - main
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   api:
     name: Backend API (ruff, mypy, pytest)
@@ -90,5 +93,5 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
-      - name: Run unit tests and production build
-        run: npx ng test --watch=false && npm run build
+      - name: Run lint, unit tests, and production build
+        run: npm run lint && npx ng test --watch=false && npm run build

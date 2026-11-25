@@ -1,10 +1,15 @@
 """FastAPI application entrypoint for Tripilot."""
 
-from collections.abc import AsyncGenerator
+import logging
+import re
+import uuid
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from typing import Annotated
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from app import models as _models  # noqa: F401
@@ -18,9 +23,13 @@ from app.api.v1 import places as places_router
 from app.api.v1 import public as public_router
 from app.api.v1 import stats as stats_router
 from app.api.v1 import trips as trips_router
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
 from app.core.database import Base, engine
 from app.core.http_client import close_shared_http_client
+from app.core.logging import configure_logging, request_id_ctx
+
+logger = logging.getLogger(__name__)
+_REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 
 
 @asynccontextmanager
@@ -56,18 +65,46 @@ async def _lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
         await close_shared_http_client()
 
 
-def create_app() -> FastAPI:
+def create_app(settings_override: Settings | None = None) -> FastAPI:
     """Build and configure the FastAPI application instance."""
-    settings = get_settings()
+    settings = settings_override or get_settings()
+    configure_logging(settings.is_dev)
 
     application = FastAPI(
         title=settings.app_name,
         version=settings.app_version,
-        openapi_url="/api/v1/openapi.json",
-        docs_url="/api/v1/docs",
-        redoc_url="/api/v1/redoc",
+        openapi_url="/api/v1/openapi.json" if settings.is_dev else None,
+        docs_url="/api/v1/docs" if settings.is_dev else None,
+        redoc_url="/api/v1/redoc" if settings.is_dev else None,
         lifespan=_lifespan,
     )
+
+    @application.middleware("http")
+    async def attach_request_id(
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
+        incoming = request.headers.get("X-Request-ID", "").strip()
+        req_id = (
+            incoming if _REQUEST_ID_RE.fullmatch(incoming) else uuid.uuid4().hex[:16]
+        )
+        token = request_id_ctx.set(req_id)
+        try:
+            try:
+                response = await call_next(request)
+            except Exception as exc:
+                logger.exception("Unhandled exception: %s", type(exc).__name__)
+                response = JSONResponse(
+                    status_code=500,
+                    content={
+                        "detail": "Internal server error",
+                        "request_id": req_id,
+                    },
+                )
+            response.headers["X-Request-ID"] = req_id
+            return response
+        finally:
+            request_id_ctx.reset(token)
 
     application.add_middleware(
         CORSMiddleware,
@@ -89,12 +126,16 @@ def create_app() -> FastAPI:
     application.include_router(mcp_router.router)
 
     @application.get("/healthz", tags=["system"])
-    async def healthz() -> dict[str, str]:
-        return {
+    async def healthz(
+        runtime_settings: Annotated[Settings, Depends(get_settings)],
+    ) -> dict[str, str]:
+        payload = {
             "status": "ok",
             "service": "tripilot-api",
-            "env": settings.app_env,
         }
+        if runtime_settings.is_dev:
+            payload["env"] = runtime_settings.app_env
+        return payload
 
     return application
 

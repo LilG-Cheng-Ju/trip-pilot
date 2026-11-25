@@ -123,6 +123,7 @@ def get_shared_http_client() -> httpx.AsyncClient:
     ):
         _shared_client = httpx.AsyncClient(
             timeout=PLACES_HTTP_TIMEOUT_SEC,
+            trust_env=False,
             limits=httpx.Limits(
                 max_connections=HTTP_POOL_MAX_CONNECTIONS,
                 max_keepalive_connections=HTTP_POOL_MAX_KEEPALIVE,

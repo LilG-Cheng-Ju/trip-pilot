@@ -1,6 +1,7 @@
 """Pluggable ground routing provider (OSRM + Haversine fallback) and route caching."""
 
 import asyncio
+import logging
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -29,6 +30,7 @@ GROUND_ANCHOR_TYPES: frozenset[str] = frozenset(
     }
 )
 COORDINATE_EPSILON = 1e-5
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -157,9 +159,12 @@ class OsrmRoutingProvider:
                         geometry_polyline=best.get("geometry"),
                         is_approx=False,
                     )
-        except Exception:
+        except Exception as exc:
             # Fall back to Haversine so offline/ferry/timeout cases never block writes.
-            pass
+            logger.warning(
+                "OSRM routing failed, falling back to Haversine: %s",
+                type(exc).__name__,
+            )
 
         return RouteLegResult(
             distance_km=haversine_km(lat1, lng1, lat2, lng2),

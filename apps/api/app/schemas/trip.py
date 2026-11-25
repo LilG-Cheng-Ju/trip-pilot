@@ -1,5 +1,7 @@
 """Pydantic v2 schemas for trips, day options, itinerary items, and sharing."""
 
+import json
+import re
 from datetime import date, datetime
 from typing import Any
 from urllib.parse import urlparse
@@ -18,6 +20,24 @@ from app.services.airport_service import infer_flight_airport_role
 SENSITIVE_DETAIL_KEYS: frozenset[str] = frozenset(
     {"booking_ref", "confirmation_code", "reservation_code", "attachments"}
 )
+_HH_MM_RE = re.compile(r"^(\d{1,2}):(\d{2})$")
+_MAX_DETAILS_JSON_BYTES = 16_384
+_MAX_ATTACHMENTS = 20
+
+
+def _normalize_time_str(value: str | None) -> str | None:
+    if value is None:
+        return None
+    cleaned = value.strip()
+    if not cleaned:
+        return None
+    match = _HH_MM_RE.fullmatch(cleaned)
+    if match is None:
+        raise ValueError("Time must be in HH:MM format")
+    hour, minute = int(match.group(1)), int(match.group(2))
+    if not (0 <= hour <= 23 and 0 <= minute <= 59):
+        raise ValueError("Time must be a valid 24-hour clock value (00:00–23:59)")
+    return f"{hour:02d}:{minute:02d}"
 
 
 def _validate_http_url(url: str | None) -> str | None:
@@ -33,11 +53,22 @@ def _validate_http_url(url: str | None) -> str | None:
 
 
 def _validate_details_attachments(details: dict[str, Any]) -> dict[str, Any]:
-    attachments = details.get("attachments")
-    if isinstance(attachments, list):
+    encoded_details = json.dumps(details, ensure_ascii=False, default=str)
+    if len(encoded_details) > _MAX_DETAILS_JSON_BYTES:
+        raise ValueError(f"details payload exceeds {_MAX_DETAILS_JSON_BYTES} bytes")
+    if "attachments" in details and details["attachments"] is not None:
+        attachments = details["attachments"]
+        if not isinstance(attachments, list):
+            raise ValueError("details.attachments must be a list")
+        if len(attachments) > _MAX_ATTACHMENTS:
+            raise ValueError(
+                f"details.attachments cannot exceed {_MAX_ATTACHMENTS} items"
+            )
         for entry in attachments:
-            if isinstance(entry, dict) and isinstance(entry.get("url"), str):
-                _validate_http_url(entry["url"])
+            if not isinstance(entry, dict) or not isinstance(entry.get("url"), str):
+                raise ValueError("Each attachment must include a valid URL string")
+            if _validate_http_url(entry["url"]) is None:
+                raise ValueError("Each attachment URL must be non-empty")
     return details
 
 
@@ -92,6 +123,11 @@ class ItineraryItemCreate(BaseModel):
     alternative_for_item_id: str | None = None
     is_selected: bool = True
 
+    @field_validator("start_time", "end_time")
+    @classmethod
+    def _check_time_str(cls, value: str | None) -> str | None:
+        return _normalize_time_str(value)
+
     @field_validator("google_maps_url")
     @classmethod
     def _check_google_maps_url(cls, value: str | None) -> str | None:
@@ -118,6 +154,11 @@ class ItineraryItemUpdate(BaseModel):
     details: dict[str, Any] | None = None
     choice_group_id: str | None = None
     is_selected: bool | None = None
+
+    @field_validator("start_time", "end_time")
+    @classmethod
+    def _check_time_str(cls, value: str | None) -> str | None:
+        return _normalize_time_str(value)
 
     @field_validator("google_maps_url")
     @classmethod

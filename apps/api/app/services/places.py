@@ -1,5 +1,6 @@
 """Pluggable place search (Google Places New + Photon OSM) and Maps URL resolver."""
 
+import logging
 import re
 from dataclasses import dataclass
 from typing import Protocol
@@ -13,6 +14,9 @@ from app.core.constants import (
     PLACES_MAX_REDIRECTS,
 )
 from app.core.http_client import get_shared_http_client, request_with_resilience
+from app.core.net_safety import ensure_public_url_target
+
+logger = logging.getLogger(__name__)
 
 GOOGLE_PLACES_TEXT_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText"
 PHOTON_SEARCH_URL = "https://photon.komoot.io/api/"
@@ -215,6 +219,7 @@ async def resolve_google_maps_url(
         for _ in range(max_redirects):
             if not is_allowed_google_maps_url(current_url):
                 return None
+            await ensure_public_url_target(urlparse(current_url).hostname)
             async with client.stream(
                 "GET",
                 current_url,
@@ -231,6 +236,9 @@ async def resolve_google_maps_url(
                     current_url = next_url
                     continue
                 return parse_google_maps_url(str(response.url))
-    except Exception:
+    except Exception as exc:
+        logger.warning(
+            "Google Maps URL resolution failed: %s", type(exc).__name__
+        )
         return None
     return None

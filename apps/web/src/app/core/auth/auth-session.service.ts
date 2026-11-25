@@ -1,9 +1,41 @@
 import { computed, Injectable, signal } from '@angular/core';
 
-import { getRuntimeConfig } from '../config/runtime-config';
+import { FirebaseWebConfig, getRuntimeConfig } from '../config/runtime-config';
 
 const DEFAULT_DEV_TOKEN = 'dev-local-user';
 const AUTH_TOKEN_STORAGE_KEY = 'tripilot.authToken';
+
+interface FirebaseUserLike {
+  email?: string | null;
+  displayName?: string | null;
+  photoURL?: string | null;
+  getIdToken: () => Promise<string>;
+}
+
+interface FirebaseAppModule {
+  initializeApp: (config: FirebaseWebConfig) => unknown;
+}
+
+interface FirebaseAuthModule {
+  GoogleAuthProvider: new () => unknown;
+  getAuth: (app: unknown) => unknown;
+  onIdTokenChanged: (
+    auth: unknown,
+    callback: (user: FirebaseUserLike | null) => void | Promise<void>,
+  ) => void;
+  signInWithPopup: (auth: unknown, provider: unknown) => Promise<{ user: FirebaseUserLike }>;
+  signInWithEmailAndPassword: (
+    auth: unknown,
+    email: string,
+    password: string,
+  ) => Promise<{ user: FirebaseUserLike }>;
+  createUserWithEmailAndPassword: (
+    auth: unknown,
+    email: string,
+    password: string,
+  ) => Promise<{ user: FirebaseUserLike }>;
+  signOut: (auth: unknown) => Promise<void>;
+}
 
 /**
  * Signal-based authentication session supporting both local DEV mode
@@ -28,7 +60,7 @@ export class AuthSessionService {
   );
 
   private firebaseAuthInstance: unknown = null;
-  private currentFirebaseUser: { getIdToken: () => Promise<string> } | null = null;
+  private currentFirebaseUser: FirebaseUserLike | null = null;
   private readyResolve: (() => void) | null = null;
   private readonly readyPromise: Promise<void>;
 
@@ -115,12 +147,7 @@ export class AuthSessionService {
     await this.applyFirebaseUser(result.user);
   }
 
-  private async applyFirebaseUser(user: {
-    email?: string | null;
-    displayName?: string | null;
-    photoURL?: string | null;
-    getIdToken: () => Promise<string>;
-  }): Promise<void> {
+  private async applyFirebaseUser(user: FirebaseUserLike): Promise<void> {
     this.currentFirebaseUser = user;
     const token = await user.getIdToken();
     this.idToken.set(token);
@@ -153,16 +180,7 @@ export class AuthSessionService {
       const auth = authMod.getAuth(app);
       this.firebaseAuthInstance = auth;
 
-      authMod.onIdTokenChanged(
-        auth,
-        async (
-          user: {
-            email?: string | null;
-            displayName?: string | null;
-            photoURL?: string | null;
-            getIdToken: () => Promise<string>;
-          } | null,
-        ) => {
+      authMod.onIdTokenChanged(auth, async (user: FirebaseUserLike | null) => {
           if (user) {
             this.currentFirebaseUser = user;
             this.idToken.set(await user.getIdToken());
@@ -188,13 +206,13 @@ export class AuthSessionService {
     }
   }
 
-  private loadFirebaseAppModule(): Promise<any> {
+  private loadFirebaseAppModule(): Promise<FirebaseAppModule> {
     const url = 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
-    return import(/* @vite-ignore */ url);
+    return import(/* @vite-ignore */ url) as Promise<FirebaseAppModule>;
   }
 
-  private loadFirebaseAuthModule(): Promise<any> {
+  private loadFirebaseAuthModule(): Promise<FirebaseAuthModule> {
     const url = 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
-    return import(/* @vite-ignore */ url);
+    return import(/* @vite-ignore */ url) as Promise<FirebaseAuthModule>;
   }
 }

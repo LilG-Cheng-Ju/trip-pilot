@@ -1,6 +1,7 @@
 """Pluggable FX exchange rate provider with in-memory TTL cache."""
 
 import asyncio
+import logging
 import time
 from typing import Protocol
 
@@ -10,6 +11,7 @@ from app.core.http_client import request_with_resilience
 OPEN_ER_API_URL = "https://open.er-api.com/v6/latest/{base}"
 DEFAULT_TTL_SECONDS = FX_CACHE_TTL_SECONDS
 MAX_FX_CACHE_CURRENCIES = 64
+logger = logging.getLogger(__name__)
 
 # Conservative offline fallback rates relative to USD when network is unavailable.
 _FALLBACK_USD_RATES: dict[str, float] = {
@@ -129,8 +131,13 @@ class OpenErApiProvider:
                         }
                         self._store_cache(src, time.monotonic(), numeric_rates)
                         return _round_rate(numeric_rates[dst]), "open_er_api", False
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning(
+                    "FX upstream lookup failed for %s->%s: %s",
+                    src,
+                    dst,
+                    type(exc).__name__,
+                )
 
         # Fallback via USD cross-rate so offline expense logging never breaks.
         if src in _FALLBACK_USD_RATES and dst in _FALLBACK_USD_RATES:

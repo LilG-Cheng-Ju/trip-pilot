@@ -1,6 +1,7 @@
 """SSRF-safe cloud attachment link title resolver."""
 
 import html
+import logging
 import re
 from typing import Annotated
 from urllib.parse import urljoin, urlparse
@@ -8,7 +9,7 @@ from urllib.parse import urljoin, urlparse
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from app.core.auth import AuthContext, require_scope
+from app.core.auth import AuthContext
 from app.core.constants import (
     LINK_HTML_MAX_BYTES,
     LINK_MAX_REDIRECTS,
@@ -16,7 +17,10 @@ from app.core.constants import (
     LINK_TITLE_MAX_LENGTH,
 )
 from app.core.http_client import get_shared_http_client
+from app.core.net_safety import ensure_public_url_target
+from app.core.rate_limit import require_scope_with_rate_limit
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/links", tags=["links"])
 
 _ALLOWED_HOSTS: frozenset[str] = frozenset(
@@ -110,6 +114,7 @@ async def fetch_cloud_link_title(url: str) -> str | None:
     try:
         client = get_shared_http_client()
         for _ in range(LINK_MAX_REDIRECTS):
+            await ensure_public_url_target(urlparse(current_url).hostname)
             async with client.stream(
                 "GET",
                 current_url,
@@ -148,7 +153,10 @@ async def fetch_cloud_link_title(url: str) -> str | None:
                 return _extract_html_title(
                     raw_html.decode(encoding, errors="replace")
                 )
-    except Exception:
+    except Exception as exc:
+        logger.warning(
+            "Cloud link title resolution failed: %s", type(exc).__name__
+        )
         return None
     return None
 
@@ -156,7 +164,9 @@ async def fetch_cloud_link_title(url: str) -> str | None:
 @router.post("/resolve-title", response_model=ResolveLinkTitleResponse)
 async def resolve_link_title(
     payload: ResolveLinkTitleRequest,
-    _: Annotated[AuthContext, Depends(require_scope("trips:read"))],
+    _: Annotated[
+        AuthContext, Depends(require_scope_with_rate_limit("trips:read", "places"))
+    ],
 ) -> ResolveLinkTitleResponse:
     """Resolve a human-readable filename/title from a whitelisted cloud share link."""
     try:

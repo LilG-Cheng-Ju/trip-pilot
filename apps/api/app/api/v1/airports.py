@@ -2,10 +2,11 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
 from app.core.constants import AIRPORTS_DEFAULT_LIMIT, AIRPORTS_MAX_LIMIT
+from app.core.rate_limit import limit_public_endpoint
 from app.services.airport_service import search_airports
 
 router = APIRouter(tags=["airports"])
@@ -21,7 +22,11 @@ class AirportResponse(BaseModel):
     timezone: str
 
 
-@router.get("/airports/search", response_model=list[AirportResponse])
+@router.get(
+    "/airports/search",
+    response_model=list[AirportResponse],
+    dependencies=[Depends(limit_public_endpoint("public"))],
+)
 async def search_airports_endpoint(
     q: Annotated[str, Query(max_length=60)] = "",
     limit: Annotated[int, Query(ge=1, le=AIRPORTS_MAX_LIMIT)] = AIRPORTS_DEFAULT_LIMIT,

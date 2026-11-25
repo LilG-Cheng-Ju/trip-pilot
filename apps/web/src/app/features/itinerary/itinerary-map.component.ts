@@ -170,7 +170,7 @@ const STAY_LEG_LAYER_ID = 'stay-leg-layer';
       transition: background-color 140ms ease, color 140ms ease;
     }
     .route-mode-btn:hover:not(.active) {
-      color: var(--color-text);
+      color: var(--color-text-primary);
     }
     .route-mode-btn.active {
       background: var(--color-primary, #162136);

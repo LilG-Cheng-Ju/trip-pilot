@@ -15,6 +15,7 @@ from app.core.auth import AuthContext, get_auth_context
 from app.core.config import get_settings
 from app.core.constants import AIRPORTS_DEFAULT_LIMIT, AIRPORTS_MAX_LIMIT
 from app.core.database import get_db
+from app.core.rate_limit import limit_public_endpoint
 from app.schemas.expense import ExpenseCreate
 from app.schemas.trip import (
     DayOptionCloneRequest,
@@ -792,7 +793,11 @@ async def mcp_streamable_http(
     return _jsonrpc_err(req_id, -32601, f"Method not found: {method}")
 
 
-@router.get("/llms.txt", response_class=PlainTextResponse)
+@router.get(
+    "/llms.txt",
+    response_class=PlainTextResponse,
+    dependencies=[Depends(limit_public_endpoint("public"))],
+)
 async def llms_txt(request: Request) -> str:
     """Public English guide enabling any AI assistant to discover and operate Tripilot."""
     base = str(request.base_url).rstrip("/")

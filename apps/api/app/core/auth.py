@@ -2,6 +2,7 @@
 
 import asyncio
 import hashlib
+import logging
 import secrets
 import threading
 from collections.abc import Callable
@@ -27,6 +28,7 @@ from app.models import ApiToken, User
 
 PAT_PREFIX = "tp_pat_"
 _firebase_init_lock = threading.Lock()
+logger = logging.getLogger(__name__)
 
 ALL_SCOPES: tuple[str, ...] = (
     "trips:read",
@@ -55,6 +57,15 @@ class AuthContext:
 
     def has_scope(self, scope: str) -> bool:
         return scope in self.scopes
+
+    def is_admin(self, settings: Settings) -> bool:
+        """Return True for local DEV bypass or configured admin/developer emails."""
+        if self.method == AuthMethod.DEV:
+            return True
+        return bool(
+            self.user.email
+            and self.user.email.strip().lower() in settings.admin_email_set
+        )
 
 
 _bearer = HTTPBearer(auto_error=False)
@@ -98,6 +109,10 @@ async def _get_or_create_user(
 ) -> User:
     user = await db.scalar(select(User).where(User.firebase_uid == firebase_uid))
     if user is not None:
+        if email and user.email != email:
+            user.email = email
+            await db.commit()
+            await db.refresh(user)
         return user
 
     user = User(
@@ -174,6 +189,7 @@ async def _verify_firebase(
         await asyncio.to_thread(_ensure_firebase_initialized, settings)
         decoded = await asyncio.to_thread(firebase_auth.verify_id_token, raw_token)
     except Exception as exc:
+        logger.warning("Firebase ID token verification failed: %s", type(exc).__name__)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication token",
@@ -185,7 +201,24 @@ async def _verify_firebase(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Malformed Firebase token",
         )
-    user = await _get_or_create_user(db, uid, decoded.get("email"))
+
+    email = decoded.get("email")
+    allowed = settings.allowed_email_set
+    if allowed:
+        normalized_email = email.strip().lower() if isinstance(email, str) else ""
+        if (
+            not normalized_email
+            or normalized_email not in (allowed | settings.admin_email_set)
+        ):
+            logger.warning(
+                "Blocked non-allowlisted Firebase sign-in attempt for uid=%s", uid
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This Tripilot instance is currently invite-only",
+            )
+
+    user = await _get_or_create_user(db, uid, email)
     return AuthContext(
         user=user,
         method=AuthMethod.FIREBASE,

@@ -1,5 +1,6 @@
 """Async SQLAlchemy engine, session factory, and declarative base."""
 
+import re
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 from typing import Any
@@ -24,14 +25,17 @@ NAMING_CONVENTION: dict[str, str] = {
 }
 
 
+_SCHEMA_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
 def _build_metadata() -> MetaData:
     settings = get_settings()
     # SQLite does not support PostgreSQL schemas; apply db_schema only on Postgres.
-    schema = (
-        settings.db_schema
-        if settings.db_schema and not settings.database_url.startswith("sqlite")
-        else None
-    )
+    schema: str | None = None
+    if settings.db_schema and not settings.database_url.startswith("sqlite"):
+        if not _SCHEMA_NAME_RE.fullmatch(settings.db_schema):
+            raise ValueError(f"Invalid DB_SCHEMA identifier: {settings.db_schema}")
+        schema = settings.db_schema
     return MetaData(naming_convention=NAMING_CONVENTION, schema=schema)
 
 
@@ -62,12 +66,22 @@ def create_engine_from_settings() -> AsyncEngine:
         # Required for Supabase Transaction Pooler (port 6543 / PgBouncer).
         connect_args["statement_cache_size"] = 0
 
-    async_engine = create_async_engine(
-        settings.database_url,
-        echo=False,
-        pool_pre_ping=True,
-        connect_args=connect_args,
-    )
+    engine_kwargs: dict[str, Any] = {
+        "echo": False,
+        "pool_pre_ping": True,
+        "connect_args": connect_args,
+    }
+    if not is_sqlite:
+        engine_kwargs.update(
+            {
+                "pool_size": 5,
+                "max_overflow": 10,
+                "pool_timeout": 15,
+                "pool_recycle": 1800,
+            }
+        )
+
+    async_engine = create_async_engine(settings.database_url, **engine_kwargs)
     if is_sqlite:
         configure_sqlite_foreign_keys(async_engine)
     return async_engine

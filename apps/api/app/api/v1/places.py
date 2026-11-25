@@ -6,9 +6,10 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
-from app.core.auth import AuthContext, require_scope
+from app.core.auth import AuthContext
 from app.core.constants import PLACES_DEFAULT_LIMIT, PLACES_MAX_LIMIT
 from app.core.http_client import UpstreamUnavailableError
+from app.core.rate_limit import require_scope_with_rate_limit
 from app.services.places import (
     PlaceCandidate,
     get_place_search_provider,
@@ -16,7 +17,9 @@ from app.services.places import (
 )
 
 router = APIRouter(tags=["places"])
-ReadTripsAuth = Annotated[AuthContext, Depends(require_scope("trips:read"))]
+ReadTripsAuth = Annotated[
+    AuthContext, Depends(require_scope_with_rate_limit("trips:read", "places"))
+]
 
 
 class PlaceCandidateResponse(BaseModel):
