@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="104 98 302 312">
+  <style>
+    .wing { fill: #162136; }
+    @media (prefers-color-scheme: dark) {
+      .wing { fill: #F8F7F4; }
+    }
+  </style>
+  <circle cx="134" cy="382" r="20" fill="none" stroke="#C4924C" stroke-width="13"/>
+  <path d="M 127 362 C 134 312, 168 284, 224 279 C 174 294, 152 322, 145 364 Z" fill="#C4924C"/>
+  <polygon points="229,278 276,267 254,248" fill="#9F7236"/>
+  <polygon points="396,108 224,226 229,278 258,252" fill="#C4924C"/>
+  <polygon class="wing" points="396,108 172,190 224,226"/>
+  <polygon class="wing" points="396,108 258,252 310,308"/>
+</svg>
