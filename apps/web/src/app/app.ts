@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   ElementRef,
   inject,
   signal,
@@ -23,6 +24,7 @@ import { I18nService } from './core/i18n/i18n.service';
 import { TranslatePipe } from './core/i18n/translate.pipe';
 import { NetworkStatusService } from './core/network/network-status.service';
 import { AppReleaseNotesModalComponent } from './shared/release-notes-modal.component';
+import { AuthStore } from './state/auth.store';
 
 const LAST_SEEN_VERSION_KEY = 'tripilot:last_seen_version';
 
@@ -66,6 +68,7 @@ function writeLastSeenVersion(version: string): void {
 export class App {
   protected readonly i18n = inject(I18nService);
   protected readonly auth = inject(AuthSessionService);
+  protected readonly authStore = inject(AuthStore);
   protected readonly network = inject(NetworkStatusService);
   private readonly sessionCleanup = inject(SessionCleanupService);
   private readonly router = inject(Router);
@@ -89,14 +92,26 @@ export class App {
     { initialValue: this.router.url },
   );
 
-  /** Hide topbar, avatar, and bottom nav on public share links, login, or unauthenticated cloud states. */
+  /** Hide topbar, avatar, and bottom nav on public share links, auth/invite gates, or signed-out cloud states. */
   protected readonly hideAppChrome = computed(() => {
     const url = this.currentUrl();
-    if (url.startsWith('/s/') || url.startsWith('/login')) {
+    if (url.startsWith('/s/') || url.startsWith('/login') || url.startsWith('/invite')) {
       return true;
     }
     return this.auth.isFirebaseEnabled() && !this.auth.isAuthenticated();
   });
+
+  constructor() {
+    effect(() => {
+      if (
+        !this.hideAppChrome() &&
+        this.auth.isAuthenticated() &&
+        !this.authStore.profile()
+      ) {
+        void this.authStore.ensureProfileLoaded();
+      }
+    });
+  }
 
   protected readonly avatarInitial = computed(() => {
     const label = this.auth.userDisplayName() || this.auth.userEmail() || 'T';

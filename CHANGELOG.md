@@ -2,6 +2,13 @@
 
 <!-- Auto-generated from releases.json. Run `node scripts/sync-releases.mjs` after editing releases.json. -->
 
+## v0.9.0-beta (2026-11-25) — 親友邀請制、邀請碼兌換與管理後台
+*Invite-Only Access, Invite Codes & Admin Console*
+
+- 改為親友邀請制：未經開通的帳號登入後會導向邀請碼兌換頁，輸入邀請碼即可啟用功能
+- 新增角色分級（OWNER / ADMIN / FRIEND / USER）與停權機制，停權後同步阻擋網頁與 API Token
+- 頭像選單為管理員提供管理後台入口，支援使用者搜尋與角色調整、撤銷 Token、刪除帳號，以及批次產生與撤銷邀請碼
+
 ## v0.8.4-beta (2026-11-25) — 站內更新紀錄與版本同步
 *In-App Changelog & Version Sync*
 

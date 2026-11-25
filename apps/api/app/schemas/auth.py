@@ -5,6 +5,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.core.auth import ALL_SCOPES
+from app.models.enums import UserRole
 
 
 class UserProfileResponse(BaseModel):
@@ -13,6 +14,9 @@ class UserProfileResponse(BaseModel):
     id: str
     email: str | None
     display_name: str | None
+    role: UserRole
+    is_active: bool
+    last_login_at: datetime | None
     home_country_code: str
     home_currency: str
     created_at: datetime

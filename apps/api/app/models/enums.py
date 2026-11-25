@@ -42,3 +42,12 @@ class ExpenseCategory(StrEnum):
     ACTIVITY = "ACTIVITY"
     SHOPPING = "SHOPPING"
     OTHER = "OTHER"
+
+
+class UserRole(StrEnum):
+    """Account access role controlling invite gate and admin console privileges."""
+
+    OWNER = "OWNER"
+    ADMIN = "ADMIN"
+    FRIEND = "FRIEND"
+    USER = "USER"

@@ -1,4 +1,6 @@
 export type TripStatus = 'PLANNING' | 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
+export type UserRole = 'OWNER' | 'ADMIN' | 'FRIEND' | 'USER';
+export type InviteStatus = 'available' | 'used' | 'expired' | 'revoked';
 
 export type ItemType =
   | 'FLIGHT'
@@ -21,9 +23,45 @@ export interface UserProfile {
   id: string;
   email: string | null;
   display_name: string | null;
+  role: UserRole;
+  is_active: boolean;
+  last_login_at: string | null;
   home_country_code: string;
   home_currency: string;
   created_at: string;
+}
+
+export interface AdminUserItem {
+  id: string;
+  email: string | null;
+  display_name: string | null;
+  role: UserRole;
+  is_active: boolean;
+  trip_count: number;
+  active_token_count: number;
+  last_login_at: string | null;
+  created_at: string;
+}
+
+export interface AdminUserListResponse {
+  total: number;
+  active_friends_count: number;
+  available_invites_count: number;
+  items: AdminUserItem[];
+}
+
+export interface InviteCodeItem {
+  id: string;
+  code: string;
+  note: string | null;
+  is_used: boolean;
+  used_by_user_id: string | null;
+  used_by_email: string | null;
+  used_at: string | null;
+  expires_at: string | null;
+  revoked_at: string | null;
+  created_at: string;
+  status: InviteStatus;
 }
 
 export interface ApiTokenItem {

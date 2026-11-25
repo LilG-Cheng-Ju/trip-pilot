@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 
-import { authGuard } from './core/auth/auth.guard';
+import { adminGuard, authGuard, inviteGuard } from './core/auth/auth.guard';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'trips', pathMatch: 'full' },
@@ -8,6 +8,12 @@ export const routes: Routes = [
     path: 'login',
     loadComponent: () =>
       import('./features/auth/login-page.component').then((m) => m.LoginPageComponent),
+  },
+  {
+    path: 'invite',
+    canActivate: [inviteGuard],
+    loadComponent: () =>
+      import('./features/auth/invite-page.component').then((m) => m.InvitePageComponent),
   },
   {
     path: 'trips',
@@ -52,6 +58,12 @@ export const routes: Routes = [
       import('./features/profile/profile-page.component').then(
         (m) => m.ProfilePageComponent,
       ),
+  },
+  {
+    path: 'admin',
+    canActivate: [adminGuard],
+    loadComponent: () =>
+      import('./features/admin/admin-page.component').then((m) => m.AdminPageComponent),
   },
   {
     path: 's/:shareToken',

@@ -84,6 +84,18 @@
                 <span>{{ 'account.settings' | t }}</span>
               </a>
 
+              @if (authStore.isAdmin()) {
+                <a
+                  routerLink="/admin"
+                  class="menu-item"
+                  role="menuitem"
+                  (click)="closeAccountMenu()"
+                >
+                  <span class="ms-icon sm" aria-hidden="true">admin_panel_settings</span>
+                  <span>{{ 'account.admin' | t }}</span>
+                </a>
+              }
+
               <button
                 type="button"
                 class="menu-item"

@@ -70,6 +70,22 @@ def reset_rate_limiters() -> None:
     _limiter.reset()
 
 
+def enforce_key_rate_limit(
+    key: str,
+    limit: int,
+    *,
+    window_sec: float = 60.0,
+) -> None:
+    """Enforce a sliding-window limit on an arbitrary key, raising 429 when hit."""
+    retry_after = _limiter.check(key, limit, window_sec=window_sec)
+    if retry_after is not None:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Rate limit exceeded. Please retry shortly.",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+
 def enforce_user_rate_limit(
     auth_ctx: AuthContext,
     settings: Settings,
@@ -79,16 +95,10 @@ def enforce_user_rate_limit(
     """Enforce per-user limits while exempting configured admin/developer emails."""
     if not settings.is_rate_limit_enabled or auth_ctx.is_admin(settings):
         return
-    retry_after = _limiter.check(
+    enforce_key_rate_limit(
         f"user:{auth_ctx.user.id}:{bucket}",
         settings.rate_limit_places_per_min,
     )
-    if retry_after is not None:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Rate limit exceeded. Please retry shortly.",
-            headers={"Retry-After": str(retry_after)},
-        )
 
 
 def require_scope_with_rate_limit(
@@ -117,15 +127,9 @@ def limit_public_endpoint(bucket: str) -> Callable[..., None]:
         if not settings.is_rate_limit_enabled:
             return
         client_ip = request.client.host if request.client else "unknown"
-        retry_after = _limiter.check(
+        enforce_key_rate_limit(
             f"ip:{client_ip}:{bucket}",
             settings.rate_limit_public_per_min,
         )
-        if retry_after is not None:
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Rate limit exceeded. Please retry shortly.",
-                headers={"Retry-After": str(retry_after)},
-            )
 
     return _checker

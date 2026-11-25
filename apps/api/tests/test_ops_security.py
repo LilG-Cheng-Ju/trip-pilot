@@ -141,12 +141,19 @@ async def test_rate_limit_and_admin_exemption_across_firebase_and_pat() -> None:
                     return_value=_FakeProvider(),
                 ),
             ):
-                # Unlisted stranger is blocked with 403 invite-only check.
-                stranger = await client.get(
+                # Uninvited stranger can load /me (role=USER) to see the invite gate,
+                # but cannot access member/places endpoints until redeeming an invite.
+                stranger_me = await client.get(
                     "/api/v1/me",
                     headers={"Authorization": "Bearer stranger-tok"},
                 )
-                assert stranger.status_code == 403
+                assert stranger_me.status_code == 200
+                assert stranger_me.json()["role"] == "USER"
+                stranger_places = await client.get(
+                    "/api/v1/places/search?q=Tokyo",
+                    headers={"Authorization": "Bearer stranger-tok"},
+                )
+                assert stranger_places.status_code == 403
 
                 # Listed friend succeeds up to 2 places calls/min, 3rd returns 429.
                 friend_hdrs = {"Authorization": "Bearer friend-tok"}

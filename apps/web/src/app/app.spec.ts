@@ -3,16 +3,41 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 
 import { App } from './app';
+import { TripilotApiService } from './core/api/tripilot-api.service';
 import { APP_VERSION } from './core/config/app-version';
 import { I18nService } from './core/i18n/i18n.service';
+import { UserProfile } from './core/models/tripilot.models';
 import { NetworkStatusService } from './core/network/network-status.service';
+import { AuthStore } from './state/auth.store';
 
 describe('App', () => {
   beforeEach(async () => {
+    const profile: UserProfile = {
+      id: 'u-1',
+      email: 'billlcj104@gmail.com',
+      display_name: 'Owner',
+      role: 'OWNER',
+      is_active: true,
+      last_login_at: '2026-11-25T10:00:00Z',
+      home_country_code: 'TW',
+      home_currency: 'TWD',
+      created_at: '2026-11-25T09:00:00Z',
+    };
+
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideRouter([]), provideHttpClient()],
+      providers: [
+        provideRouter([]),
+        provideHttpClient(),
+        {
+          provide: TripilotApiService,
+          useValue: {
+            getMe: async () => profile,
+          },
+        },
+      ],
     }).compileComponents();
+    TestBed.inject(AuthStore).reset();
   });
 
   it('should create the app', () => {
@@ -54,6 +79,7 @@ describe('App', () => {
 
     const dropdown = compiled.querySelector('.account-dropdown');
     expect(dropdown?.textContent).toContain('Settings');
+    expect(dropdown?.textContent).toContain('Admin Console');
     expect(dropdown?.textContent).toContain(`v${APP_VERSION}`);
   });
 

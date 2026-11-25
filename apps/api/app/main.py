@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from app import models as _models  # noqa: F401
+from app.api.v1 import admin as admin_router
 from app.api.v1 import airports as airports_router
 from app.api.v1 import expenses as expenses_router
 from app.api.v1 import fx as fx_router
@@ -39,25 +40,49 @@ async def _lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
             # Upgrade existing local dev SQLite DBs cleanly when new columns land.
-            cols = {
+            item_cols = {
                 row[1]
                 for row in (
                     await conn.execute(text("PRAGMA table_info(itinerary_items)"))
                 ).fetchall()
             }
-            if "choice_group_id" not in cols:
+            if "choice_group_id" not in item_cols:
                 await conn.execute(
                     text(
                         "ALTER TABLE itinerary_items "
                         "ADD COLUMN choice_group_id VARCHAR(36)"
                     )
                 )
-            if "is_selected" not in cols:
+            if "is_selected" not in item_cols:
                 await conn.execute(
                     text(
                         "ALTER TABLE itinerary_items "
                         "ADD COLUMN is_selected BOOLEAN NOT NULL DEFAULT 1"
                     )
+                )
+            user_cols = {
+                row[1]
+                for row in (
+                    await conn.execute(text("PRAGMA table_info(users)"))
+                ).fetchall()
+            }
+            if "role" not in user_cols:
+                await conn.execute(
+                    text(
+                        "ALTER TABLE users "
+                        "ADD COLUMN role VARCHAR(16) NOT NULL DEFAULT 'USER'"
+                    )
+                )
+            if "is_active" not in user_cols:
+                await conn.execute(
+                    text(
+                        "ALTER TABLE users "
+                        "ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT 1"
+                    )
+                )
+            if "last_login_at" not in user_cols:
+                await conn.execute(
+                    text("ALTER TABLE users ADD COLUMN last_login_at DATETIME")
                 )
     async with mcp_router.mcp_lifespan():
         try:
@@ -116,6 +141,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     )
 
     application.include_router(me_router.router, prefix="/api/v1")
+    application.include_router(admin_router.router, prefix="/api/v1")
     application.include_router(trips_router.router, prefix="/api/v1")
     application.include_router(public_router.router, prefix="/api/v1")
     application.include_router(airports_router.router, prefix="/api/v1")

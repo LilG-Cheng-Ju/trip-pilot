@@ -20,6 +20,26 @@ export interface ReleaseNoteEntry {
 
 export const RELEASE_NOTES: readonly ReleaseNoteEntry[] = [
   {
+    "version": "0.9.0-beta",
+    "date": "2026-11-25",
+    "title": {
+      "zh-TW": "親友邀請制、邀請碼兌換與管理後台",
+      "en": "Invite-Only Access, Invite Codes & Admin Console"
+    },
+    "changes": {
+      "zh-TW": [
+        "改為親友邀請制：未經開通的帳號登入後會導向邀請碼兌換頁，輸入邀請碼即可啟用功能",
+        "新增角色分級（OWNER / ADMIN / FRIEND / USER）與停權機制，停權後同步阻擋網頁與 API Token",
+        "頭像選單為管理員提供管理後台入口，支援使用者搜尋與角色調整、撤銷 Token、刪除帳號，以及批次產生與撤銷邀請碼"
+      ],
+      "en": [
+        "Added invite-only onboarding: unapproved accounts are routed to an invite-code redemption page before accessing trips",
+        "Added 4-tier account roles (OWNER / ADMIN / FRIEND / USER) and account suspension blocking both web sessions and API tokens",
+        "Added an Admin Console in the account menu for user role management, token revocation, account deletion, and batch invite codes"
+      ]
+    }
+  },
+  {
     "version": "0.8.4-beta",
     "date": "2026-11-25",
     "title": {

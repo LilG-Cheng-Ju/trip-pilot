@@ -20,7 +20,7 @@ from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.types import Message
 
-from app.core.auth import AuthContext, get_auth_context
+from app.core.auth import AuthContext, require_member_auth
 from app.core.config import Settings, get_settings
 from app.core.constants import (
     AIRPORTS_DEFAULT_LIMIT,
@@ -57,7 +57,7 @@ from app.services.trip_service import TripService
 router = APIRouter(tags=["mcp"])
 logger = logging.getLogger(__name__)
 
-AuthDep = Annotated[AuthContext, Depends(get_auth_context)]
+AuthDep = Annotated[AuthContext, Depends(require_member_auth)]
 DbSession = Annotated[AsyncSession, Depends(get_db)]
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 

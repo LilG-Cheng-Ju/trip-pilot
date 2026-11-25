@@ -4,6 +4,8 @@ import { firstValueFrom } from 'rxjs';
 
 import { getApiBaseUrl } from '../config/runtime-config';
 import {
+  AdminUserItem,
+  AdminUserListResponse,
   AirportEntry,
   ApiTokenCreated,
   ApiTokenItem,
@@ -11,6 +13,7 @@ import {
   ExpenseCategory,
   ExpenseItem,
   FxRateResponse,
+  InviteCodeItem,
   ItemType,
   ItineraryItem,
   PlaceCandidate,
@@ -25,6 +28,7 @@ import {
   TripStatus,
   TripSummary,
   UserProfile,
+  UserRole,
 } from '../models/tripilot.models';
 
 export interface CreateTripPayload {
@@ -318,6 +322,82 @@ export class TripilotApiService {
     const params = new HttpParams().set('q', query).set('limit', String(limit));
     return firstValueFrom(
       this.http.get<AirportEntry[]>(`${this.baseUrl}/airports/search`, { params }),
+    );
+  }
+
+  redeemInviteCode(code: string): Promise<UserProfile> {
+    return firstValueFrom(
+      this.http.post<UserProfile>(`${this.baseUrl}/invites/redeem`, { code }),
+    );
+  }
+
+  listAdminUsers(options?: {
+    q?: string;
+    role?: UserRole | '';
+    sort_by?: 'created_at' | 'last_login_at' | 'role';
+    order?: 'asc' | 'desc';
+  }): Promise<AdminUserListResponse> {
+    let params = new HttpParams();
+    if (options?.q?.trim()) {
+      params = params.set('q', options.q.trim());
+    }
+    if (options?.role) {
+      params = params.set('role', options.role);
+    }
+    if (options?.sort_by) {
+      params = params.set('sort_by', options.sort_by);
+    }
+    if (options?.order) {
+      params = params.set('order', options.order);
+    }
+    return firstValueFrom(
+      this.http.get<AdminUserListResponse>(`${this.baseUrl}/admin/users`, { params }),
+    );
+  }
+
+  updateAdminUser(
+    userId: string,
+    payload: { role?: UserRole; is_active?: boolean },
+  ): Promise<AdminUserItem> {
+    return firstValueFrom(
+      this.http.patch<AdminUserItem>(`${this.baseUrl}/admin/users/${userId}`, payload),
+    );
+  }
+
+  revokeAdminUserTokens(userId: string): Promise<{ revoked_count: number }> {
+    return firstValueFrom(
+      this.http.post<{ revoked_count: number }>(
+        `${this.baseUrl}/admin/users/${userId}/revoke-tokens`,
+        {},
+      ),
+    );
+  }
+
+  deleteAdminUser(userId: string): Promise<void> {
+    return firstValueFrom(
+      this.http.delete<void>(`${this.baseUrl}/admin/users/${userId}`),
+    );
+  }
+
+  listAdminInvites(): Promise<InviteCodeItem[]> {
+    return firstValueFrom(
+      this.http.get<InviteCodeItem[]>(`${this.baseUrl}/admin/invites`),
+    );
+  }
+
+  createAdminInvites(payload: {
+    count: number;
+    note?: string | null;
+    expires_in_days?: number | null;
+  }): Promise<InviteCodeItem[]> {
+    return firstValueFrom(
+      this.http.post<InviteCodeItem[]>(`${this.baseUrl}/admin/invites`, payload),
+    );
+  }
+
+  revokeAdminInvite(inviteId: string): Promise<void> {
+    return firstValueFrom(
+      this.http.delete<void>(`${this.baseUrl}/admin/invites/${inviteId}`),
     );
   }
 }
