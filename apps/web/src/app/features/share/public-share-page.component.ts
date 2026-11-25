@@ -446,7 +446,7 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
       gap: 5px;
       padding: 4px 10px;
       border: 1px solid var(--color-border);
-      border-radius: var(--radius-pill);
+      border-radius: var(--radius-sm);
       background: var(--color-surface);
       color: var(--color-text-secondary);
       font: inherit;

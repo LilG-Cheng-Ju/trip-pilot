@@ -2,6 +2,13 @@
 
 <!-- Auto-generated from releases.json. Run `node scripts/sync-releases.mjs` after editing releases.json. -->
 
+## v0.9.4-beta (2026-11-26) — 足跡里程碑排版、方案分頁籤與表單統整
+*Travel Logbook Layout, Plan Tabs & Form Style Consolidation*
+
+- 將原「儀表板」改為「足跡」（Logbook），預設呈現歷年累計並將年份改為下拉選單、優化手機版雙列篩選配置；主卡採深墨藍航圖「移動總里程」（飛行＋陸路雙軌分項）搭配右側 2×2 指標帳本，並於國內篩選自動切換為最長單趟與月份／歷年旅遊足跡
+- 將多方案（Plan A/B）改為底線分頁籤，並將時段多選與相關按鈕調整為方正分段標籤，減少圓角膠囊堆疊
+- 統一全站各頁輸入框高度、純白底色與主按鈕樣式，並修正英文花費空狀態文案
+
 ## v0.9.3-beta (2026-11-26) — 全站表單下拉選單、日期選擇器與自動發布機制更新
 *Unified Form Dropdowns, Calendar Date Pickers & Release Retries*
 

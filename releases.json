@@ -1,5 +1,25 @@
 [
   {
+    "version": "0.9.4-beta",
+    "date": "2026-11-26",
+    "title": {
+      "zh-TW": "足跡里程碑排版、方案分頁籤與表單統整",
+      "en": "Travel Logbook Layout, Plan Tabs & Form Style Consolidation"
+    },
+    "changes": {
+      "zh-TW": [
+        "將原「儀表板」改為「足跡」（Logbook），預設呈現歷年累計並將年份改為下拉選單、優化手機版雙列篩選配置；主卡採深墨藍航圖「移動總里程」（飛行＋陸路雙軌分項）搭配右側 2×2 指標帳本，並於國內篩選自動切換為最長單趟與月份／歷年旅遊足跡",
+        "將多方案（Plan A/B）改為底線分頁籤，並將時段多選與相關按鈕調整為方正分段標籤，減少圓角膠囊堆疊",
+        "統一全站各頁輸入框高度、純白底色與主按鈕樣式，並修正英文花費空狀態文案"
+      ],
+      "en": [
+        "Redesigned Dashboard into an editorial Logbook defaulting to All Time via a compact year dropdown and streamlined mobile header, featuring a unified Total Distance spread (Air + Ground breakdown), a 2×2 metric ledger, and scope-aware domestic monthly/yearly footprints",
+        "Converted the Plan A/B switcher into underline tabs and refined slot-choice controls into crisp segmented buttons",
+        "Standardized form input heights, surfaces, and primary button styling across pages, and fixed the English empty-expense message"
+      ]
+    }
+  },
+  {
     "version": "0.9.3-beta",
     "date": "2026-11-26",
     "title": {

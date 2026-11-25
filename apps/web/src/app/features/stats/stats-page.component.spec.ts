@@ -1,17 +1,62 @@
 import { provideHttpClient } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { vi } from 'vitest';
 
 import { TripilotApiService } from '../../core/api/tripilot-api.service';
 import { I18nService } from '../../core/i18n/i18n.service';
-import { TravelStats } from '../../core/models/tripilot.models';
+import { StatsScope, TravelStats } from '../../core/models/tripilot.models';
 import { StatsStore } from '../../state/stats.store';
 import { StatsPageComponent } from './stats-page.component';
 
-function makeStats(): TravelStats {
+function makeStats(year: number | null = null, scope: StatsScope = 'all'): TravelStats {
+  if (scope === 'domestic') {
+    return {
+      year,
+      scope: 'domestic',
+      home_country_code: 'TW',
+      home_currency: 'TWD',
+      available_years: [2026, 2025],
+      total_trips: 2,
+      domestic_trips: 2,
+      international_trips: 0,
+      countries_visited: ['TW'],
+      country_visit_counts: { TW: 2 },
+      total_travel_days: 6,
+      flight_count: 2,
+      total_flight_distance_km: 290,
+      total_ground_distance_km: 420,
+      total_spend_home: '18500',
+      avg_spend_per_day: '3083',
+      spend_by_category: { TRANSIT: '6500', FOOD: '12000' },
+      trips: [
+        {
+          id: 'trip-dom-1',
+          title: 'Green Island Dive',
+          start_date: '2026-05-10',
+          end_date: '2026-05-13',
+          days: 4,
+          country_codes: ['TW'],
+          is_international: false,
+          spend_home: '12500',
+        },
+        {
+          id: 'trip-dom-2',
+          title: 'Tainan Weekend',
+          start_date: '2026-10-03',
+          end_date: '2026-10-04',
+          days: 2,
+          country_codes: ['TW'],
+          is_international: false,
+          spend_home: '6000',
+        },
+      ],
+    };
+  }
+
   return {
-    year: 2026,
-    scope: 'all',
+    year,
+    scope,
     home_country_code: 'TW',
     home_currency: 'TWD',
     available_years: [2026, 2025],
@@ -44,12 +89,15 @@ function makeStats(): TravelStats {
 
 describe('StatsPageComponent', () => {
   const originalMatchMedia = window.matchMedia;
+  let getStatsSpy: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     localStorage.clear();
     window.matchMedia = (() => ({
       matches: true,
     })) as unknown as typeof window.matchMedia;
+
+    getStatsSpy = vi.fn(async (year: number | null, scope: StatsScope) => makeStats(year, scope));
 
     await TestBed.configureTestingModule({
       imports: [StatsPageComponent],
@@ -59,7 +107,7 @@ describe('StatsPageComponent', () => {
         {
           provide: TripilotApiService,
           useValue: {
-            getStats: async () => makeStats(),
+            getStats: getStatsSpy,
           },
         },
       ],
@@ -74,22 +122,60 @@ describe('StatsPageComponent', () => {
     localStorage.clear();
   });
 
-  it('renders 4 uniform paper KPI cards without highlight or panel icon boxes', async () => {
+  it('defaults to All Time via MatSelect year dropdown and renders unified logbook ledger', async () => {
     const fixture = TestBed.createComponent(StatsPageComponent);
     fixture.detectChanges();
     await new Promise((resolve) => setTimeout(resolve, 0));
     await fixture.whenStable();
     fixture.detectChanges();
 
-    const host = fixture.nativeElement as HTMLElement;
-    expect(host.querySelectorAll('.kpi-card').length).toBe(4);
-    expect(host.querySelector('.kpi-card.highlight')).toBeNull();
-    expect(host.querySelector('.panel-ico')).toBeNull();
-    expect(host.querySelector('.count-pill')).toBeNull();
+    expect(getStatsSpy).toHaveBeenCalledWith(null, 'all');
 
-    const kpiValues = Array.from(host.querySelectorAll('.kpi-value')).map((el) =>
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('.year-select-field mat-select')).not.toBeNull();
+    expect(host.querySelectorAll('.segmented').length).toBe(1);
+    expect(host.querySelector('.logbook-hero')).not.toBeNull();
+    expect(host.querySelectorAll('.logbook-metric-row').length).toBe(4);
+    expect(host.querySelectorAll('.kpi-card').length).toBe(0);
+    expect(host.querySelector('.countries-panel')).not.toBeNull();
+    expect(host.querySelector('.footprint-panel')).toBeNull();
+
+    const modeLabels = Array.from(host.querySelectorAll('.mode-label')).map((el) =>
       el.textContent?.trim(),
     );
-    expect(kpiValues).toEqual(['4', '18', '4,250 km', 'TWD 68,500']);
+    expect(modeLabels).toEqual(['Air', 'Ground']);
+
+    const kpiValues = Array.from(host.querySelectorAll('.kpi-value')).map((el) =>
+      el.textContent?.replace(/\s+/g, ' ').trim(),
+    );
+    expect(kpiValues).toEqual(['4,860 km', '4', '18', '2', 'TWD 68,500']);
+  });
+
+  it('adapts Domestic scope to ground-first total distance, longest trip, and 12-month cadence', async () => {
+    const fixture = TestBed.createComponent(StatsPageComponent);
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const store = TestBed.inject(StatsStore);
+    await store.loadStats(2026, 'domestic');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const modeLabels = Array.from(host.querySelectorAll('.mode-label')).map((el) =>
+      el.textContent?.trim(),
+    );
+    expect(modeLabels).toEqual(['Ground', 'Air']);
+
+    const kpiValues = Array.from(host.querySelectorAll('.kpi-value')).map((el) =>
+      el.textContent?.replace(/\s+/g, ' ').trim(),
+    );
+    // 420 km ground + 290 km island flight = 710 km; longest trip = 4 days (Green Island Dive)
+    expect(kpiValues).toEqual(['710 km', '2', '6', '4 days', 'TWD 18,500']);
+
+    expect(host.querySelector('.countries-panel')).toBeNull();
+    expect(host.querySelector('.footprint-panel')).not.toBeNull();
+    expect(host.querySelectorAll('.month-col.active').length).toBe(2);
   });
 });

@@ -221,6 +221,10 @@
   font-size: 0.875rem;
 }
 
+.field input:not([type='checkbox']):not([type='radio']) {
+  height: 40px;
+}
+
 .field select {
   -webkit-appearance: none;
   appearance: none;

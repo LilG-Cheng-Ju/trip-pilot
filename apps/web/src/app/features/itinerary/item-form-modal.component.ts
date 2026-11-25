@@ -423,15 +423,6 @@ export interface ItemFormSubmitEvent {
       font-weight: 600;
       color: var(--color-text-secondary);
     }
-    .field input {
-      height: 40px;
-      padding: 9px 10px;
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-sm);
-      background: var(--color-bg);
-      color: var(--color-text-primary);
-      font: inherit;
-    }
     .field.has-error input {
       border-color: var(--color-alert);
       background: var(--color-alert-soft);
@@ -563,17 +554,6 @@ export interface ItemFormSubmitEvent {
       border-color: var(--color-border-strong);
       color: var(--color-primary);
       background: var(--color-surface);
-    }
-    .btn-primary {
-      padding: 8px 18px;
-      border: none;
-      border-radius: var(--radius-pill);
-      background: var(--color-primary);
-      color: var(--color-text-on-primary);
-      font: inherit;
-      font-size: 0.8125rem;
-      font-weight: 600;
-      cursor: pointer;
     }
     .actions {
       display: flex;

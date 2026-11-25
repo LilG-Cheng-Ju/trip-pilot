@@ -270,7 +270,7 @@ import { ExpenseStore } from '../../state/expense.store';
       padding: 9px 11px;
       border: 1px solid var(--color-border);
       border-radius: var(--radius-sm);
-      background-color: var(--color-bg);
+      background-color: var(--color-surface);
       color: var(--color-text-primary);
       font: inherit;
       font-size: 0.875rem;
@@ -306,7 +306,7 @@ import { ExpenseStore } from '../../state/expense.store';
       padding: 0 6px 0 11px;
       border: 1px solid var(--color-border);
       border-radius: var(--radius-sm);
-      background: var(--color-bg);
+      background-color: var(--color-surface);
     }
     .rate-box input {
       width: 100%;
@@ -386,30 +386,6 @@ import { ExpenseStore } from '../../state/expense.store';
       justify-content: flex-end;
       gap: 8px;
       margin-top: 4px;
-    }
-    .btn-ghost {
-      padding: 9px 16px;
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-pill);
-      background: transparent;
-      color: var(--color-text-secondary);
-      font: inherit;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    .btn-primary {
-      padding: 9px 20px;
-      border: none;
-      border-radius: var(--radius-pill);
-      background: var(--color-primary);
-      color: var(--color-text-on-primary);
-      font: inherit;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    .btn-primary:disabled {
-      opacity: 0.55;
-      cursor: not-allowed;
     }
   `,
 })

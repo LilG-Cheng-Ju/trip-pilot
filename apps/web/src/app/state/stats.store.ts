@@ -13,7 +13,7 @@ interface StatsState {
 }
 
 const initialState: StatsState = {
-  selectedYear: new Date().getFullYear(),
+  selectedYear: null,
   selectedScope: 'all',
   stats: null,
   loading: false,

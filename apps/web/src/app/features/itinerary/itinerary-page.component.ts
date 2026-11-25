@@ -883,28 +883,35 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       display: inline-flex;
       flex-wrap: wrap;
       gap: 4px;
-      padding: 4px;
-      background: var(--color-surface-muted);
-      border-radius: var(--radius-pill);
+      padding: 0;
+      background: transparent;
+      border-bottom: 1px solid var(--color-border);
     }
     .plan-pill {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 6px 12px;
+      padding: 7px 12px;
+      margin-bottom: -1px;
       border: none;
-      border-radius: var(--radius-pill);
+      border-bottom: 2px solid transparent;
+      border-radius: var(--radius-xs) var(--radius-xs) 0 0;
       background: transparent;
       color: var(--color-text-secondary);
       font: inherit;
       font-size: 0.8125rem;
       font-weight: 600;
       cursor: pointer;
+      transition: color 140ms ease, border-color 140ms ease;
+    }
+    .plan-pill:hover:not(.selected) {
+      color: var(--color-primary);
     }
     .plan-pill.selected {
-      background: var(--color-surface);
+      background: transparent;
       color: var(--color-primary);
-      box-shadow: var(--shadow-card);
+      border-bottom-color: var(--color-primary);
+      box-shadow: none;
     }
     .active-dot,
     .choice-dot {
@@ -920,7 +927,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
     .clone-btn {
       padding: 5px 10px;
       border: 1px solid var(--color-accent-border);
-      border-radius: var(--radius-pill);
+      border-radius: var(--radius-sm);
       background: var(--color-accent-tint);
       color: var(--color-accent-ink);
       font: inherit;
@@ -1011,7 +1018,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       gap: 5px;
       padding: 4px 10px;
       border: 1px solid var(--color-border);
-      border-radius: var(--radius-pill);
+      border-radius: var(--radius-sm);
       background: var(--color-surface);
       color: var(--color-text-secondary);
       font: inherit;
@@ -1032,7 +1039,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       height: 28px;
       flex-shrink: 0;
       border: 1px solid var(--color-accent-border);
-      border-radius: var(--radius-pill);
+      border-radius: var(--radius-sm);
       background: var(--color-accent-tint);
       color: var(--color-accent-ink);
       cursor: pointer;

@@ -268,10 +268,11 @@ import { AuthStore } from '../../state/auth.store';
       color: var(--color-text-secondary);
     }
     .token-form input {
-      padding: 10px 12px;
+      height: 40px;
+      padding: 9px 12px;
       border: 1px solid var(--color-border);
       border-radius: var(--radius-sm);
-      background: var(--color-bg);
+      background-color: var(--color-surface);
       color: var(--color-text-primary);
       font: inherit;
     }
@@ -289,17 +290,6 @@ import { AuthStore } from '../../state/auth.store';
       font-size: 0.8125rem;
       font-weight: 600;
       color: var(--item-spot);
-    }
-    .btn-primary {
-      padding: 10px 18px;
-      border: none;
-      border-radius: var(--radius-pill);
-      background: var(--color-primary);
-      color: var(--color-text-on-primary);
-      font: inherit;
-      font-size: 0.875rem;
-      font-weight: 600;
-      cursor: pointer;
     }
     .pill-btn {
       padding: 7px 12px;

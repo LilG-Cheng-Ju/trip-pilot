@@ -726,7 +726,7 @@ import { ItineraryStore } from '../../state/itinerary.store';
       padding: 9px 12px;
       border: 1px solid var(--color-border);
       border-radius: var(--radius-sm);
-      background-color: var(--color-bg);
+      background-color: var(--color-surface);
       color: var(--color-text-primary);
       font: inherit;
     }
@@ -752,7 +752,7 @@ import { ItineraryStore } from '../../state/itinerary.store';
       padding: 0 4px 0 8px;
       border: 1px solid var(--color-border);
       border-radius: var(--radius-sm);
-      background: var(--color-bg);
+      background-color: var(--color-surface);
       font-size: 0.7rem;
       color: var(--color-text-muted);
     }
