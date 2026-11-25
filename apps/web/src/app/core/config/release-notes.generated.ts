@@ -20,6 +20,28 @@ export interface ReleaseNoteEntry {
 
 export const RELEASE_NOTES: readonly ReleaseNoteEntry[] = [
   {
+    "version": "0.9.1-beta",
+    "date": "2026-11-25",
+    "title": {
+      "zh-TW": "邀請連結自動開通、新手引導與轉乘卡片修正",
+      "en": "Direct Invite Links, Empty-State Guide & Transit Card Fix"
+    },
+    "changes": {
+      "zh-TW": [
+        "管理後台的邀請碼新增「複製連結」，朋友點擊連結登入後會自動帶入並兌換邀請碼，免手動輸入",
+        "新帳號首次進入空的旅程總覽時，顯示三步驟快速上手引導與建立旅程按鈕",
+        "修正「在地轉乘」卡片外露重複的上下移箭頭造成文字被壓縮的問題，排序操作統一收在右側選單內",
+        "修正正式環境因嚴格 CSP 阻擋內嵌樣式切換腳本導致全站樣式未套用的問題"
+      ],
+      "en": [
+        "Added a Copy Link button for invite codes in Admin Console so friends auto-redeem after sign-in",
+        "Added a 3-step onboarding card on the empty Trips overview for new accounts",
+        "Removed duplicate inline reorder arrows from local transit pills so titles no longer get compressed",
+        "Fixed production stylesheet loading blocked by strict CSP inline-script enforcement"
+      ]
+    }
+  },
+  {
     "version": "0.9.0-beta",
     "date": "2026-11-25",
     "title": {

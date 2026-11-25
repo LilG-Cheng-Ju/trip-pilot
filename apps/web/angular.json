@@ -45,6 +45,14 @@
                   "maximumError": "16kB"
                 }
               ],
+              "optimization": {
+                "scripts": true,
+                "styles": {
+                  "minify": true,
+                  "inlineCritical": false
+                },
+                "fonts": true
+              },
               "outputHashing": "all",
               "serviceWorker": "ngsw-config.json"
             },

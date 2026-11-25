@@ -383,7 +383,15 @@ export const MESSAGES_EN = {
   'admin.usedBy': 'Redeemed by {email}',
   'admin.expiresAt': 'Expires {date}',
   'admin.revokeInvite': 'Revoke',
+  'admin.copyLink': 'Copy Link',
   'admin.emptyInvites': 'No invite codes in this filter yet.',
+  'login.inviteAttached': 'Invite code {code} attached — sign in to unlock automatically.',
+  'trips.onboarding.title': 'Start your first trip',
+  'trips.onboarding.subtitle': 'Set dates once to generate your daily itinerary, route map, and expense log.',
+  'trips.onboarding.step1': 'Create a trip with dates and destination countries.',
+  'trips.onboarding.step2': 'Add flights, stays, and spots to map routes and travel distances.',
+  'trips.onboarding.step3': 'Log multi-currency expenses or connect an AI assistant in Settings.',
+  'trips.onboarding.settingsLink': 'Open Settings',
 } as const;
 
 export type TranslationKey = keyof typeof MESSAGES_EN;

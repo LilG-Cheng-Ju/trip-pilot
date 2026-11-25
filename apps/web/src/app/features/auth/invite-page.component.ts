@@ -1,7 +1,11 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
 
 import { AuthSessionService } from '../../core/auth/auth-session.service';
+import {
+  clearPendingInviteCode,
+  readPendingInviteCode,
+} from '../../core/auth/pending-invite.utils';
 import { SessionCleanupService } from '../../core/auth/session-cleanup.service';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -219,16 +223,32 @@ import { AuthStore } from '../../state/auth.store';
     }
   `,
 })
-export class InvitePageComponent {
+export class InvitePageComponent implements OnInit {
   protected readonly authStore = inject(AuthStore);
   protected readonly session = inject(AuthSessionService);
   protected readonly i18n = inject(I18nService);
   private readonly sessionCleanup = inject(SessionCleanupService);
+  private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
   protected readonly code = signal('');
   protected readonly submitting = signal(false);
   protected readonly error = signal<string | null>(null);
+
+  async ngOnInit(): Promise<void> {
+    if (this.authStore.suspended() || this.authStore.isMember()) {
+      return;
+    }
+    const pending =
+      this.route.snapshot.queryParamMap.get('invite')?.trim().toUpperCase() ||
+      this.route.snapshot.queryParamMap.get('code')?.trim().toUpperCase() ||
+      readPendingInviteCode();
+    if (pending && pending.length >= 4) {
+      clearPendingInviteCode();
+      this.code.set(pending);
+      await this.submitInviteCode();
+    }
+  }
 
   protected displayEmail(): string | null {
     return this.session.userEmail() || this.authStore.profile()?.email || null;

@@ -4,6 +4,10 @@ import { provideRouter, Router } from '@angular/router';
 import { vi } from 'vitest';
 
 import { TripilotApiService } from '../../core/api/tripilot-api.service';
+import {
+  clearPendingInviteCode,
+  savePendingInviteCode,
+} from '../../core/auth/pending-invite.utils';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { UserProfile } from '../../core/models/tripilot.models';
 import { AuthStore } from '../../state/auth.store';
@@ -28,6 +32,7 @@ describe('InvitePageComponent', () => {
   };
 
   beforeEach(async () => {
+    clearPendingInviteCode();
     apiMock = {
       getMe: vi.fn().mockResolvedValue({ ...friendProfile, role: 'USER' }),
       redeemInviteCode: vi.fn().mockResolvedValue(friendProfile),
@@ -67,6 +72,18 @@ describe('InvitePageComponent', () => {
 
     expect(apiMock.redeemInviteCode).toHaveBeenCalledWith('TP-AB12-CD34');
     expect(authStore.isMember()).toBe(true);
+    expect(navSpy).toHaveBeenCalledWith(['/trips']);
+  });
+
+  it('auto-redeems a pending invite code saved from an invite link', async () => {
+    savePendingInviteCode('tp-link-9999');
+    const router = TestBed.inject(Router);
+    const navSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+
+    const fixture = TestBed.createComponent(InvitePageComponent);
+    await fixture.whenStable();
+
+    expect(apiMock.redeemInviteCode).toHaveBeenCalledWith('TP-LINK-9999');
     expect(navSpy).toHaveBeenCalledWith(['/trips']);
   });
 });

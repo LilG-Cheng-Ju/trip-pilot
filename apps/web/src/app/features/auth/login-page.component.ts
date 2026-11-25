@@ -1,7 +1,11 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 
 import { AuthSessionService } from '../../core/auth/auth-session.service';
+import {
+  readPendingInviteCode,
+  savePendingInviteCode,
+} from '../../core/auth/pending-invite.utils';
 import { APP_VERSION, IS_BETA } from '../../core/config/app-version';
 import { MIN_PASSWORD_LENGTH } from '../../core/constants/app-limits';
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -126,6 +130,13 @@ import { readInputValue } from '../../core/utils/form-events.utils';
               {{ 'login.subtitle' | t }}
             </p>
           </div>
+
+          @if (attachedInviteCode(); as inviteCode) {
+            <div class="invite-banner" role="status">
+              <span class="ms-icon sm" aria-hidden="true">vpn_key</span>
+              <span>{{ 'login.inviteAttached' | t:{ code: inviteCode } }}</span>
+            </div>
+          }
 
           @if (session.isFirebaseEnabled()) {
             <div class="mode-tabs" role="tablist">
@@ -541,11 +552,24 @@ import { readInputValue } from '../../core/utils/form-events.utils';
         display: flex;
       }
     }
+    .invite-banner {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 12px;
+      margin-bottom: var(--space-3);
+      border-radius: var(--radius-sm);
+      background: var(--color-primary-tint);
+      color: var(--color-primary);
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
   `,
 })
 export class LoginPageComponent {
   protected readonly session = inject(AuthSessionService);
   protected readonly i18n = inject(I18nService);
+  private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
   protected readonly appVersion = APP_VERSION;
@@ -554,6 +578,12 @@ export class LoginPageComponent {
   protected readonly signingIn = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly readInputValue = readInputValue;
+  protected readonly attachedInviteCode = signal<string | null>(
+    savePendingInviteCode(
+      this.route.snapshot.queryParamMap.get('invite') ??
+        this.route.snapshot.queryParamMap.get('code'),
+    ) ?? readPendingInviteCode(),
+  );
 
   protected readonly email = signal('');
   protected readonly password = signal('');

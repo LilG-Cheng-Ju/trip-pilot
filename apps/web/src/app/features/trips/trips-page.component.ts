@@ -85,9 +85,40 @@ type DateEndMode = 'end' | 'duration' | 'open';
       @if (tripStore.loading()) {
         <p class="empty-state">{{ 'common.loading' | t }}</p>
       } @else if (tripStore.filteredTrips().length === 0) {
-        <div class="empty-state">
-          <p>{{ 'trips.empty' | t }}</p>
-        </div>
+        @if (tripStore.trips().length === 0 && tripStore.activeTab() === 'upcoming') {
+          <section class="onboarding-card">
+            <h3 class="onboarding-title font-display">{{ 'trips.onboarding.title' | t }}</h3>
+            <p class="onboarding-sub">{{ 'trips.onboarding.subtitle' | t }}</p>
+            <ol class="onboarding-steps">
+              <li>
+                <span class="step-idx font-mono tabular-nums">01</span>
+                <span>{{ 'trips.onboarding.step1' | t }}</span>
+              </li>
+              <li>
+                <span class="step-idx font-mono tabular-nums">02</span>
+                <span>{{ 'trips.onboarding.step2' | t }}</span>
+              </li>
+              <li>
+                <span class="step-idx font-mono tabular-nums">03</span>
+                <span>{{ 'trips.onboarding.step3' | t }}</span>
+              </li>
+            </ol>
+            <div class="onboarding-actions">
+              <button type="button" class="btn-primary" (click)="openCreateModal()">
+                <span class="ms-icon sm" aria-hidden="true">add</span>
+                <span>{{ 'trips.new' | t }}</span>
+              </button>
+              <a routerLink="/profile" class="pill-btn">
+                <span class="ms-icon sm" aria-hidden="true">settings</span>
+                <span>{{ 'trips.onboarding.settingsLink' | t }}</span>
+              </a>
+            </div>
+          </section>
+        } @else {
+          <div class="empty-state">
+            <p>{{ 'trips.empty' | t }}</p>
+          </div>
+        }
       } @else {
         <div class="trip-grid">
           @for (trip of tripStore.filteredTrips(); track trip.id) {
@@ -451,6 +482,51 @@ type DateEndMode = 'end' | 'duration' | 'open';
       background: var(--color-surface);
       color: var(--color-primary);
       box-shadow: var(--shadow-card);
+    }
+    .onboarding-card {
+      max-width: 620px;
+      padding: var(--space-5);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-card);
+    }
+    .onboarding-title {
+      margin: 0 0 6px;
+      font-size: 1.25rem;
+      color: var(--color-primary);
+    }
+    .onboarding-sub {
+      margin: 0 0 var(--space-4);
+      font-size: 0.875rem;
+      color: var(--color-text-secondary);
+    }
+    .onboarding-steps {
+      list-style: none;
+      margin: 0 0 var(--space-5);
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .onboarding-steps li {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      font-size: 0.86rem;
+      line-height: 1.5;
+      color: var(--color-text-primary);
+    }
+    .step-idx {
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: var(--color-accent-ink);
+    }
+    .onboarding-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--space-2);
     }
     .trip-grid {
       display: grid;

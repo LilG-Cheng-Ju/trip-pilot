@@ -2,6 +2,14 @@
 
 <!-- Auto-generated from releases.json. Run `node scripts/sync-releases.mjs` after editing releases.json. -->
 
+## v0.9.1-beta (2026-11-25) — 邀請連結自動開通、新手引導與轉乘卡片修正
+*Direct Invite Links, Empty-State Guide & Transit Card Fix*
+
+- 管理後台的邀請碼新增「複製連結」，朋友點擊連結登入後會自動帶入並兌換邀請碼，免手動輸入
+- 新帳號首次進入空的旅程總覽時，顯示三步驟快速上手引導與建立旅程按鈕
+- 修正「在地轉乘」卡片外露重複的上下移箭頭造成文字被壓縮的問題，排序操作統一收在右側選單內
+- 修正正式環境因嚴格 CSP 阻擋內嵌樣式切換腳本導致全站樣式未套用的問題
+
 ## v0.9.0-beta (2026-11-25) — 親友邀請制、邀請碼兌換與管理後台
 *Invite-Only Access, Invite Codes & Admin Console*
 

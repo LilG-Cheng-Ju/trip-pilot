@@ -385,5 +385,13 @@ export const MESSAGES_ZH_TW: Record<TranslationKey, string> = {
   'admin.usedBy': '已由 {email} 兌換',
   'admin.expiresAt': '到期 {date}',
   'admin.revokeInvite': '撤銷',
+  'admin.copyLink': '複製連結',
   'admin.emptyInvites': '目前沒有符合條件的邀請碼。',
+  'login.inviteAttached': '已帶入邀請碼 {code}，登入後將自動開通。',
+  'trips.onboarding.title': '建立你的第一趟旅程',
+  'trips.onboarding.subtitle': '設定日期後會自動建立每日行程、互動路線地圖與花費紀錄。',
+  'trips.onboarding.step1': '建立旅程並填入出發日期與目的地國家。',
+  'trips.onboarding.step2': '新增航班、住宿與景點，地圖會自動標記並計算移動距離。',
+  'trips.onboarding.step3': '記錄多幣別花費，或至設定頁建立 Token 串接 AI 助手。',
+  'trips.onboarding.settingsLink': '前往設定',
 };

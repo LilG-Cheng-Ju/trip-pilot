@@ -62,26 +62,6 @@ import { ItemExpenseSummary } from '../../state/expense.store';
             >
               <span class="ms-icon sm" aria-hidden="true">payments</span>
             </button>
-            <div class="order-controls connector-order">
-              <button
-                type="button"
-                class="icon-btn connector-icon-btn order-btn connector-order-btn"
-                [disabled]="!canMoveUp()"
-                (click)="moveUp.emit(item())"
-                [attr.aria-label]="'item.moveUp' | t"
-              >
-                <span class="ms-icon sm" aria-hidden="true">keyboard_arrow_up</span>
-              </button>
-              <button
-                type="button"
-                class="icon-btn connector-icon-btn order-btn connector-order-btn"
-                [disabled]="!canMoveDown()"
-                (click)="moveDown.emit(item())"
-                [attr.aria-label]="'item.moveDown' | t"
-              >
-                <span class="ms-icon sm" aria-hidden="true">keyboard_arrow_down</span>
-              </button>
-            </div>
             <div class="overflow-anchor">
               <button
                 type="button"
@@ -561,10 +541,6 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     .icon-btn.expense-trigger:focus-visible:not(:disabled) {
       background: var(--color-accent-tint);
       color: var(--color-accent-ink);
-    }
-    .connector-order {
-      margin-left: 0;
-      flex-shrink: 0;
     }
     .order-btn {
       color: var(--color-text-muted);

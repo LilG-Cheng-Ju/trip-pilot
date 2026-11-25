@@ -349,6 +349,17 @@ interface PendingAdminAction {
                   @if (inv.status === 'available') {
                     <button
                       type="button"
+                      class="pill-btn primary-tint"
+                      (click)="copyInviteLink(inv)"
+                    >
+                      {{
+                        copiedId() === inv.id + ':link'
+                          ? ('common.copied' | t)
+                          : ('admin.copyLink' | t)
+                      }}
+                    </button>
+                    <button
+                      type="button"
                       class="pill-btn"
                       (click)="copyCode(inv)"
                     >
@@ -728,6 +739,12 @@ export class AdminPageComponent implements OnInit {
 
   protected copyCode(inv: InviteCodeItem): void {
     this.copyText(inv.id, inv.code);
+  }
+
+  protected copyInviteLink(inv: InviteCodeItem): void {
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const link = `${origin}/login?invite=${encodeURIComponent(inv.code)}`;
+    this.copyText(`${inv.id}:link`, link);
   }
 
   protected copyFreshBatch(): void {
