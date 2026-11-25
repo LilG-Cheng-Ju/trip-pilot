@@ -9,6 +9,8 @@ import {
   signal,
   untracked,
 } from '@angular/core';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatSelectModule } from '@angular/material/select';
 
 import {
   CreateItemPayload,
@@ -37,26 +39,40 @@ export interface ItemFormSubmitEvent {
 @Component({
   selector: 'app-item-form-modal',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslatePipe, AppAirportPickerComponent, AppModalComponent, AppTimeInputComponent],
+  imports: [
+    TranslatePipe,
+    MatFormFieldModule,
+    MatSelectModule,
+    AppAirportPickerComponent,
+    AppModalComponent,
+    AppTimeInputComponent,
+  ],
   template: `
     <app-modal [open]="open()" [title]="modalTitle() | t" (closed)="closed.emit()">
       <form class="modal-form" (submit)="$event.preventDefault(); submit()" novalidate>
         <div class="two-col">
-          <label class="field">
+          <div class="field">
             <span>{{ 'itinerary.form.type' | t }}</span>
-            <select [value]="itemType()" (change)="onItemTypeChange($event)" name="itemType">
-              <option value="SPOT" [selected]="itemType() === 'SPOT'">{{ 'item.type.spot' | t }}</option>
-              <option value="FOOD" [selected]="itemType() === 'FOOD'">{{ 'item.type.food' | t }}</option>
-              <option value="STAY" [selected]="itemType() === 'STAY'">{{ 'item.type.stay' | t }}</option>
-              <option value="FLIGHT" [selected]="itemType() === 'FLIGHT'">{{ 'item.type.flight' | t }}</option>
-              <option value="RESERVED_TRANSIT" [selected]="itemType() === 'RESERVED_TRANSIT'">
-                {{ 'item.type.reservedTransit' | t }}
-              </option>
-              <option value="LOCAL_TRANSIT" [selected]="itemType() === 'LOCAL_TRANSIT'">
-                {{ 'item.type.localTransit' | t }}
-              </option>
-            </select>
-          </label>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-select
+                [value]="itemType()"
+                (selectionChange)="onItemTypeChange($event.value)"
+                name="itemType"
+                [aria-label]="'itinerary.form.type' | t"
+              >
+                <mat-option value="SPOT">{{ 'item.type.spot' | t }}</mat-option>
+                <mat-option value="FOOD">{{ 'item.type.food' | t }}</mat-option>
+                <mat-option value="STAY">{{ 'item.type.stay' | t }}</mat-option>
+                <mat-option value="FLIGHT">{{ 'item.type.flight' | t }}</mat-option>
+                <mat-option value="RESERVED_TRANSIT">
+                  {{ 'item.type.reservedTransit' | t }}
+                </mat-option>
+                <mat-option value="LOCAL_TRANSIT">
+                  {{ 'item.type.localTransit' | t }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
           <label class="field" [class.has-error]="titleError()">
             <span>{{ 'itinerary.form.title' | t }} <em class="req">*</em></span>
             <input
@@ -408,6 +424,7 @@ export interface ItemFormSubmitEvent {
       color: var(--color-text-secondary);
     }
     .field input {
+      height: 40px;
       padding: 9px 10px;
       border: 1px solid var(--color-border);
       border-radius: var(--radius-sm);
@@ -794,8 +811,8 @@ export class ItemFormModalComponent {
     });
   }
 
-  protected onItemTypeChange(event: Event): void {
-    this.itemType.set(readInputValue(event) as ItemType);
+  protected onItemTypeChange(next: ItemType): void {
+    this.itemType.set(next);
   }
 
   protected async searchOrResolvePlace(): Promise<void> {

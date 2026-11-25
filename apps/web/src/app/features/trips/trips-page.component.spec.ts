@@ -1,8 +1,11 @@
 import { provideHttpClient } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
+import { MatSelect, MatSelectChange } from '@angular/material/select';
+import { By } from '@angular/platform-browser';
 import { provideRouter, Router } from '@angular/router';
 
 import { TripilotApiService } from '../../core/api/tripilot-api.service';
+import { provideTripilotDateAdapter } from '../../core/config/material-date-formats';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TripDetail } from '../../core/models/tripilot.models';
 import { AuthStore } from '../../state/auth.store';
@@ -42,6 +45,7 @@ describe('TripsPageComponent', () => {
       providers: [
         provideRouter([]),
         provideHttpClient(),
+        provideTripilotDateAdapter(),
         {
           provide: TripilotApiService,
           useValue: {
@@ -93,7 +97,9 @@ describe('TripsPageComponent', () => {
 
     const titleInput = host.querySelector('input[name="title"]') as HTMLInputElement;
     expect(titleInput.placeholder).toBe('e.g. 10 Days in Czechia & Austria');
-    const currencySelect = host.querySelector('select[name="currency"]') as HTMLSelectElement;
+    const currencySelect = fixture.debugElement.query(
+      By.css('mat-select[name="currency"]'),
+    ).componentInstance as MatSelect;
     expect(currencySelect.options.length).toBe(17);
 
     // Close Create modal and open Edit modal for existing trip.
@@ -120,9 +126,10 @@ describe('TripsPageComponent', () => {
     const editStart = host.querySelector('input[name="startDate"]') as HTMLInputElement;
     editStart.value = '2026-04-02';
     editStart.dispatchEvent(new Event('input'));
-    const editStatus = host.querySelector('select[name="status"]') as HTMLSelectElement;
-    editStatus.value = 'ACTIVE';
-    editStatus.dispatchEvent(new Event('change'));
+    const editStatus = fixture.debugElement.query(
+      By.css('mat-select[name="status"]'),
+    ).componentInstance as MatSelect;
+    editStatus.selectionChange.emit(new MatSelectChange(editStatus, 'ACTIVE'));
     fixture.detectChanges();
 
     const saveBtn = host.querySelector('app-modal button[type="submit"]') as HTMLButtonElement;

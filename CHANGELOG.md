@@ -2,6 +2,13 @@
 
 <!-- Auto-generated from releases.json. Run `node scripts/sync-releases.mjs` after editing releases.json. -->
 
+## v0.9.3-beta (2026-11-26) — 全站表單下拉選單、日期選擇器與自動發布機制更新
+*Unified Form Dropdowns, Calendar Date Pickers & Release Retries*
+
+- 將旅程管理、行程表單、花費記帳與個人設定的所有下拉選單統一改為一致的懸浮選單元件
+- 旅程開始與結束日期及花費日期欄位支援直接輸入 YYYY-MM-DD 與點擊開啟月曆點選
+- 為 GitHub Release 自動發布流程加入失敗重試與手動重跑支援
+
 ## v0.9.2-beta (2026-11-25) — 行程時間輸入升級、下拉選單與按鈕修正
 *Time Input Picker, Dropdown Styling & Onboarding Button Fix*
 

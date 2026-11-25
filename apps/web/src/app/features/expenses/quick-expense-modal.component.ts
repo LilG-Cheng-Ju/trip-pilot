@@ -9,6 +9,8 @@ import {
   signal,
   untracked,
 } from '@angular/core';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatSelectModule } from '@angular/material/select';
 
 import { ISO_CURRENCY_CODE_LENGTH } from '../../core/constants/app-limits';
 import {
@@ -36,7 +38,7 @@ import { ExpenseStore } from '../../state/expense.store';
 @Component({
   selector: 'app-quick-expense-modal',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AppModalComponent, TranslatePipe],
+  imports: [AppModalComponent, MatFormFieldModule, MatSelectModule, TranslatePipe],
   template: `
     <app-modal
       [open]="open()"
@@ -85,23 +87,26 @@ import { ExpenseStore } from '../../state/expense.store';
             />
           </label>
 
-          <label class="field">
+          <div class="field">
             <span class="field-label">
               {{ 'expenses.field.currency' | t }} <em class="req">*</em>
             </span>
-            <select
-              class="input-control"
-              [value]="currency()"
-              name="currency"
-              (change)="onCurrencyChange(readInputValue($event))"
-            >
-              @for (opt of currencyOptions(); track opt.code) {
-                <option [value]="opt.code" [selected]="opt.code === currency()">
-                  {{ i18n.locale() === 'zh-TW' ? opt.labelZh : opt.labelEn }}
-                </option>
-              }
-            </select>
-          </label>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-select
+                [value]="currency()"
+                [panelWidth]="null"
+                name="currency"
+                [aria-label]="'expenses.field.currency' | t"
+                (selectionChange)="onCurrencyChange($event.value)"
+              >
+                @for (opt of currencyOptions(); track opt.code) {
+                  <mat-option [value]="opt.code">
+                    {{ i18n.locale() === 'zh-TW' ? opt.labelZh : opt.labelEn }}
+                  </mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          </div>
         </div>
 
         @if (isForeignCurrency()) {
@@ -261,6 +266,7 @@ import { ExpenseStore } from '../../state/expense.store';
     }
     .input-control {
       width: 100%;
+      height: 40px;
       padding: 9px 11px;
       border: 1px solid var(--color-border);
       border-radius: var(--radius-sm);
@@ -269,13 +275,9 @@ import { ExpenseStore } from '../../state/expense.store';
       font: inherit;
       font-size: 0.875rem;
     }
-    select.input-control {
-      background-color: var(--color-surface);
-      padding-right: 32px;
-    }
     .amount-grid {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 124px;
+      grid-template-columns: minmax(0, 1fr) 138px;
       gap: 10px;
     }
     .preview-line {
@@ -315,6 +317,13 @@ import { ExpenseStore } from '../../state/expense.store';
       font: inherit;
       font-size: 0.875rem;
       outline: none;
+      -moz-appearance: textfield;
+      appearance: textfield;
+    }
+    .rate-box input::-webkit-outer-spin-button,
+    .rate-box input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
     }
     .field.has-error .rate-box {
       border-color: var(--color-alert);

@@ -1,5 +1,25 @@
 [
   {
+    "version": "0.9.3-beta",
+    "date": "2026-11-26",
+    "title": {
+      "zh-TW": "全站表單下拉選單、日期選擇器與自動發布機制更新",
+      "en": "Unified Form Dropdowns, Calendar Date Pickers & Release Retries"
+    },
+    "changes": {
+      "zh-TW": [
+        "將旅程管理、行程表單、花費記帳與個人設定的所有下拉選單統一改為一致的懸浮選單元件",
+        "旅程開始與結束日期及花費日期欄位支援直接輸入 YYYY-MM-DD 與點擊開啟月曆點選",
+        "為 GitHub Release 自動發布流程加入失敗重試與手動重跑支援"
+      ],
+      "en": [
+        "Unified all remaining dropdown menus across Trips, Itinerary, Expenses, Quick Expense, and Profile",
+        "Upgraded trip and expense date fields to support both manual YYYY-MM-DD entry and interactive calendar selection",
+        "Added automatic retries and manual workflow dispatch support to GitHub Release publishing"
+      ]
+    }
+  },
+  {
     "version": "0.9.2-beta",
     "date": "2026-11-25",
     "title": {

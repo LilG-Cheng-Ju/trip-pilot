@@ -1,8 +1,11 @@
 import { provideHttpClient } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
+import { MatSelect, MatSelectChange } from '@angular/material/select';
+import { By } from '@angular/platform-browser';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 
 import { TripilotApiService } from '../../core/api/tripilot-api.service';
+import { provideTripilotDateAdapter } from '../../core/config/material-date-formats';
 import { I18nService } from '../../core/i18n/i18n.service';
 import {
   ExpenseItem,
@@ -105,6 +108,7 @@ describe('ExpensesPageComponent', () => {
       providers: [
         provideRouter([]),
         provideHttpClient(),
+        provideTripilotDateAdapter(),
         {
           provide: ActivatedRoute,
           useValue: {
@@ -196,8 +200,10 @@ describe('ExpensesPageComponent', () => {
     const host = fixture.nativeElement as HTMLElement;
 
     // Day attribution dropdown contains Unassigned + Day 1 + Day 2.
-    const daySelect = host.querySelector('select[name="tripDayId"]') as HTMLSelectElement;
-    expect(Array.from(daySelect.options).map((o) => o.textContent?.trim())).toEqual([
+    const daySelect = fixture.debugElement.query(
+      By.css('mat-select[name="tripDayId"]'),
+    ).componentInstance as MatSelect;
+    expect(daySelect.options.map((o) => o.viewValue.trim())).toEqual([
       'Unassigned',
       'Day 1 · 10-01',
       'Day 2 · 10-02',
@@ -213,8 +219,7 @@ describe('ExpensesPageComponent', () => {
     const amountInput = host.querySelector('input[name="amount"]') as HTMLInputElement;
     amountInput.value = '2000';
     amountInput.dispatchEvent(new Event('input'));
-    daySelect.value = 'day-2';
-    daySelect.dispatchEvent(new Event('change'));
+    daySelect.selectionChange.emit(new MatSelectChange(daySelect, 'day-2'));
     fixture.detectChanges();
 
     const submitBtn = host.querySelector('.quick-card button[type="submit"]') as HTMLButtonElement;
@@ -237,11 +242,10 @@ describe('ExpensesPageComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    const editCurrencySelect = host.querySelector(
-      'select[name="editCurrency"]',
-    ) as HTMLSelectElement;
-    editCurrencySelect.value = 'USD';
-    editCurrencySelect.dispatchEvent(new Event('change'));
+    const editCurrencySelect = fixture.debugElement.query(
+      By.css('mat-select[name="editCurrency"]'),
+    ).componentInstance as MatSelect;
+    editCurrencySelect.selectionChange.emit(new MatSelectChange(editCurrencySelect, 'USD'));
     await new Promise((resolve) => setTimeout(resolve, 0));
     await fixture.whenStable();
     fixture.detectChanges();
@@ -257,9 +261,10 @@ describe('ExpensesPageComponent', () => {
     const editAmountInput = host.querySelector('input[name="editAmount"]') as HTMLInputElement;
     editAmountInput.value = '10';
     editAmountInput.dispatchEvent(new Event('input'));
-    const editDaySelect = host.querySelector('select[name="editDayId"]') as HTMLSelectElement;
-    editDaySelect.value = 'day-2';
-    editDaySelect.dispatchEvent(new Event('change'));
+    const editDaySelect = fixture.debugElement.query(
+      By.css('mat-select[name="editDayId"]'),
+    ).componentInstance as MatSelect;
+    editDaySelect.selectionChange.emit(new MatSelectChange(editDaySelect, 'day-2'));
     const editDateInput = host.querySelector('input[name="editPaidAt"]') as HTMLInputElement;
     editDateInput.value = '2026-10-03';
     editDateInput.dispatchEvent(new Event('input'));

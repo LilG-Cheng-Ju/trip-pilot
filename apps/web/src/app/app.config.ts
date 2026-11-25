@@ -6,14 +6,13 @@ import {
   provideBrowserGlobalErrorListeners,
   provideZonelessChangeDetection,
 } from '@angular/core';
-import { provideNativeDateAdapter } from '@angular/material/core';
 import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
 import { provideRouter } from '@angular/router';
 import { provideServiceWorker } from '@angular/service-worker';
 
 import { routes } from './app.routes';
 import { authInterceptor } from './core/api/auth.interceptor';
-import { TRIPILOT_DATE_FORMATS } from './core/config/material-date-formats';
+import { provideTripilotDateAdapter } from './core/config/material-date-formats';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -21,7 +20,7 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
     provideHttpClient(withInterceptors([authInterceptor])),
-    provideNativeDateAdapter(TRIPILOT_DATE_FORMATS),
+    provideTripilotDateAdapter(),
     {
       provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
       useValue: {

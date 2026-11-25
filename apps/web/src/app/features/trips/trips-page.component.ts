@@ -1,4 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatSelectModule } from '@angular/material/select';
 import { Router, RouterLink } from '@angular/router';
 
 import { TripilotApiService, TripUpdatePayload } from '../../core/api/tripilot-api.service';
@@ -24,6 +26,7 @@ import {
 } from '../../core/utils/travel-format.utils';
 import { AppConfirmModalComponent } from '../../shared/confirm-modal.component';
 import { AppCountryPickerComponent } from '../../shared/country-picker.component';
+import { AppDateInputComponent } from '../../shared/date-input.component';
 import { AppModalComponent } from '../../shared/modal.component';
 import { AuthStore } from '../../state/auth.store';
 import { ExpenseStore } from '../../state/expense.store';
@@ -39,9 +42,12 @@ type DateEndMode = 'end' | 'duration' | 'open';
   imports: [
     RouterLink,
     TranslatePipe,
+    MatFormFieldModule,
+    MatSelectModule,
     AppModalComponent,
     AppConfirmModalComponent,
     AppCountryPickerComponent,
+    AppDateInputComponent,
   ],
   template: `
     <div class="page">
@@ -303,31 +309,34 @@ type DateEndMode = 'end' | 'duration' | 'open';
           }
 
           @if (scope() === 'international' || editingTrip() !== null) {
-            <label class="field">
+            <div class="field">
               <span>{{ 'trips.form.currency' | t }}</span>
-              <select
-                [value]="defaultCurrency()"
-                (change)="defaultCurrency.set(readInputValue($event))"
-                name="currency"
-              >
-                @for (cur of currencies; track cur.code) {
-                  <option [value]="cur.code" [selected]="cur.code === defaultCurrency()">
-                    {{ i18n.locale() === 'zh-TW' ? cur.labelZh : cur.labelEn }}
-                  </option>
-                }
-              </select>
-            </label>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-select
+                  [value]="defaultCurrency()"
+                  (selectionChange)="defaultCurrency.set($event.value)"
+                  name="currency"
+                  [aria-label]="'trips.form.currency' | t"
+                >
+                  @for (cur of currencies; track cur.code) {
+                    <mat-option [value]="cur.code">
+                      {{ i18n.locale() === 'zh-TW' ? cur.labelZh : cur.labelEn }}
+                    </mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            </div>
           }
 
-          <label class="field" [class.has-error]="dateError()">
+          <div class="field" [class.has-error]="dateError()">
             <span>{{ 'trips.form.startDate' | t }} <em class="req">*</em></span>
-            <input
-              type="date"
-              [value]="startDate()"
+            <app-date-input
               name="startDate"
-              (input)="startDate.set(readInputValue($event)); dateError.set(null)"
+              [ariaLabel]="'trips.form.startDate' | t"
+              [value]="startDate()"
+              (valueChange)="startDate.set($event); dateError.set(null)"
             />
-          </label>
+          </div>
 
           @if (editingTrip() === null) {
             <div class="seg-row compact">
@@ -358,15 +367,15 @@ type DateEndMode = 'end' | 'duration' | 'open';
             </div>
 
             @if (dateEndMode() === 'end') {
-              <label class="field" [class.has-error]="dateError()">
+              <div class="field" [class.has-error]="dateError()">
                 <span>{{ 'trips.form.endDate' | t }}</span>
-                <input
-                  type="date"
-                  [value]="endDate()"
+                <app-date-input
                   name="endDate"
-                  (input)="endDate.set(readInputValue($event)); dateError.set(null)"
+                  [ariaLabel]="'trips.form.endDate' | t"
+                  [value]="endDate()"
+                  (valueChange)="endDate.set($event); dateError.set(null)"
                 />
-              </label>
+              </div>
             } @else if (dateEndMode() === 'duration') {
               <label class="field">
                 <span>{{ 'trips.form.durationDays' | t }}</span>
@@ -402,20 +411,23 @@ type DateEndMode = 'end' | 'duration' | 'open';
               <p class="open-hint">{{ 'trips.form.openHint' | t }}</p>
             }
           } @else {
-            <label class="field">
+            <div class="field">
               <span>{{ 'trips.form.status' | t }}</span>
-              <select
-                [value]="status()"
-                (change)="onStatusChange($event)"
-                name="status"
-              >
-                @for (st of statuses; track st) {
-                  <option [value]="st" [selected]="st === status()">
-                    {{ statusKey(st) | t }}
-                  </option>
-                }
-              </select>
-            </label>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-select
+                  [value]="status()"
+                  (selectionChange)="onStatusChange($event.value)"
+                  name="status"
+                  [aria-label]="'trips.form.status' | t"
+                >
+                  @for (st of statuses; track st) {
+                    <mat-option [value]="st">
+                      {{ statusKey(st) | t }}
+                    </mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            </div>
           }
 
           @if (dateError()) {
@@ -833,8 +845,8 @@ export class TripsPageComponent implements OnInit {
     this.editingTrip.set(null);
   }
 
-  protected onStatusChange(event: Event): void {
-    this.status.set(readInputValue(event) as TripStatus);
+  protected onStatusChange(next: TripStatus): void {
+    this.status.set(next);
   }
 
   protected statusKey(

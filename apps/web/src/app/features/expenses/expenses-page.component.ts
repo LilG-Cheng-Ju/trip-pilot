@@ -7,6 +7,8 @@ import {
   OnInit,
   signal,
 } from '@angular/core';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatSelectModule } from '@angular/material/select';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import { ISO_CURRENCY_CODE_LENGTH } from '../../core/constants/app-limits';
@@ -28,6 +30,7 @@ import {
   roundFxRate,
 } from '../../core/utils/travel-format.utils';
 import { AppConfirmModalComponent } from '../../shared/confirm-modal.component';
+import { AppDateInputComponent } from '../../shared/date-input.component';
 import { AppModalComponent } from '../../shared/modal.component';
 import { TripSubnavComponent } from '../../shared/trip-subnav.component';
 import { AuthStore } from '../../state/auth.store';
@@ -38,7 +41,15 @@ import { ItineraryStore } from '../../state/itinerary.store';
 @Component({
   selector: 'app-expenses-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslatePipe, AppConfirmModalComponent, AppModalComponent, TripSubnavComponent],
+  imports: [
+    TranslatePipe,
+    MatFormFieldModule,
+    MatSelectModule,
+    AppConfirmModalComponent,
+    AppDateInputComponent,
+    AppModalComponent,
+    TripSubnavComponent,
+  ],
   template: `
     <div class="page">
       @if (itineraryStore.trip(); as trip) {
@@ -112,23 +123,26 @@ import { ItineraryStore } from '../../state/itinerary.store';
                 />
               </label>
 
-              <label class="field">
+              <div class="field">
                 <span class="field-label">
                   {{ 'expenses.field.currency' | t }} <em class="req">*</em>
                 </span>
-                <select
-                  class="input-currency"
-                  [value]="currency()"
-                  name="currency"
-                  (change)="onCurrencyChange(readInputValue($event))"
-                >
-                  @for (opt of currencyOptions(); track opt.code) {
-                    <option [value]="opt.code" [selected]="opt.code === currency()">
-                      {{ i18n.locale() === 'zh-TW' ? opt.labelZh : opt.labelEn }}
-                    </option>
-                  }
-                </select>
-              </label>
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-select
+                    [value]="currency()"
+                    [panelWidth]="null"
+                    name="currency"
+                    [aria-label]="'expenses.field.currency' | t"
+                    (selectionChange)="onCurrencyChange($event.value)"
+                  >
+                    @for (opt of currencyOptions(); track opt.code) {
+                      <mat-option [value]="opt.code">
+                        {{ i18n.locale() === 'zh-TW' ? opt.labelZh : opt.labelEn }}
+                      </mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              </div>
 
               <div class="field" [class.has-error]="quickRateError()">
                 <span class="field-label">
@@ -186,24 +200,27 @@ import { ItineraryStore } from '../../state/itinerary.store';
             </div>
 
             @if (tripDays().length > 0) {
-              <label class="field">
+              <div class="field">
                 <span class="field-label">{{ 'expenses.field.day' | t }}</span>
-                <select
-                  class="input-main"
-                  [value]="selectedDayId()"
-                  name="tripDayId"
-                  (change)="selectedDayId.set(readInputValue($event))"
-                >
-                  <option value="" [selected]="selectedDayId() === ''">
-                    {{ 'expenses.unassignedDay' | t }}
-                  </option>
-                  @for (day of tripDays(); track day.id) {
-                    <option [value]="day.id" [selected]="selectedDayId() === day.id">
-                      {{ 'expenses.dayOption' | t: { day: day.day_index, date: day.date.slice(5) } }}
-                    </option>
-                  }
-                </select>
-              </label>
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-select
+                    [value]="selectedDayId()"
+                    [panelWidth]="null"
+                    name="tripDayId"
+                    [aria-label]="'expenses.field.day' | t"
+                    (selectionChange)="selectedDayId.set($event.value)"
+                  >
+                    <mat-option value="">
+                      {{ 'expenses.unassignedDay' | t }}
+                    </mat-option>
+                    @for (day of tripDays(); track day.id) {
+                      <mat-option [value]="day.id">
+                        {{ 'expenses.dayOption' | t: { day: day.day_index, date: day.date.slice(5) } }}
+                      </mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              </div>
             }
 
             <div class="cat-chips">
@@ -405,22 +422,26 @@ import { ItineraryStore } from '../../state/itinerary.store';
               />
             </label>
 
-            <label class="field">
+            <div class="field">
               <span class="field-label">
                 {{ 'expenses.field.currency' | t }} <em class="req">*</em>
               </span>
-              <select
-                [value]="editCurrency()"
-                name="editCurrency"
-                (change)="onEditCurrencyChange(readInputValue($event))"
-              >
-                @for (opt of editCurrencyOptions(); track opt.code) {
-                  <option [value]="opt.code" [selected]="opt.code === editCurrency()">
-                    {{ i18n.locale() === 'zh-TW' ? opt.labelZh : opt.labelEn }}
-                  </option>
-                }
-              </select>
-            </label>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-select
+                  [value]="editCurrency()"
+                  [panelWidth]="null"
+                  name="editCurrency"
+                  [aria-label]="'expenses.field.currency' | t"
+                  (selectionChange)="onEditCurrencyChange($event.value)"
+                >
+                  @for (opt of editCurrencyOptions(); track opt.code) {
+                    <mat-option [value]="opt.code">
+                      {{ i18n.locale() === 'zh-TW' ? opt.labelZh : opt.labelEn }}
+                    </mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            </div>
 
             <div class="field" [class.has-error]="editRateError()">
               <span class="field-label">
@@ -495,34 +516,38 @@ import { ItineraryStore } from '../../state/itinerary.store';
 
           <div class="two-col">
             @if (tripDays().length > 0) {
-              <label class="field">
+              <div class="field">
                 <span class="field-label">{{ 'expenses.field.day' | t }}</span>
-                <select
-                  [value]="editDayId()"
-                  name="editDayId"
-                  (change)="editDayId.set(readInputValue($event))"
-                >
-                  <option value="" [selected]="editDayId() === ''">
-                    {{ 'expenses.unassignedDay' | t }}
-                  </option>
-                  @for (day of tripDays(); track day.id) {
-                    <option [value]="day.id" [selected]="editDayId() === day.id">
-                      {{ 'expenses.dayOption' | t: { day: day.day_index, date: day.date.slice(5) } }}
-                    </option>
-                  }
-                </select>
-              </label>
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-select
+                    [value]="editDayId()"
+                    [panelWidth]="null"
+                    name="editDayId"
+                    [aria-label]="'expenses.field.day' | t"
+                    (selectionChange)="editDayId.set($event.value)"
+                  >
+                    <mat-option value="">
+                      {{ 'expenses.unassignedDay' | t }}
+                    </mat-option>
+                    @for (day of tripDays(); track day.id) {
+                      <mat-option [value]="day.id">
+                        {{ 'expenses.dayOption' | t: { day: day.day_index, date: day.date.slice(5) } }}
+                      </mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              </div>
             }
 
-            <label class="field">
+            <div class="field">
               <span class="field-label">{{ 'expenses.field.date' | t }}</span>
-              <input
-                type="date"
-                [value]="editPaidAt()"
-                (input)="editPaidAt.set(readInputValue($event))"
+              <app-date-input
                 name="editPaidAt"
+                [ariaLabel]="'expenses.field.date' | t"
+                [value]="editPaidAt()"
+                (valueChange)="editPaidAt.set($event)"
               />
-            </label>
+            </div>
           </div>
 
           <label class="field">
@@ -695,44 +720,35 @@ import { ItineraryStore } from '../../state/itinerary.store';
       color: var(--color-primary);
     }
     .input-main,
-    .input-amount,
-    .input-currency {
+    .input-amount {
       width: 100%;
-      padding: 10px 12px;
+      height: 40px;
+      padding: 9px 12px;
       border: 1px solid var(--color-border);
       border-radius: var(--radius-sm);
       background-color: var(--color-bg);
       color: var(--color-text-primary);
       font: inherit;
     }
-    select.input-main,
-    select.input-currency {
-      background-color: var(--color-surface);
-      padding-right: 32px;
-    }
     .amount-row {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 122px 104px;
+      grid-template-columns: minmax(0, 1fr) 130px 116px;
       gap: 8px;
       align-items: end;
     }
     @media (max-width: 440px) {
       .amount-row {
-        grid-template-columns: minmax(0, 1fr) 124px;
+        grid-template-columns: minmax(0, 1fr) 130px;
       }
       .amount-row > :last-child {
         grid-column: 1 / -1;
       }
     }
-    .input-currency {
-      font-weight: 600;
-      padding: 9px 28px 9px 8px;
-    }
     .rate-box {
       display: flex;
       align-items: center;
       gap: 4px;
-      height: 39px;
+      height: 40px;
       padding: 0 4px 0 8px;
       border: 1px solid var(--color-border);
       border-radius: var(--radius-sm);
@@ -749,6 +765,13 @@ import { ItineraryStore } from '../../state/itinerary.store';
       font: inherit;
       font-size: 0.8125rem;
       outline: none;
+      -moz-appearance: textfield;
+      appearance: textfield;
+    }
+    .rate-box input::-webkit-outer-spin-button,
+    .rate-box input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
     }
     .field.has-error .rate-box {
       border-color: var(--color-alert);

@@ -83,7 +83,7 @@ a {
 }
 
 /* Lock background page scroll while any modal dialog or mobile map sheet is open. */
-body:has(dialog[open]),
+body:has(.modal-backdrop),
 body:has(.mobile-map-sheet) {
   overflow: hidden;
 }

@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag name (e.g. v0.9.2-beta)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -15,6 +21,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref_name }}
 
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
@@ -24,12 +32,12 @@ jobs:
       - name: Extract release notes from releases.json
         id: extract
         env:
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
           node << 'EOF'
           const fs = require('node:fs');
 
-          const tag = process.env.TAG || '';
+          const tag = (process.env.TAG || '').trim();
           const version = tag.replace(/^v/, '');
           const prerelease = version.includes('-');
           const releases = JSON.parse(fs.readFileSync('releases.json', 'utf8'));
@@ -38,7 +46,7 @@ jobs:
           if (!entry) {
             fs.appendFileSync(
               process.env.GITHUB_OUTPUT,
-              `has_notes=false\ntitle=${tag}\nprerelease=${prerelease}\n`,
+              `tag=${tag}\nhas_notes=false\ntitle=${tag}\nprerelease=${prerelease}\n`,
             );
             process.exit(0);
           }
@@ -64,31 +72,45 @@ jobs:
           fs.writeFileSync('/tmp/release-notes.md', lines.join('\n'), 'utf8');
           fs.appendFileSync(
             process.env.GITHUB_OUTPUT,
-            `has_notes=true\ntitle=${releaseTitle}\nprerelease=${prerelease}\n`,
+            `tag=${tag}\nhas_notes=true\ntitle=${releaseTitle}\nprerelease=${prerelease}\n`,
           );
           EOF
 
       - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ steps.extract.outputs.tag }}
           TITLE: ${{ steps.extract.outputs.title }}
           HAS_NOTES: ${{ steps.extract.outputs.has_notes }}
           PRERELEASE: ${{ steps.extract.outputs.prerelease }}
         run: |
-          args=(--title "$TITLE")
-          if [ "$PRERELEASE" = "true" ]; then
-            args+=(--prerelease)
-          fi
-          if [ "$HAS_NOTES" = "true" ]; then
-            args+=(--notes-file /tmp/release-notes.md)
-          fi
-
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release edit "$TAG" "${args[@]}"
-          else
-            if [ "$HAS_NOTES" != "true" ]; then
-              args+=(--generate-notes)
+          publish_release() {
+            local args=(--title "$TITLE")
+            if [ "$PRERELEASE" = "true" ]; then
+              args+=(--prerelease)
             fi
-            gh release create "$TAG" "${args[@]}"
-          fi
+            if [ "$HAS_NOTES" = "true" ]; then
+              args+=(--notes-file /tmp/release-notes.md)
+            fi
+
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              gh release edit "$TAG" "${args[@]}"
+            else
+              if [ "$HAS_NOTES" != "true" ]; then
+                args+=(--generate-notes)
+              fi
+              gh release create "$TAG" "${args[@]}"
+            fi
+          }
+
+          attempt=1
+          max_attempts=3
+          until publish_release; do
+            if [ "$attempt" -ge "$max_attempts" ]; then
+              echo "::error::Failed to publish GitHub Release after $max_attempts attempts."
+              exit 1
+            fi
+            echo "::warning::Release API failed on attempt $attempt; retrying in 5s..."
+            attempt=$((attempt + 1))
+            sleep 5
+          done

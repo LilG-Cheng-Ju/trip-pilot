@@ -1,10 +1,9 @@
 import { OVERLAY_DEFAULT_CONFIG } from '@angular/cdk/overlay';
-import { provideNativeDateAdapter } from '@angular/material/core';
 import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 
-import { TRIPILOT_DATE_FORMATS } from '../core/config/material-date-formats';
+import { provideTripilotDateAdapter } from '../core/config/material-date-formats';
 import { AppTimeInputComponent, formatTimeString, parseTimeString } from './time-input.component';
 
 @Component({
@@ -20,7 +19,7 @@ describe('AppTimeInputComponent', () => {
     await TestBed.configureTestingModule({
       imports: [TestHostComponent],
       providers: [
-        provideNativeDateAdapter(TRIPILOT_DATE_FORMATS),
+        provideTripilotDateAdapter(),
         {
           provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
           useValue: { appearance: 'outline', subscriptSizing: 'dynamic' },

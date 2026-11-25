@@ -7,6 +7,8 @@ import {
   OnInit,
   signal,
 } from '@angular/core';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatSelectModule } from '@angular/material/select';
 
 import { AuthSessionService } from '../../core/auth/auth-session.service';
 import { SessionCleanupService } from '../../core/auth/session-cleanup.service';
@@ -27,7 +29,13 @@ import { AuthStore } from '../../state/auth.store';
 @Component({
   selector: 'app-profile-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslatePipe, AppCountryPickerComponent, AppConfirmModalComponent],
+  imports: [
+    TranslatePipe,
+    MatFormFieldModule,
+    MatSelectModule,
+    AppCountryPickerComponent,
+    AppConfirmModalComponent,
+  ],
   template: `
     <div class="page">
       <div class="page-head">
@@ -72,20 +80,23 @@ import { AuthStore } from '../../state/auth.store';
             <small class="field-hint">{{ 'profile.homeCountryHint' | t }}</small>
           </div>
 
-          <label class="field">
+          <div class="field">
             <span>{{ 'profile.homeCurrency' | t }}</span>
-            <select
-              [value]="homeCurrency()"
-              (change)="homeCurrency.set(readInputValue($event))"
-              name="homeCurrency"
-            >
-              @for (cur of currencies; track cur.code) {
-                <option [value]="cur.code" [selected]="cur.code === homeCurrency()">
-                  {{ i18n.locale() === 'zh-TW' ? cur.labelZh : cur.labelEn }}
-                </option>
-              }
-            </select>
-          </label>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-select
+                [value]="homeCurrency()"
+                (selectionChange)="homeCurrency.set($event.value)"
+                name="homeCurrency"
+                [aria-label]="'profile.homeCurrency' | t"
+              >
+                @for (cur of currencies; track cur.code) {
+                  <mat-option [value]="cur.code">
+                    {{ i18n.locale() === 'zh-TW' ? cur.labelZh : cur.labelEn }}
+                  </mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          </div>
 
           <div class="pref-actions">
             <button type="submit" class="btn-primary">{{ 'common.save' | t }}</button>

@@ -1,29 +1,31 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  effect,
-  ElementRef,
+  DOCUMENT,
+  inject,
   input,
   output,
-  viewChild,
 } from '@angular/core';
 
 import { TranslatePipe } from '../core/i18n/translate.pipe';
 
-/** Reusable native <dialog> modal (centered on desktop, bottom sheet on mobile) with scroll lock. */
+/** Reusable modal (centered on desktop, bottom sheet on mobile) with scroll lock. */
 @Component({
   selector: 'app-modal',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TranslatePipe],
+  host: {
+    '(document:keydown.escape)': 'onEscape()',
+  },
   template: `
-    <dialog
-      #dialogEl
-      class="modal-dialog"
-      [attr.aria-label]="title()"
-      (cancel)="onNativeCancel($event)"
-      (click)="onBackdropClick($event)"
-    >
-      @if (open()) {
+    @if (open()) {
+      <div
+        class="modal-backdrop"
+        role="dialog"
+        aria-modal="true"
+        [attr.aria-label]="title()"
+        (click)="onBackdropClick($event)"
+      >
         <div class="modal-panel" (click)="$event.stopPropagation()">
           <header class="modal-head">
             <h3 class="modal-title">{{ title() }}</h3>
@@ -40,20 +42,17 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
             <ng-content />
           </div>
         </div>
-      }
-    </dialog>
+      </div>
+    }
   `,
   styles: `
-    .modal-dialog {
-      margin: auto 0 0;
-      padding: 0;
-      width: 100%;
-      max-width: 100%;
-      border: none;
-      background: transparent;
-      overflow: visible;
-    }
-    .modal-dialog::backdrop {
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 900;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
       background: rgba(20, 29, 46, 0.5);
       backdrop-filter: blur(3px);
     }
@@ -105,10 +104,9 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
       overflow-y: auto;
     }
     @media (min-width: 640px) {
-      .modal-dialog {
-        margin: auto;
+      .modal-backdrop {
+        align-items: center;
         padding: var(--space-4);
-        max-width: 552px;
       }
       .modal-panel {
         border-radius: var(--radius-lg);
@@ -121,32 +119,21 @@ export class AppModalComponent {
   readonly title = input('');
   readonly closed = output<void>();
 
-  private readonly dialogEl = viewChild<ElementRef<HTMLDialogElement>>('dialogEl');
+  private readonly document = inject(DOCUMENT);
 
-  constructor() {
-    effect(() => {
-      const isOpen = this.open();
-      const dialog = this.dialogEl()?.nativeElement;
-      if (!dialog) {
-        return;
-      }
-      if (isOpen) {
-        if (!dialog.open && typeof dialog.showModal === 'function') {
-          dialog.showModal();
-        }
-      } else if (dialog.open && typeof dialog.close === 'function') {
-        dialog.close();
-      }
-    });
-  }
-
-  protected onNativeCancel(event: Event): void {
-    event.preventDefault();
+  protected onEscape(): void {
+    if (!this.open()) {
+      return;
+    }
+    // Let open Material overlays (datepickers, selects, timepickers) consume Escape first.
+    if (this.document.querySelector('.cdk-overlay-pane')) {
+      return;
+    }
     this.closed.emit();
   }
 
   protected onBackdropClick(event: MouseEvent): void {
-    if (event.target === this.dialogEl()?.nativeElement) {
+    if (event.target === event.currentTarget) {
       this.closed.emit();
     }
   }

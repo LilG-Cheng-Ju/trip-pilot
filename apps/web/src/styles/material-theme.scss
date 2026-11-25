@@ -79,6 +79,23 @@ html {
     container-elevation-shadow: var(--shadow-float),
   ));
 
+  @include mat.datepicker-overrides((
+    calendar-container-shape: 14px,
+    calendar-container-background-color: #ffffff,
+    calendar-container-elevation-shadow: var(--shadow-float),
+    calendar-date-selected-state-background-color: #162136,
+    calendar-date-selected-state-text-color: #ffffff,
+    calendar-date-today-outline-color: #162136,
+    calendar-date-in-range-state-background-color: #eef3fa,
+    calendar-date-preview-state-outline-color: #162136,
+    calendar-header-text-color: #525b6b,
+    calendar-period-button-text-color: #162136,
+    calendar-period-button-icon-color: #162136,
+    calendar-navigation-button-icon-color: #162136,
+    toggle-icon-color: #525b6b,
+    toggle-active-state-icon-color: #162136,
+  ));
+
   @include mat.select-overrides((
     panel-background-color: #ffffff,
     container-elevation-shadow: var(--shadow-float),
@@ -97,13 +114,14 @@ html {
   width: auto;
 }
 
-.mat-mdc-form-field-icon-suffix {
+.mat-mdc-form-field .mat-mdc-form-field-icon-suffix {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  padding-right: 4px;
+  padding: 0 6px 0 4px;
 
-  mat-timepicker-toggle {
+  mat-timepicker-toggle,
+  mat-datepicker-toggle {
     display: inline-flex;
     align-items: center;
   }
@@ -126,6 +144,11 @@ html {
 .mat-mdc-select-panel {
   border: 1px solid var(--color-border);
   border-radius: 12px;
+}
+
+.mat-datepicker-content {
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
 }
 
 .mat-timepicker-panel .mat-mdc-option {
