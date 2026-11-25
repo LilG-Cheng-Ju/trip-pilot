@@ -48,6 +48,9 @@
               <span class="avatar-initial">{{ avatarInitial() }}</span>
             }
           </button>
+          @if (hasUnseenRelease()) {
+            <span class="avatar-unread-dot" aria-hidden="true"></span>
+          }
 
           @if (accountMenuOpen()) {
             <div class="account-dropdown" role="menu">
@@ -110,7 +113,18 @@
 
               <div class="menu-footer">
                 <span>{{ 'app.name' | t }}</span>
-                <span class="version-pill">v{{ appVersion }}</span>
+                <button
+                  type="button"
+                  class="version-pill-btn"
+                  [attr.aria-label]="'releaseNotes.title' | t"
+                  [title]="'releaseNotes.title' | t"
+                  (click)="openReleaseNotes()"
+                >
+                  @if (hasUnseenRelease()) {
+                    <span class="version-unread-dot" aria-hidden="true"></span>
+                  }
+                  <span>v{{ appVersion }}</span>
+                </button>
               </div>
             </div>
           }
@@ -142,4 +156,9 @@
       </a>
     </nav>
   }
+
+  <app-release-notes-modal
+    [open]="releaseNotesOpen()"
+    (closed)="closeReleaseNotes()"
+  />
 </div>

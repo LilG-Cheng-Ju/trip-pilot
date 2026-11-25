@@ -22,10 +22,39 @@ import { APP_VERSION, IS_BETA } from './core/config/app-version';
 import { I18nService } from './core/i18n/i18n.service';
 import { TranslatePipe } from './core/i18n/translate.pipe';
 import { NetworkStatusService } from './core/network/network-status.service';
+import { AppReleaseNotesModalComponent } from './shared/release-notes-modal.component';
+
+const LAST_SEEN_VERSION_KEY = 'tripilot:last_seen_version';
+
+function readLastSeenVersion(): string | null {
+  try {
+    return typeof localStorage !== 'undefined'
+      ? localStorage.getItem(LAST_SEEN_VERSION_KEY)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeLastSeenVersion(version: string): void {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(LAST_SEEN_VERSION_KEY, version);
+    }
+  } catch {
+    // Ignore storage quota / private-browsing failures.
+  }
+}
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, TranslatePipe],
+  imports: [
+    AppReleaseNotesModalComponent,
+    RouterLink,
+    RouterLinkActive,
+    RouterOutlet,
+    TranslatePipe,
+  ],
   selector: 'app-root',
   styleUrl: './app.css',
   templateUrl: './app.html',
@@ -45,6 +74,12 @@ export class App {
   protected readonly appVersion = APP_VERSION;
   protected readonly isBeta = IS_BETA;
   protected readonly accountMenuOpen = signal(false);
+  protected readonly releaseNotesOpen = signal(false);
+  private readonly lastSeenVersion = signal<string | null>(readLastSeenVersion());
+
+  protected readonly hasUnseenRelease = computed(
+    () => this.lastSeenVersion() !== this.appVersion,
+  );
 
   private readonly currentUrl = toSignal(
     this.router.events.pipe(
@@ -75,6 +110,17 @@ export class App {
 
   protected closeAccountMenu(): void {
     this.accountMenuOpen.set(false);
+  }
+
+  protected openReleaseNotes(): void {
+    this.closeAccountMenu();
+    this.releaseNotesOpen.set(true);
+    this.lastSeenVersion.set(this.appVersion);
+    writeLastSeenVersion(this.appVersion);
+  }
+
+  protected closeReleaseNotes(): void {
+    this.releaseNotesOpen.set(false);
   }
 
   protected async signOut(): Promise<void> {

@@ -83,4 +83,31 @@ describe('App', () => {
 
     expect(compiled.querySelector('.offline-bar')).toBeNull();
   });
+
+  it('should show unread release dot until What\'s New is opened and render release history', async () => {
+    localStorage.removeItem('tripilot:last_seen_version');
+    const i18n = TestBed.inject(I18nService);
+    i18n.setLocale('zh-TW');
+
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.querySelector('.avatar-unread-dot')).toBeTruthy();
+
+    const avatarBtn = compiled.querySelector('.avatar-btn') as HTMLButtonElement;
+    avatarBtn.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const versionBtn = compiled.querySelector('.version-pill-btn') as HTMLButtonElement;
+    versionBtn.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(compiled.querySelector('.avatar-unread-dot')).toBeNull();
+    expect(localStorage.getItem('tripilot:last_seen_version')).toBe(APP_VERSION);
+    expect(compiled.textContent).toContain('Tripilot 更新日誌');
+    expect(compiled.textContent).toContain(`v${APP_VERSION}`);
+  });
 });

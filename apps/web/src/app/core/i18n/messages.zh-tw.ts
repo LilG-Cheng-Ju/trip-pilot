@@ -327,4 +327,6 @@ export const MESSAGES_ZH_TW: Record<TranslationKey, string> = {
   'airportPicker.placeholder': '輸入代碼或城市（如 NRT、Tokyo）',
   'airportPicker.searching': '搜尋機場中...',
   'airportPicker.empty': '找不到相符機場 — 仍可直接輸入 3 碼 IATA 代碼。',
+  'releaseNotes.title': 'Tripilot 更新日誌',
+  'releaseNotes.latestBadge': '最新',
 };

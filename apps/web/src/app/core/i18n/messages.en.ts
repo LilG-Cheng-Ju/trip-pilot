@@ -325,6 +325,8 @@ export const MESSAGES_EN = {
   'airportPicker.placeholder': 'IATA or city (e.g. NRT, Tokyo)',
   'airportPicker.searching': 'Searching airports...',
   'airportPicker.empty': 'No matching airports — manual 3-letter IATA stays valid.',
+  'releaseNotes.title': "What's New in Tripilot",
+  'releaseNotes.latestBadge': 'Latest',
 } as const;
 
 export type TranslationKey = keyof typeof MESSAGES_EN;

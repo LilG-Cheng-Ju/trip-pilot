@@ -1,0 +1,244 @@
+// Auto-generated from root releases.json via `node scripts/sync-releases.mjs`.
+// Do not edit manually.
+
+export interface LocalizedText {
+  readonly 'zh-TW': string;
+  readonly en: string;
+}
+
+export interface LocalizedChanges {
+  readonly 'zh-TW': readonly string[];
+  readonly en: readonly string[];
+}
+
+export interface ReleaseNoteEntry {
+  readonly version: string;
+  readonly date: string;
+  readonly title: LocalizedText;
+  readonly changes: LocalizedChanges;
+}
+
+export const RELEASE_NOTES: readonly ReleaseNoteEntry[] = [
+  {
+    "version": "0.8.4-beta",
+    "date": "2026-11-25",
+    "title": {
+      "zh-TW": "站內更新紀錄與版本同步",
+      "en": "In-App Changelog & Version Sync"
+    },
+    "changes": {
+      "zh-TW": [
+        "點擊頭像選單底部的版本號即可查看各版本更新紀錄",
+        "有新版本時會在頭像與版本號旁顯示未讀小點，點開後清除",
+        "站內更新紀錄與 GitHub CHANGELOG.md 改由同一份來源自動產生"
+      ],
+      "en": [
+        "Click the version badge in the account menu to view release history",
+        "Show an unread dot on the avatar and version badge for new versions, cleared on open",
+        "Generate the in-app changelog and GitHub CHANGELOG.md from one source file"
+      ]
+    }
+  },
+  {
+    "version": "0.8.3-beta",
+    "date": "2026-11-25",
+    "title": {
+      "zh-TW": "AI 助手工具統一與自動帶入匯率",
+      "en": "Unified AI Tools & Auto-FX Expenses"
+    },
+    "changes": {
+      "zh-TW": [
+        "AI 助手記帳若未指定匯率，會自動帶入即時匯率換算",
+        "統一本機與遠端 AI 助手的工具參數與行為"
+      ],
+      "en": [
+        "Auto-fill live exchange rates when logging expenses without an explicit rate",
+        "Aligned tool parameters and behavior across local and remote AI assistants"
+      ]
+    }
+  },
+  {
+    "version": "0.8.2-beta",
+    "date": "2026-11-25",
+    "title": {
+      "zh-TW": "存取防護與手機地圖資源最佳化",
+      "en": "Access Guards & Mobile Map Optimization"
+    },
+    "changes": {
+      "zh-TW": [
+        "加入 API 呼叫頻率限制、外部連結檢查與登入存取控管",
+        "手機版切換清單與地圖時只保留單一地圖實例，降低記憶體佔用"
+      ],
+      "en": [
+        "Added rate limiting, external link checks, and login access controls",
+        "Mounted a single map instance on mobile to reduce memory usage when switching views"
+      ]
+    }
+  },
+  {
+    "version": "0.8.1-beta",
+    "date": "2026-11-25",
+    "title": {
+      "zh-TW": "跨日住宿路線更新與計算效率改善",
+      "en": "Multi-Day Stay Routing & FX Performance"
+    },
+    "changes": {
+      "zh-TW": [
+        "調整跨日續住飯店或景點後，自動更新後續天數的路線與距離",
+        "改善多幣別花費換算速度與資料寫入穩定度"
+      ],
+      "en": [
+        "Recalculate downstream day routes automatically when multi-night stays or stops change",
+        "Improved multi-currency expense conversion speed and write reliability"
+      ]
+    }
+  },
+  {
+    "version": "0.8.0-beta",
+    "date": "2026-11-25",
+    "title": {
+      "zh-TW": "行程頁、行前總覽與登入頁版面調整",
+      "en": "Itinerary, Trip Brief & Login Layout Update"
+    },
+    "changes": {
+      "zh-TW": [
+        "調整每日行程章節、行前總覽（Trip Brief）與儀表板卡片排版",
+        "儀表板數據加入數字遞增動畫，登入頁改為地圖背景樣式"
+      ],
+      "en": [
+        "Updated layout for daily itinerary chapters, Trip Brief, and dashboard cards",
+        "Added count-up numbers on the dashboard and a map-styled login screen"
+      ]
+    }
+  },
+  {
+    "version": "0.7.3-beta",
+    "date": "2026-11-25",
+    "title": {
+      "zh-TW": "自訂 Logo、時間排序與編輯流程補齊",
+      "en": "Custom Logo, Time Sorting & Complete Editing"
+    },
+    "changes": {
+      "zh-TW": [
+        "換上 Tripilot 自訂 Logo、瀏覽器圖示與手機主畫面圖示",
+        "新增依時間自動排序、拖曳調整順序、卡片與地圖連動，以及機場搜尋",
+        "補齊旅程與花費的編輯／刪除確認視窗，並統一幣別選項"
+      ],
+      "en": [
+        "Added custom Tripilot logo, favicon, and mobile home-screen icons",
+        "Added chronological insert, drag-and-drop reordering, map sync, and airport search",
+        "Completed trip and expense edit/delete confirmations and unified currency options"
+      ]
+    }
+  },
+  {
+    "version": "0.6.7-beta",
+    "date": "2026-11-24",
+    "title": {
+      "zh-TW": "離線快取、曲線路線與公開分享頁調整",
+      "en": "Offline Cache, Curved Routes & Share View"
+    },
+    "changes": {
+      "zh-TW": [
+        "支援加入手機主畫面（PWA）與離線快取，無網路時可查閱已載入行程",
+        "地圖預設顯示曲線路線並可切換行車路線，涵蓋機場接送與續住飯店",
+        "精簡公開分享頁上方導覽與手機天數切換版面"
+      ],
+      "en": [
+        "Added PWA install and offline caching to view loaded trips without signal",
+        "Defaulted to curved route lines with a driving-route toggle covering airports and stays",
+        "Compacted the public share header and mobile day-switching layout"
+      ]
+    }
+  },
+  {
+    "version": "0.5.3-beta",
+    "date": "2026-11-24",
+    "title": {
+      "zh-TW": "中文地標地圖與 Plan A/B 備案管理",
+      "en": "CJK Map Labels & Plan A/B Management"
+    },
+    "changes": {
+      "zh-TW": [
+        "更換為支援中文地標顯示的地圖樣式",
+        "補強每日 Plan A / Plan B 備案建立、複製、更名與切換，並改善手機地圖載入速度"
+      ],
+      "en": [
+        "Switched map tiles to display localized CJK place labels",
+        "Expanded Plan A/B creation, cloning, renaming, and switching, and improved mobile map load time"
+      ]
+    }
+  },
+  {
+    "version": "0.4.3-beta",
+    "date": "2026-11-24",
+    "title": {
+      "zh-TW": "AI 助手連線設定與手機地圖預覽卡",
+      "en": "AI Connect Settings & Mobile Map Preview"
+    },
+    "changes": {
+      "zh-TW": [
+        "設定頁新增 AI 助手連線說明與個人 API Token 管理",
+        "手機版地圖點擊地標後，於底部顯示地點與時間預覽卡"
+      ],
+      "en": [
+        "Added AI Connect setup instructions and Personal API Token management in Settings",
+        "Added a bottom preview card on mobile when tapping map pins"
+      ]
+    }
+  },
+  {
+    "version": "0.3.1-beta",
+    "date": "2026-11-24",
+    "title": {
+      "zh-TW": "帳號登入與單一時段多選切換",
+      "en": "Account Sign-In & Slot Choice Switching"
+    },
+    "changes": {
+      "zh-TW": [
+        "支援 Google 與 Email 帳號登入，可跨裝置同步行程",
+        "固定行程頁頂部天數列、加入手機版滑動地圖，以及同一時段多候選項目即時切換"
+      ],
+      "en": [
+        "Added Google and Email/Password sign-in for cross-device sync",
+        "Pinned the itinerary day header, added a mobile map drawer, and added instant slot-choice switching"
+      ]
+    }
+  },
+  {
+    "version": "0.2.3-beta",
+    "date": "2026-11-23",
+    "title": {
+      "zh-TW": "旅遊統計儀表板與手機版版面修正",
+      "en": "Travel Stats Dashboard & Mobile Layout Fixes"
+    },
+    "changes": {
+      "zh-TW": [
+        "改版旅遊儀表板：新增全部／國際／國內篩選、花費分類統計與國家排行",
+        "修正手機版頁面水平溢出問題與右上角地圖開關"
+      ],
+      "en": [
+        "Updated the travel dashboard with scope filters, spend breakdown, and country rankings",
+        "Fixed horizontal overflow on mobile pages and wired the top-right map toggle"
+      ]
+    }
+  },
+  {
+    "version": "0.1.5-beta",
+    "date": "2026-11-23",
+    "title": {
+      "zh-TW": "初期版本：行程規劃、行前總覽與即時匯率記帳",
+      "en": "Initial Beta: Itinerary, Trip Brief & Live FX"
+    },
+    "changes": {
+      "zh-TW": [
+        "提供行程規劃、卡片快速記帳與即時匯率自動帶入",
+        "新增行前總覽（Trip Brief）分頁，彙整住宿日期、交通訂位與雲端附件"
+      ],
+      "en": [
+        "Added core itinerary planning, quick card expense entry, and live FX rate lookup",
+        "Added Trip Brief to list hotel spans, transit bookings, and cloud attachments"
+      ]
+    }
+  }
+];
