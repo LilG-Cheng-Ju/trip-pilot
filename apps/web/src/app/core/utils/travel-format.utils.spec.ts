@@ -458,10 +458,10 @@ describe('travel-format.utils', () => {
   });
 
   it('formats YYYY-MM-DD dates with localized weekdays without timezone drift', () => {
-    expect(formatDateWithWeekday('2026-11-27', 'zh-TW')).toBe('2026-11-27 (五)');
-    expect(formatDateWithWeekday('2026-11-27', 'en')).toBe('2026-11-27 · Fri');
-    expect(formatDateWithWeekday('2024-02-29', 'zh-TW')).toBe('2024-02-29 (四)');
-    expect(formatDateWithWeekday('2026-11-29', 'en')).toBe('2026-11-29 · Sun');
+    expect(formatDateWithWeekday('2026-11-27', 'zh-TW')).toBe('2026.11.27 週五');
+    expect(formatDateWithWeekday('2026-11-27', 'en')).toBe('2026.11.27 Fri');
+    expect(formatDateWithWeekday('2024-02-29', 'zh-TW')).toBe('2024.02.29 週四');
+    expect(formatDateWithWeekday('2026-11-29', 'en')).toBe('2026.11.29 Sun');
     expect(formatDateWithWeekday('invalid', 'en')).toBe('invalid');
   });
 });

@@ -56,9 +56,10 @@ export function formatDateWithWeekday(isoDate: string, locale: 'zh-TW' | 'en'): 
   }
   const [year, month, day] = isoDate.split('-').map(Number);
   const weekdayIdx = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+  const dottedDate = isoDate.replace(/-/g, '.');
   return locale === 'zh-TW'
-    ? `${isoDate} (${ZH_WEEKDAYS[weekdayIdx]})`
-    : `${isoDate} · ${EN_WEEKDAYS[weekdayIdx]}`;
+    ? `${dottedDate} 週${ZH_WEEKDAYS[weekdayIdx]}`
+    : `${dottedDate} ${EN_WEEKDAYS[weekdayIdx]}`;
 }
 
 /** Format a 1-based day index as zero-padded editorial chapter numeral (e.g. 01). */

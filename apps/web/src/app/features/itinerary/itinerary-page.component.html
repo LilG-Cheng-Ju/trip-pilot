@@ -100,13 +100,13 @@
           </div>
         }
         @if (store.selectedDay(); as day) {
-          <!-- Magazine Chapter Opener (Collapses cleanly when empty; expands on edit/value) -->
+          <!-- Magazine Chapter Opener (Gold italic Day N + hairline buffer + date; full-width wrapping theme) -->
           <div class="day-chapter" [class.has-theme]="isDayThemeVisible(day)">
             <div class="day-chapter-kicker">
-              <div class="chapter-meta tabular-nums">
-                <span class="chapter-num">Day {{ formatDayNumber(day.day_index) }}</span>
-                <span class="chapter-sep" aria-hidden="true">·</span>
-                <span class="chapter-date">{{ formatChapterDate(day.date) }}</span>
+              <div class="chapter-meta">
+                <span class="chapter-num font-display-italic">Day {{ day.day_index }}</span>
+                <span class="chapter-rule" aria-hidden="true"></span>
+                <span class="chapter-date tabular-nums">{{ formatChapterDate(day.date) }}</span>
               </div>
               <div class="chapter-actions">
                 @if (!isDayThemeVisible(day) && !isOfflineReadOnly()) {
@@ -132,18 +132,30 @@
                 }
               </div>
             </div>
-            @if (isDayThemeVisible(day)) {
-              <input
+            @if (editingDayThemeId() === day.id) {
+              <textarea
                 #dayThemeInput
-                type="text"
+                rows="1"
+                cdkTextareaAutosize
+                cdkAutosizeMinRows="1"
+                cdkAutosizeMaxRows="4"
                 class="day-chapter-input font-display"
                 [readOnly]="isOfflineReadOnly()"
                 [value]="day.title || ''"
                 (blur)="onDayThemeBlur(day.id, readInputValue($event), day.title)"
-                (keydown.enter)="blurInput($event)"
+                (keydown.enter)="$event.preventDefault(); blurInput($event)"
                 (keydown.escape)="cancelDayThemeEdit($event, day.title)"
                 [placeholder]="'itinerary.dayThemePlaceholder' | t"
-              />
+              ></textarea>
+            } @else if (day.title?.trim()) {
+              <button
+                type="button"
+                class="day-chapter-title font-display"
+                [disabled]="isOfflineReadOnly()"
+                (click)="startEditingDayTheme(day.id)"
+              >
+                {{ day.title }}
+              </button>
             }
           </div>
 

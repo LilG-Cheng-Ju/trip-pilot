@@ -1,6 +1,6 @@
-/** Read string value from an HTML input or select DOM event. */
+/** Read string value from an HTML input, textarea, or select DOM event. */
 export function readInputValue(event: Event): string {
-  return (event.target as HTMLInputElement | HTMLSelectElement).value;
+  return (event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value;
 }
 
 /** Read checked boolean state from an HTML checkbox change event. */

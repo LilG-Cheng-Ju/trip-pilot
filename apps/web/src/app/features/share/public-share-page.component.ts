@@ -23,7 +23,6 @@ import {
   buildPinOrderMap,
   DayMapRoutes,
   formatDateWithWeekday,
-  formatDayNumber,
   groupItemsIntoSlots,
   ItinerarySlot,
   toStayMapPin,
@@ -114,12 +113,10 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
           <div #timelineScroll class="timeline-scroll">
             @if (selectedDay(); as day) {
               <div class="day-chapter">
-                <div class="day-chapter-kicker tabular-nums">
-                  <span class="chapter-num">
-                    Day {{ formatDayNumber(day.day_index) }}
-                  </span>
-                  <span class="chapter-sep" aria-hidden="true">·</span>
-                  <span class="chapter-date">
+                <div class="day-chapter-kicker">
+                  <span class="chapter-num font-display-italic">Day {{ day.day_index }}</span>
+                  <span class="chapter-rule" aria-hidden="true"></span>
+                  <span class="chapter-date tabular-nums">
                     {{ formatDateWithWeekday(day.date, i18n.locale()) }}
                   </span>
                 </div>
@@ -358,37 +355,46 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
       padding: 10px var(--space-3) calc(84px + env(safe-area-inset-bottom, 0px));
     }
     .day-chapter {
-      padding: 2px 0 6px;
+      min-width: 0;
+      padding: 2px 0 7px;
       margin-bottom: 10px;
       border-bottom: 1px solid var(--color-border);
     }
     .day-chapter-kicker {
       display: flex;
-      align-items: center;
+      align-items: baseline;
       flex-wrap: wrap;
-      gap: 6px;
+      gap: 8px;
       min-height: 26px;
-      font-size: 0.8125rem;
-      line-height: 1.2;
     }
     .chapter-num {
-      color: var(--color-primary);
-      font-weight: 600;
-      letter-spacing: 0.01em;
+      color: var(--color-accent);
+      font-size: 0.98rem;
+      font-weight: 500;
+      line-height: 1;
+      white-space: nowrap;
     }
-    .chapter-sep {
-      color: var(--color-text-muted);
+    .chapter-rule {
+      width: 14px;
+      height: 1px;
+      background: var(--color-accent-border);
+      transform: translateY(-0.28em);
+      flex-shrink: 0;
     }
     .chapter-date {
+      font-size: 0.8125rem;
       font-weight: 500;
+      line-height: 1.2;
       color: var(--color-text-secondary);
+      white-space: nowrap;
     }
     .day-chapter-title {
-      margin: 5px 0 0;
+      margin: 4px 0 0;
       font-size: 1.32rem;
       font-weight: 600;
-      line-height: 1.22;
+      line-height: 1.26;
       color: var(--color-primary);
+      overflow-wrap: anywhere;
     }
     .plan-pills {
       display: inline-flex;
@@ -516,13 +522,6 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
       .timeline-scroll {
         padding: var(--space-4) var(--space-4) 96px;
       }
-      .day-theme-bar {
-        padding: 8px 12px;
-        margin-bottom: var(--space-3);
-      }
-      .day-theme-text {
-        font-size: 0.875rem;
-      }
       .share-summary {
         margin: 0 0 var(--space-3);
         font-size: 0.78rem;
@@ -583,7 +582,6 @@ export class PublicSharePageComponent implements OnInit {
 
   protected readonly dayStripScrollStepPx = DAY_STRIP_SCROLL_STEP_PX;
   protected readonly formatDateWithWeekday = formatDateWithWeekday;
-  protected readonly formatDayNumber = formatDayNumber;
   protected readonly selectedDay = computed(() => {
     const t = this.trip();
     if (!t || t.days.length === 0) return null;

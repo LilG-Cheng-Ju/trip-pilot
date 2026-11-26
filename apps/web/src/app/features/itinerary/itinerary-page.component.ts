@@ -5,6 +5,7 @@ import {
   CdkDropList,
 } from '@angular/cdk/drag-drop';
 import { CdkScrollable } from '@angular/cdk/scrolling';
+import { CdkTextareaAutosize } from '@angular/cdk/text-field';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -33,7 +34,6 @@ import {
   buildPinOrderMap,
   DayMapRoutes,
   formatDateWithWeekday,
-  formatDayNumber,
   groupItemsIntoSlots,
   ItinerarySlot,
   toStayMapPin,
@@ -70,6 +70,7 @@ import { TripShareModalComponent } from './trip-share-modal.component';
     CdkDrag,
     CdkDragPlaceholder,
     CdkScrollable,
+    CdkTextareaAutosize,
     TranslatePipe,
     AppConfirmModalComponent,
     TripSubnavComponent,
@@ -116,11 +117,10 @@ export class ItineraryPageComponent implements OnInit {
   protected readonly readInputValue = readInputValue;
 
   private readonly dayStrip = viewChild<ElementRef<HTMLDivElement>>('dayStrip');
-  private readonly dayThemeInput = viewChild<ElementRef<HTMLInputElement>>('dayThemeInput');
+  private readonly dayThemeInput = viewChild<ElementRef<HTMLTextAreaElement>>('dayThemeInput');
   private readonly timelineScroll = viewChild<ElementRef<HTMLDivElement>>('timelineScroll');
   protected readonly optionModals = viewChild(DayOptionModalsComponent);
   protected readonly dayStripScrollStepPx = DAY_STRIP_SCROLL_STEP_PX;
-  protected readonly formatDayNumber = formatDayNumber;
 
   constructor() {
     // Automatically backfill OSRM segments when switching to Driving on legacy days.
@@ -384,7 +384,14 @@ export class ItineraryPageComponent implements OnInit {
       return;
     }
     this.editingDayThemeId.set(dayId);
-    queueMicrotask(() => this.dayThemeInput()?.nativeElement.focus());
+    queueMicrotask(() => {
+      const el = this.dayThemeInput()?.nativeElement;
+      if (el) {
+        el.focus();
+        const len = el.value.length;
+        el.setSelectionRange(len, len);
+      }
+    });
   }
 
   protected async onDayThemeBlur(
@@ -399,14 +406,14 @@ export class ItineraryPageComponent implements OnInit {
   }
 
   protected cancelDayThemeEdit(event: Event, previousValue: string | null): void {
-    const inputEl = event.target as HTMLInputElement;
+    const inputEl = event.target as HTMLTextAreaElement;
     inputEl.value = previousValue ?? '';
     this.editingDayThemeId.set(null);
     inputEl.blur();
   }
 
   protected blurInput(event: Event): void {
-    (event.target as HTMLInputElement).blur();
+    (event.target as HTMLElement).blur();
   }
 
   protected async saveDayTheme(
@@ -417,7 +424,7 @@ export class ItineraryPageComponent implements OnInit {
     if (this.isOfflineReadOnly()) {
       return;
     }
-    const trimmed = nextValue.trim();
+    const trimmed = nextValue.replace(/\s+/g, ' ').trim();
     if (trimmed === (previousValue ?? '').trim()) {
       return;
     }
