@@ -6,7 +6,7 @@
 .expenses-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-5);
+  gap: var(--space-4);
 }
 .summary-col,
 .ledger-col {
@@ -86,9 +86,6 @@
   font-size: 0.79rem;
   font-weight: 600;
   cursor: pointer;
-}
-.mobile-panel-hidden {
-  display: none;
 }
 .hero-label {
   font-size: 0.75rem;
@@ -481,23 +478,24 @@
   background: var(--color-alert-soft);
   color: var(--color-alert);
 }
+@media (max-width: 1023px) {
+  .quick-card.mobile-panel-hidden,
+  .breakdown-card.mobile-panel-hidden,
+  .ledger-col.mobile-panel-hidden {
+    display: none;
+  }
+}
 @media (min-width: 1024px) {
   .mobile-expense-tabs,
   .added-toast-btn {
     display: none;
-  }
-  .quick-card.mobile-panel-hidden,
-  .breakdown-card.mobile-panel-hidden {
-    display: flex;
-  }
-  .ledger-col.mobile-panel-hidden {
-    display: block;
   }
   .hero-card {
     padding: var(--space-5);
   }
   .expenses-grid {
     grid-template-columns: 380px 1fr;
+    gap: var(--space-5);
     align-items: start;
   }
 }

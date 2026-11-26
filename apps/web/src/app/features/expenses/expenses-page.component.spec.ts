@@ -367,13 +367,13 @@ describe('ExpensesPageComponent', () => {
     const tabs = Array.from(
       host.querySelectorAll('.mobile-expense-tabs .expense-tab-btn'),
     ) as HTMLButtonElement[];
+    const quickCard = host.querySelector('.quick-card') as HTMLElement;
+    const breakdownCard = host.querySelector('.breakdown-card') as HTMLElement;
+    const ledgerCol = host.querySelector('.ledger-col') as HTMLElement;
     expect(tabs[0].getAttribute('aria-selected')).toBe('true');
-    expect(host.querySelector('.quick-card')?.classList.contains('mobile-panel-hidden')).toBe(
-      false,
-    );
-    expect(host.querySelector('.ledger-col')?.classList.contains('mobile-panel-hidden')).toBe(
-      true,
-    );
+    expect(quickCard.classList.contains('mobile-panel-hidden')).toBe(false);
+    expect(breakdownCard.classList.contains('mobile-panel-hidden')).toBe(true);
+    expect(ledgerCol.classList.contains('mobile-panel-hidden')).toBe(true);
 
     const daySelect = fixture.debugElement.query(
       By.css('mat-select[name="tripDayId"]'),
@@ -392,12 +392,9 @@ describe('ExpensesPageComponent', () => {
     tabs[1].click();
     fixture.detectChanges();
     expect(tabs[1].getAttribute('aria-selected')).toBe('true');
-    expect(host.querySelector('.quick-card')?.classList.contains('mobile-panel-hidden')).toBe(
-      true,
-    );
-    expect(host.querySelector('.ledger-col')?.classList.contains('mobile-panel-hidden')).toBe(
-      false,
-    );
+    expect(quickCard.classList.contains('mobile-panel-hidden')).toBe(true);
+    expect(breakdownCard.classList.contains('mobile-panel-hidden')).toBe(false);
+    expect(ledgerCol.classList.contains('mobile-panel-hidden')).toBe(false);
 
     tabs[0].click();
     fixture.detectChanges();
