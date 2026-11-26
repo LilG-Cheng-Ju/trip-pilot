@@ -114,12 +114,12 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
           <div #timelineScroll class="timeline-scroll">
             @if (selectedDay(); as day) {
               <div class="day-chapter">
-                <div class="day-chapter-kicker">
-                  <span class="chapter-num font-display-italic">
+                <div class="day-chapter-kicker tabular-nums">
+                  <span class="chapter-num">
                     Day {{ formatDayNumber(day.day_index) }}
                   </span>
                   <span class="chapter-sep" aria-hidden="true">·</span>
-                  <span class="chapter-date tabular-nums">
+                  <span class="chapter-date">
                     {{ formatDateWithWeekday(day.date, i18n.locale()) }}
                   </span>
                 </div>
@@ -365,24 +365,23 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
     .day-chapter-kicker {
       display: flex;
       align-items: center;
-      gap: 7px;
+      flex-wrap: wrap;
+      gap: 6px;
       min-height: 26px;
+      font-size: 0.8125rem;
+      line-height: 1.2;
     }
     .chapter-num {
-      color: var(--color-accent);
-      font-size: 0.96rem;
-      font-weight: 500;
-      line-height: 1.2;
+      color: var(--color-primary);
+      font-weight: 600;
+      letter-spacing: 0.01em;
     }
     .chapter-sep {
       color: var(--color-text-muted);
-      font-size: 0.78rem;
     }
     .chapter-date {
-      font-size: 0.76rem;
       font-weight: 500;
-      letter-spacing: 0.04em;
-      color: var(--color-text-muted);
+      color: var(--color-text-secondary);
     }
     .day-chapter-title {
       margin: 5px 0 0;

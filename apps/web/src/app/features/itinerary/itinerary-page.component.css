@@ -178,52 +178,62 @@
 .day-chapter-kicker {
   display: flex;
   align-items: center;
-  gap: 7px;
+  justify-content: space-between;
+  gap: 8px;
   min-height: 30px;
   margin-bottom: 0;
 }
 .day-chapter.has-theme .day-chapter-kicker {
   margin-bottom: 5px;
 }
-.chapter-num {
-  color: var(--color-accent);
-  font-size: 0.96rem;
-  font-weight: 500;
+.chapter-meta {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+  font-size: 0.8125rem;
   line-height: 1.2;
+}
+.chapter-num {
+  color: var(--color-primary);
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 .chapter-sep {
   color: var(--color-text-muted);
-  font-size: 0.78rem;
 }
 .chapter-date {
-  font-size: 0.76rem;
   font-weight: 500;
-  letter-spacing: 0.03em;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
 }
 .chapter-actions {
   margin-left: auto;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  flex-shrink: 0;
 }
 .theme-add-btn {
-  padding: 3px 8px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-xs);
-  background: transparent;
-  color: var(--color-text-muted);
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-primary);
+  box-shadow: var(--shadow-card);
   font: inherit;
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
-  transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease;
+  transition: border-color 140ms ease, background-color 140ms ease;
 }
 .theme-add-btn:hover,
 .theme-add-btn:focus-visible {
-  color: var(--color-primary);
-  background: var(--color-surface-alt);
-  border-color: var(--color-border);
+  border-color: var(--color-primary);
+  background: var(--color-primary-tint);
 }
 .day-chapter-input {
   width: 100%;

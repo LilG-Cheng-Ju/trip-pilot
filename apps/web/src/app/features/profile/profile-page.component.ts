@@ -108,156 +108,169 @@ import { AuthStore } from '../../state/auth.store';
       </section>
 
       <section class="panel">
-        <h3>{{ 'profile.tokensTitle' | t }}</h3>
-        <p class="hint">{{ 'profile.tokensHint' | t }}</p>
+        <h3>{{ 'profile.aiConnectTitle' | t }}</h3>
+        <p class="hint">{{ 'profile.aiConnectSubtitle' | t }}</p>
 
-        <form class="token-form" (submit)="$event.preventDefault(); generateToken()" novalidate>
-          <input
-            type="text"
-            [class.has-error]="tokenNameError()"
-            [value]="newTokenName()"
-            (input)="newTokenName.set(readInputValue($event)); tokenNameError.set(false)"
-            name="newTokenName"
-            [placeholder]="'profile.tokenNamePlaceholder' | t"
-          />
-          <button type="submit" class="btn-primary" [disabled]="generatingToken()">
-            {{ 'profile.tokenGenerate' | t }}
-          </button>
-        </form>
-        @if (tokenNameError()) {
-          <p class="err-msg">{{ 'profile.tokenNameRequired' | t }}</p>
-        }
-        @if (tokenApiError()) {
-          <p class="err-msg">{{ tokenApiError() }}</p>
-        }
-
-        @if (authStore.lastCreatedToken(); as created) {
-          <div class="created-box">
-            <p class="warn-text">{{ 'profile.tokenOnceWarning' | t }}</p>
-            <div class="token-secret-row">
-              <code>{{ created.plaintext_token }}</code>
-              <button type="button" class="pill-btn" (click)="copyToken(created.plaintext_token)">
-                {{ copied() ? ('common.copied' | t) : ('common.copy' | t) }}
-              </button>
-            </div>
+        <div class="mcp-block">
+          <div class="ai-tabs" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              class="ai-tab"
+              [class.active]="aiSurfaceTab() === 'mcp'"
+              [attr.aria-selected]="aiSurfaceTab() === 'mcp'"
+              (click)="aiSurfaceTab.set('mcp')"
+            >
+              {{ 'profile.aiTabMcp' | t }}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              class="ai-tab"
+              [class.active]="aiSurfaceTab() === 'chatgpt'"
+              [attr.aria-selected]="aiSurfaceTab() === 'chatgpt'"
+              (click)="aiSurfaceTab.set('chatgpt')"
+            >
+              {{ 'profile.aiTabChatgpt' | t }}
+            </button>
           </div>
-        }
 
-        <div class="token-list">
-          @for (tok of activeTokens(); track tok.id) {
-            <div class="token-row">
-              <div>
-                <strong>{{ tok.name }}</strong>
-                <p class="token-meta tabular-nums">
-                  {{ tok.token_prefix }}… · {{ tok.scopes.join(', ') }}
-                </p>
+          @if (aiSurfaceTab() === 'mcp') {
+            <p class="ai-support-line">{{ 'profile.aiMcpSupported' | t }}</p>
+
+            <div class="connect-row">
+              <div class="connect-info">
+                <span class="connect-label">{{ 'profile.aiMcpLabel' | t }}</span>
+                <code class="connect-url">{{ mcpEndpoint }}</code>
               </div>
               <button
                 type="button"
-                class="pill-btn danger"
-                (click)="pendingRevokeToken.set({ id: tok.id, name: tok.name })"
+                class="copy-inline-btn"
+                (click)="copySnippet('mcp', mcpEndpoint)"
               >
-                {{ 'share.revoke' | t }}
+                {{ copiedKey() === 'mcp' ? ('common.copied' | t) : ('common.copy' | t) }}
+              </button>
+            </div>
+
+            <div class="ai-actions-row">
+              <button
+                type="button"
+                class="ai-action-btn primary"
+                (click)="copySnippet('mcpJson', mcpConfigSnippet())"
+              >
+                {{ copiedKey() === 'mcpJson' ? ('common.copied' | t) : ('profile.aiCopyMcpJson' | t) }}
+              </button>
+              <button
+                type="button"
+                class="ai-action-btn"
+                (click)="copySnippet('prompt', quickStartPrompt())"
+              >
+                {{ copiedKey() === 'prompt' ? ('common.copied' | t) : ('profile.aiCopyPrompt' | t) }}
+              </button>
+            </div>
+          } @else {
+            <div class="connect-row">
+              <div class="connect-info">
+                <span class="connect-label">{{ 'profile.aiOpenApiLabel' | t }}</span>
+                <code class="connect-url">{{ gptOpenApiUrl }}</code>
+              </div>
+              <button
+                type="button"
+                class="copy-inline-btn"
+                (click)="copySnippet('openapi', gptOpenApiUrl)"
+              >
+                {{ copiedKey() === 'openapi' ? ('common.copied' | t) : ('common.copy' | t) }}
+              </button>
+            </div>
+
+            <ol class="ai-steps">
+              <li>{{ 'profile.aiChatgptStep1' | t }}</li>
+              <li>{{ 'profile.aiChatgptStep2' | t }}</li>
+            </ol>
+
+            <div class="ai-actions-row">
+              <button
+                type="button"
+                class="ai-action-btn primary"
+                (click)="copySnippet('gptPrompt', customGptInstructions())"
+              >
+                {{ copiedKey() === 'gptPrompt' ? ('common.copied' | t) : ('profile.aiCopyGptPrompt' | t) }}
               </button>
             </div>
           }
+
+          <p class="ai-footnote">{{ 'profile.aiWebLimitNote' | t }}</p>
         </div>
 
-        @if (hasActiveToken()) {
-          <div class="mcp-divider"></div>
-          <div class="mcp-block">
-            <h4 class="mcp-subhead">{{ 'profile.aiConnectTitle' | t }}</h4>
+        <div class="mcp-divider"></div>
 
-            <div class="ai-tabs" role="tablist">
-              <button
-                type="button"
-                role="tab"
-                class="ai-tab"
-                [class.active]="aiSurfaceTab() === 'mcp'"
-                [attr.aria-selected]="aiSurfaceTab() === 'mcp'"
-                (click)="aiSurfaceTab.set('mcp')"
-              >
-                {{ 'profile.aiTabMcp' | t }}
-              </button>
-              <button
-                type="button"
-                role="tab"
-                class="ai-tab"
-                [class.active]="aiSurfaceTab() === 'chatgpt'"
-                [attr.aria-selected]="aiSurfaceTab() === 'chatgpt'"
-                (click)="aiSurfaceTab.set('chatgpt')"
-              >
-                {{ 'profile.aiTabChatgpt' | t }}
-              </button>
-            </div>
-
-            @if (aiSurfaceTab() === 'mcp') {
-              <p class="ai-support-line">{{ 'profile.aiMcpSupported' | t }}</p>
-
-              <div class="connect-row">
-                <div class="connect-info">
-                  <span class="connect-label">{{ 'profile.aiMcpLabel' | t }}</span>
-                  <code class="connect-url">{{ mcpEndpoint }}</code>
-                </div>
-                <button
-                  type="button"
-                  class="copy-inline-btn"
-                  (click)="copySnippet('mcp', mcpEndpoint)"
-                >
-                  {{ copiedKey() === 'mcp' ? ('common.copied' | t) : ('common.copy' | t) }}
-                </button>
-              </div>
-
-              <div class="ai-actions-row">
-                <button
-                  type="button"
-                  class="ai-action-btn primary"
-                  (click)="copySnippet('mcpJson', mcpConfigSnippet())"
-                >
-                  {{ copiedKey() === 'mcpJson' ? ('common.copied' | t) : ('profile.aiCopyMcpJson' | t) }}
-                </button>
-                <button
-                  type="button"
-                  class="ai-action-btn"
-                  (click)="copySnippet('prompt', quickStartPrompt())"
-                >
-                  {{ copiedKey() === 'prompt' ? ('common.copied' | t) : ('profile.aiCopyPrompt' | t) }}
-                </button>
-              </div>
-            } @else {
-              <div class="connect-row">
-                <div class="connect-info">
-                  <span class="connect-label">{{ 'profile.aiOpenApiLabel' | t }}</span>
-                  <code class="connect-url">{{ gptOpenApiUrl }}</code>
-                </div>
-                <button
-                  type="button"
-                  class="copy-inline-btn"
-                  (click)="copySnippet('openapi', gptOpenApiUrl)"
-                >
-                  {{ copiedKey() === 'openapi' ? ('common.copied' | t) : ('common.copy' | t) }}
-                </button>
-              </div>
-
-              <ol class="ai-steps">
-                <li>{{ 'profile.aiChatgptStep1' | t }}</li>
-                <li>{{ 'profile.aiChatgptStep2' | t }}</li>
-              </ol>
-
-              <div class="ai-actions-row">
-                <button
-                  type="button"
-                  class="ai-action-btn primary"
-                  (click)="copySnippet('gptPrompt', customGptInstructions())"
-                >
-                  {{ copiedKey() === 'gptPrompt' ? ('common.copied' | t) : ('profile.aiCopyGptPrompt' | t) }}
-                </button>
-              </div>
+        <div class="tokens-subpanel">
+          <div class="subpanel-head">
+            <h4 class="mcp-subhead">{{ 'profile.tokensTitle' | t }}</h4>
+            @if (activeTokens().length > 0) {
+              <span class="token-count tabular-nums">{{ activeTokens().length }}</span>
             }
-
-            <p class="ai-footnote">{{ 'profile.aiWebLimitNote' | t }}</p>
           </div>
-        }
+          <p class="subpanel-hint">{{ 'profile.tokensHint' | t }}</p>
+
+          <form class="token-form" (submit)="$event.preventDefault(); generateToken()" novalidate>
+            <input
+              type="text"
+              [class.has-error]="tokenNameError()"
+              [value]="newTokenName()"
+              (input)="newTokenName.set(readInputValue($event)); tokenNameError.set(false)"
+              name="newTokenName"
+              [placeholder]="'profile.tokenNamePlaceholder' | t"
+            />
+            <button type="submit" class="btn-primary" [disabled]="generatingToken()">
+              {{ 'profile.tokenGenerate' | t }}
+            </button>
+          </form>
+          @if (tokenNameError()) {
+            <p class="err-msg">{{ 'profile.tokenNameRequired' | t }}</p>
+          }
+          @if (tokenApiError()) {
+            <p class="err-msg">{{ tokenApiError() }}</p>
+          }
+
+          @if (authStore.lastCreatedToken(); as created) {
+            <div class="created-box">
+              <p class="warn-text">{{ 'profile.tokenOnceWarning' | t }}</p>
+              <div class="token-secret-row">
+                <code>{{ created.plaintext_token }}</code>
+                <button
+                  type="button"
+                  class="copy-inline-btn"
+                  (click)="copyToken(created.plaintext_token)"
+                >
+                  {{ copied() ? ('common.copied' | t) : ('common.copy' | t) }}
+                </button>
+              </div>
+            </div>
+          }
+
+          @if (activeTokens().length > 0) {
+            <div class="token-list">
+              @for (tok of activeTokens(); track tok.id) {
+                <div class="token-row">
+                  <div class="token-info">
+                    <strong>{{ tok.name }}</strong>
+                    <p class="token-meta tabular-nums">
+                      {{ tok.token_prefix }}… · {{ tok.created_at.slice(0, 10) }}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    class="pill-btn danger"
+                    (click)="pendingRevokeToken.set({ id: tok.id, name: tok.name })"
+                  >
+                    {{ 'share.revoke' | t }}
+                  </button>
+                </div>
+              }
+            </div>
+          }
+        </div>
       </section>
 
       <app-confirm-modal
@@ -432,28 +445,55 @@ import { AuthStore } from '../../state/auth.store';
       align-items: center;
       justify-content: space-between;
       gap: var(--space-3);
-      padding: 10px 12px;
+      padding: 9px 12px;
       border-radius: var(--radius-sm);
       border: 1px solid var(--color-border);
       background: var(--color-bg);
     }
-    .token-row.revoked {
-      opacity: 0.55;
+    .token-info {
+      min-width: 0;
+    }
+    .token-info strong {
+      font-size: 0.85rem;
+      color: var(--color-text-primary);
     }
     .token-meta {
       margin: 2px 0 0;
-      font-size: 0.75rem;
-      color: var(--color-text-muted);
-    }
-    .revoked-tag {
-      font-size: 0.75rem;
-      font-weight: 600;
+      font-size: 0.74rem;
       color: var(--color-text-muted);
     }
     .mcp-divider {
       height: 1px;
       background: var(--color-border);
-      margin: var(--space-4) 0;
+      margin: var(--space-5) 0 var(--space-4);
+    }
+    .tokens-subpanel {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .tokens-subpanel .token-form,
+    .tokens-subpanel .created-box {
+      margin-bottom: 0;
+    }
+    .subpanel-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .token-count {
+      padding: 1px 7px;
+      border-radius: var(--radius-pill);
+      background: var(--color-primary-tint);
+      color: var(--color-primary);
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+    .subpanel-hint {
+      margin: -4px 0 2px;
+      font-size: 0.8rem;
+      color: var(--color-text-secondary);
+      line-height: 1.45;
     }
     .mcp-block {
       display: flex;
@@ -627,8 +667,6 @@ export class ProfilePageComponent implements OnInit {
     this.authStore.tokens().filter((tok) => !tok.revoked_at),
   );
 
-  protected readonly hasActiveToken = computed(() => this.activeTokens().length > 0);
-
   async ngOnInit(): Promise<void> {
     await Promise.all([this.authStore.loadProfile(), this.authStore.loadTokens()]);
   }
@@ -700,13 +738,14 @@ export class ProfilePageComponent implements OnInit {
   }
 
   protected mcpConfigSnippet(): string {
+    const token = this.authStore.lastCreatedToken()?.plaintext_token ?? '<YOUR_TRIPILOT_TOKEN>';
     return JSON.stringify(
       {
         mcpServers: {
           tripilot: {
             url: this.mcpEndpoint,
             headers: {
-              Authorization: 'Bearer <YOUR_TRIPILOT_TOKEN>',
+              Authorization: `Bearer ${token}`,
             },
           },
         },

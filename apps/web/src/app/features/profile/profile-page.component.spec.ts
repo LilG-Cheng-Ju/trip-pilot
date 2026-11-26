@@ -33,8 +33,10 @@ describe('ProfilePageComponent', () => {
   };
 
   let writeTextMock: ReturnType<typeof vi.fn>;
+  let tokensResponse: ApiTokenItem[];
 
   beforeEach(async () => {
+    tokensResponse = [activeToken];
     writeTextMock = vi.fn(async () => undefined);
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
@@ -49,7 +51,7 @@ describe('ProfilePageComponent', () => {
           provide: TripilotApiService,
           useValue: {
             getMe: async () => profile,
-            listTokens: async () => [activeToken],
+            listTokens: async () => tokensResponse,
           },
         },
       ],
@@ -59,7 +61,8 @@ describe('ProfilePageComponent', () => {
     TestBed.inject(AuthStore).reset();
   });
 
-  it('switches cleanly between MCP Clients and ChatGPT OpenAPI setup instructions', async () => {
+  it('shows AI Assistant Setup before Access Tokens even with zero active tokens, and switches setup tabs cleanly', async () => {
+    tokensResponse = [];
     const fixture = TestBed.createComponent(ProfilePageComponent);
     fixture.detectChanges();
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -67,6 +70,15 @@ describe('ProfilePageComponent', () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
+    const panelHeadings = Array.from(host.querySelectorAll('.panel h3')).map((el) =>
+      el.textContent?.trim(),
+    );
+    expect(panelHeadings).toContain('AI Assistant Setup');
+    expect(host.querySelector('.tokens-subpanel .mcp-subhead')?.textContent?.trim()).toBe(
+      'Access Tokens',
+    );
+    expect(host.querySelector('.token-list')).toBeNull();
+
     const tabs = Array.from(host.querySelectorAll('.ai-tabs .ai-tab')) as HTMLButtonElement[];
     expect(tabs).toHaveLength(2);
     expect(tabs[0].getAttribute('aria-selected')).toBe('true');
@@ -96,5 +108,19 @@ describe('ProfilePageComponent', () => {
     expect(writeTextMock).toHaveBeenCalledTimes(2);
     expect(writeTextMock.mock.calls[1][0]).toContain('search_places');
     expect(host.querySelector('.ai-footnote')?.textContent).toContain('Gemini');
+  });
+
+  it('lists active tokens cleanly with created date instead of internal permission scopes', async () => {
+    const fixture = TestBed.createComponent(ProfilePageComponent);
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('.token-count')?.textContent?.trim()).toBe('1');
+    const meta = host.querySelector('.token-meta')?.textContent?.trim() ?? '';
+    expect(meta).toContain('tp_pat_abc… · 2026-11-20');
+    expect(meta).not.toContain('trips:read');
   });
 });

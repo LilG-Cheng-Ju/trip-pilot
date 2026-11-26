@@ -103,11 +103,11 @@
           <!-- Magazine Chapter Opener (Collapses cleanly when empty; expands on edit/value) -->
           <div class="day-chapter" [class.has-theme]="isDayThemeVisible(day)">
             <div class="day-chapter-kicker">
-              <span class="chapter-num font-display-italic">
-                Day {{ formatDayNumber(day.day_index) }}
-              </span>
-              <span class="chapter-sep" aria-hidden="true">·</span>
-              <span class="chapter-date tabular-nums">{{ formatChapterDate(day.date) }}</span>
+              <div class="chapter-meta tabular-nums">
+                <span class="chapter-num">Day {{ formatDayNumber(day.day_index) }}</span>
+                <span class="chapter-sep" aria-hidden="true">·</span>
+                <span class="chapter-date">{{ formatChapterDate(day.date) }}</span>
+              </div>
               <div class="chapter-actions">
                 @if (!isDayThemeVisible(day) && !isOfflineReadOnly()) {
                   <button
