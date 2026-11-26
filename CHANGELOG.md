@@ -2,6 +2,13 @@
 
 <!-- Auto-generated from releases.json. Run `node scripts/sync-releases.mjs` after editing releases.json. -->
 
+## v0.9.7-beta (2026-11-27) — 手機單手導覽、花費雙頁籤切換與行程智慧預設
+*Thumb-Zone Mobile Nav, Expenses Tabs & Smart Itinerary Defaults*
+
+- 調整手機版旅程內底部導覽列為「所有旅程／行程／摘要／花費」快捷切換，並在向下捲動行程時自動收合頂部標題列以增加可視範圍
+- 手機版花費頁於總金額下方新增「快速記帳」與「明細與分析」雙分頁，未結束旅程預設停在記帳並帶入今日天數，已結束或由行程點入時預設顯示明細
+- 開啟進行中旅程自動定位至當天 Day 分頁，新增景點優先顯示地點搜尋與連結解析，並整合行程卡編號與地圖類型色點
+
 ## v0.9.6-beta (2026-11-26) — 行程明細欄位驗證、AI 連線架構整併與花費金額格式優化
 *Item Detail Validation, Remote AI Consolidation & Expense Formatting*
 
