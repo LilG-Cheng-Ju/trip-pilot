@@ -1,11 +1,13 @@
 """Business logic for Trips, multi-option Days (Plan A/B), Items, and Sharing."""
 
+import json
 import re
 import secrets
 import uuid
 from datetime import UTC, datetime, time, timedelta
 
 from fastapi import HTTPException, status
+from pydantic import ValidationError
 from sqlalchemy import delete, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,6 +41,7 @@ from app.schemas.trip import (
     TripShareCreate,
     TripUpdate,
     sanitize_item_for_share,
+    validate_item_details_for_type,
 )
 from app.services.airport_service import compute_flight_distance_km, get_airport
 from app.services.routing import (
@@ -931,7 +934,15 @@ class TripService:
         next_type = updates.get("type", item.type)
         iata_changed = False
         if "details" in updates and updates["details"] is not None:
-            new_details = updates["details"]
+            try:
+                new_details = validate_item_details_for_type(
+                    ItemType(next_type), updates["details"]
+                )
+            except ValidationError as exc:
+                raise HTTPException(
+                    status_code=422,
+                    detail=json.loads(exc.json()),
+                ) from exc
             iata_changed = next_type == ItemType.FLIGHT.value and (
                 next_type != item.type
                 or _norm_iata(new_details.get("origin_iata"))

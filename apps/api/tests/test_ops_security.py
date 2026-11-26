@@ -278,6 +278,103 @@ async def test_item_time_and_details_validation(
     )
     assert oversized.status_code == 422
 
+    # Typed ItemType details validation on create and partial PATCH updates.
+    bad_iata = await api_client.post(
+        f"/api/v1/options/{opt_id}/items",
+        headers=dev_headers,
+        json={
+            "type": "FLIGHT",
+            "title": "Invalid IATA",
+            "details": {"origin_iata": "ABCD", "dest_iata": "HND"},
+        },
+    )
+    assert bad_iata.status_code == 422
+
+    bad_dist = await api_client.post(
+        f"/api/v1/options/{opt_id}/items",
+        headers=dev_headers,
+        json={
+            "type": "FLIGHT",
+            "title": "Negative Distance",
+            "details": {"origin_iata": "TSA", "dest_iata": "HND", "distance_km": -10},
+        },
+    )
+    assert bad_dist.status_code == 422
+
+    bad_transit = await api_client.post(
+        f"/api/v1/options/{opt_id}/items",
+        headers=dev_headers,
+        json={
+            "type": "LOCAL_TRANSIT",
+            "title": "Bad Duration",
+            "details": {"duration_minutes": "about 20 min"},
+        },
+    )
+    assert bad_transit.status_code == 422
+
+    bad_transit_neg = await api_client.post(
+        f"/api/v1/options/{opt_id}/items",
+        headers=dev_headers,
+        json={
+            "type": "LOCAL_TRANSIT",
+            "title": "Negative Duration",
+            "details": {"duration_minutes": -5},
+        },
+    )
+    assert bad_transit_neg.status_code == 422
+
+    bad_stay_time = await api_client.post(
+        f"/api/v1/options/{opt_id}/items",
+        headers=dev_headers,
+        json={
+            "type": "STAY",
+            "title": "Bad Check-in",
+            "details": {"check_in_time": "25:00"},
+        },
+    )
+    assert bad_stay_time.status_code == 422
+
+    good_stay = await api_client.post(
+        f"/api/v1/options/{opt_id}/items",
+        headers=dev_headers,
+        json={
+            "type": "STAY",
+            "title": "Good Ryokan",
+            "details": {"check_in_time": "9:05"},
+        },
+    )
+    assert good_stay.status_code == 201
+    assert good_stay.json()["details"]["check_in_time"] == "09:05"
+
+    # PATCH omitting `type` must still validate `details` against the stored type.
+    transit = await api_client.post(
+        f"/api/v1/options/{opt_id}/items",
+        headers=dev_headers,
+        json={
+            "type": "LOCAL_TRANSIT",
+            "title": "Metro Line",
+            "details": {"mode": "METRO", "duration_minutes": 10},
+        },
+    )
+    assert transit.status_code == 201
+    transit_id = transit.json()["id"]
+
+    bad_patch = await api_client.patch(
+        f"/api/v1/items/{transit_id}",
+        headers=dev_headers,
+        json={"details": {"duration_minutes": "bad"}},
+    )
+    assert bad_patch.status_code == 422
+
+    good_patch = await api_client.patch(
+        f"/api/v1/items/{transit_id}",
+        headers=dev_headers,
+        json={"details": {"duration_minutes": 12, "custom_note": "ICOCA"}},
+    )
+    assert good_patch.status_code == 200
+    assert good_patch.json()["details"]["duration_minutes"] == 12
+    assert good_patch.json()["details"]["custom_note"] == "ICOCA"
+
 
 @pytest.mark.asyncio
 async def test_ensure_public_url_target_blocks_private_addresses() -> None:

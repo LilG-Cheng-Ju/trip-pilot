@@ -3,7 +3,7 @@
 import json
 import re
 from datetime import date, datetime
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -21,6 +21,7 @@ SENSITIVE_DETAIL_KEYS: frozenset[str] = frozenset(
     {"booking_ref", "confirmation_code", "reservation_code", "attachments"}
 )
 _HH_MM_RE = re.compile(r"^(\d{1,2}):(\d{2})$")
+_IATA_RE = re.compile(r"^[A-Z0-9]{3}$")
 _MAX_DETAILS_JSON_BYTES = 16_384
 _MAX_ATTACHMENTS = 20
 
@@ -52,10 +53,15 @@ def _validate_http_url(url: str | None) -> str | None:
     return cleaned
 
 
-def _validate_details_attachments(details: dict[str, Any]) -> dict[str, Any]:
+def _validate_details_size(details: dict[str, Any]) -> dict[str, Any]:
     encoded_details = json.dumps(details, ensure_ascii=False, default=str)
     if len(encoded_details) > _MAX_DETAILS_JSON_BYTES:
         raise ValueError(f"details payload exceeds {_MAX_DETAILS_JSON_BYTES} bytes")
+    return details
+
+
+def _validate_details_attachments(details: dict[str, Any]) -> dict[str, Any]:
+    _validate_details_size(details)
     if "attachments" in details and details["attachments"] is not None:
         attachments = details["attachments"]
         if not isinstance(attachments, list):
@@ -70,6 +76,139 @@ def _validate_details_attachments(details: dict[str, Any]) -> dict[str, Any]:
             if _validate_http_url(entry["url"]) is None:
                 raise ValueError("Each attachment URL must be non-empty")
     return details
+
+
+class ItemAttachmentSchema(BaseModel):
+    """Cloud attachment metadata stored inside ItineraryItem.details.attachments."""
+
+    model_config = ConfigDict(extra="allow")
+
+    name: str | None = Field(default=None, max_length=200)
+    url: str = Field(min_length=1, max_length=2048)
+
+    @field_validator("url")
+    @classmethod
+    def _check_url(cls, value: str) -> str:
+        validated = _validate_http_url(value)
+        if validated is None:
+            raise ValueError("Each attachment URL must be non-empty")
+        return validated
+
+
+class BaseItemDetails(BaseModel):
+    """Shared detail fields supported across itinerary item types."""
+
+    model_config = ConfigDict(extra="allow")
+
+    attachments: list[ItemAttachmentSchema] | None = Field(
+        default=None, max_length=_MAX_ATTACHMENTS
+    )
+    local_name: str | None = Field(default=None, max_length=200)
+    booking_ref: str | None = Field(default=None, max_length=120)
+    confirmation_code: str | None = Field(default=None, max_length=120)
+    reservation_code: str | None = Field(default=None, max_length=120)
+    free_cancellation_deadline: str | None = Field(default=None, max_length=100)
+
+
+class FlightItemDetails(BaseItemDetails):
+    """Typed details schema for FLIGHT itinerary items."""
+
+    flight_number: str | None = Field(default=None, max_length=32)
+    origin_iata: str | None = None
+    dest_iata: str | None = None
+    origin_terminal: str | None = Field(default=None, max_length=32)
+    dest_terminal: str | None = Field(default=None, max_length=32)
+    seat: str | None = Field(default=None, max_length=60)
+    distance_km: float | None = Field(default=None, ge=0.0, le=50_000.0)
+    airport_role: Literal["ARRIVAL", "DEPARTURE"] | None = None
+
+    @field_validator("origin_iata", "dest_iata", mode="before")
+    @classmethod
+    def _check_iata(cls, value: Any) -> str | None:
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            raise ValueError("IATA code must be a string")
+        clean = value.strip().upper()
+        if not clean:
+            return None
+        if not _IATA_RE.fullmatch(clean):
+            raise ValueError("IATA code must be 3 alphanumeric characters")
+        return clean
+
+    @field_validator("distance_km", mode="before")
+    @classmethod
+    def _reject_bool_distance(cls, value: Any) -> Any:
+        if isinstance(value, bool):
+            raise ValueError("distance_km must be a number")
+        return value
+
+
+class ReservedTransitItemDetails(BaseItemDetails):
+    """Typed details schema for RESERVED_TRANSIT itinerary items."""
+
+    operator: str | None = Field(default=None, max_length=120)
+    line_or_train_no: str | None = Field(default=None, max_length=120)
+    car_number: str | None = Field(default=None, max_length=40)
+    seat: str | None = Field(default=None, max_length=60)
+
+
+class LocalTransitItemDetails(BaseItemDetails):
+    """Typed details schema for LOCAL_TRANSIT connector items."""
+
+    mode: str | None = Field(default=None, max_length=40)
+    duration_minutes: int | None = Field(default=None, ge=0, le=10_080)
+
+    @field_validator("duration_minutes", mode="before")
+    @classmethod
+    def _validate_duration_minutes(cls, value: Any) -> Any:
+        if isinstance(value, bool):
+            raise ValueError("duration_minutes must be an integer")
+        if isinstance(value, float) and not value.is_integer():
+            raise ValueError("duration_minutes must be a whole integer")
+        return value
+
+
+class StayItemDetails(BaseItemDetails):
+    """Typed details schema for STAY accommodation items."""
+
+    check_in_time: str | None = Field(default=None, max_length=16)
+    check_out_time: str | None = Field(default=None, max_length=16)
+
+    @field_validator("check_in_time", "check_out_time")
+    @classmethod
+    def _check_stay_time(cls, value: str | None) -> str | None:
+        return _normalize_time_str(value)
+
+
+class FoodItemDetails(BaseItemDetails):
+    """Typed details schema for FOOD dining items."""
+
+    reservation_required: bool | None = None
+
+
+class SpotItemDetails(BaseItemDetails):
+    """Typed details schema for SPOT sightseeing items."""
+
+
+DETAIL_MODEL_BY_TYPE: dict[ItemType, type[BaseItemDetails]] = {
+    ItemType.FLIGHT: FlightItemDetails,
+    ItemType.RESERVED_TRANSIT: ReservedTransitItemDetails,
+    ItemType.LOCAL_TRANSIT: LocalTransitItemDetails,
+    ItemType.STAY: StayItemDetails,
+    ItemType.FOOD: FoodItemDetails,
+    ItemType.SPOT: SpotItemDetails,
+}
+
+
+def validate_item_details_for_type(
+    item_type: ItemType, details: dict[str, Any]
+) -> dict[str, Any]:
+    """Validate and normalize an item's details dict against its ItemType schema."""
+    _validate_details_size(details)
+    model_cls = DETAIL_MODEL_BY_TYPE.get(item_type, BaseItemDetails)
+    validated = model_cls.model_validate(details)
+    return validated.model_dump(exclude_unset=True, exclude_none=True)
 
 
 def _normalize_country_codes(values: list[str]) -> list[str]:
@@ -138,6 +277,11 @@ class ItineraryItemCreate(BaseModel):
     def _check_details(cls, value: dict[str, Any]) -> dict[str, Any]:
         return _validate_details_attachments(value)
 
+    @model_validator(mode="after")
+    def _validate_typed_details(self) -> "ItineraryItemCreate":
+        self.details = validate_item_details_for_type(self.type, self.details)
+        return self
+
 
 class ItineraryItemUpdate(BaseModel):
     type: ItemType | None = None
@@ -169,6 +313,12 @@ class ItineraryItemUpdate(BaseModel):
     @classmethod
     def _check_details(cls, value: dict[str, Any] | None) -> dict[str, Any] | None:
         return _validate_details_attachments(value) if value is not None else None
+
+    @model_validator(mode="after")
+    def _validate_typed_details(self) -> "ItineraryItemUpdate":
+        if self.type is not None and self.details is not None:
+            self.details = validate_item_details_for_type(self.type, self.details)
+        return self
 
 
 class ItineraryItemReorderRequest(BaseModel):
