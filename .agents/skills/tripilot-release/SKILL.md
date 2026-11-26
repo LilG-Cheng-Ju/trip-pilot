@@ -22,10 +22,16 @@ Update all version files to the new target version (`X.Y.Z-beta` for app/web, `X
 ## 2. Update User-Facing Release Notes (Single Source of Truth)
 
 - Prepend a new entry to root `releases.json` (`version`, `date`, bilingual `title` and `changes` for `zh-TW` and `en`).
-- **Writing style**:
-  - Keep every bullet **factual, direct, and engineer-style** (2-3 bullets per release): state what was added, changed, or fixed without marketing adjectives (avoid words like 全新、全面升級、極致、流暢、安心、品牌).
-  - Keep wording understandable to users without internal implementation jargon (no OSRM, WebGL, Alembic, Zoneless, SSRF, Streamable HTTP, etc.).
-  - For backend-only or infrastructure releases, give a short high-level summary of the practical effect (stability, speed, access protection, AI tool alignment).
+- **Writing style (High-Level, Plain-Spoken, Scannable)**:
+  - **Write outcomes, not PR diffs**: State *what users can now do* or *what experience improved* in plain everyday language. Omit micro-layout tweaks, color/spacing details, endpoint paths (e.g. `/gpt-openapi.json`), component refactors, and exhaustive sub-feature lists.
+  - **Strict length caps**:
+    - `title`: `zh-TW` **<= 18 characters**; `en` **<= 7 words**.
+    - Each bullet in `changes`: `zh-TW` **18–35 characters** (at most one `，`; never chain clauses with `；` or stuff parenthetical `(…)` lists); `en` **8–16 words**.
+  - **2–3 bullets per release**: Highlight only the top 2–3 user-visible changes; leave minor polish out of the release notes rather than cramming multiple fixes into one long sentence.
+  - **No marketing fluff & no internal jargon**: Avoid hype words (全新、全面升級、極致、流暢、貼心、打造) and low-level terms (OSRM, WebGL, Alembic, Zoneless, SSRF, Streamable HTTP).
+  - **Calibration example**:
+    - Too detailed (Avoid): `"後端新增精簡公開的 /gpt-openapi.json 規格端點並同步更新 AI 說明指南，讓 ChatGPT 專屬助理也能在正式環境直接以 Personal API Token 讀寫行程與記帳"`
+    - Right level (Good): `"支援串接 ChatGPT 專屬助理，可直接讀寫行程與記帳"`
 - Run `node scripts/sync-releases.mjs` to regenerate:
   - Root `CHANGELOG.md` (for Git / GitHub)
   - `apps/web/src/app/core/config/release-notes.generated.ts` (for the in-app release notes dialog)
