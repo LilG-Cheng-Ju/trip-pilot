@@ -20,6 +20,26 @@ export interface ReleaseNoteEntry {
 
 export const RELEASE_NOTES: readonly ReleaseNoteEntry[] = [
   {
+    "version": "0.9.6-beta",
+    "date": "2026-11-26",
+    "title": {
+      "zh-TW": "行程明細欄位驗證、AI 連線架構整併與花費金額格式優化",
+      "en": "Item Detail Validation, Remote AI Consolidation & Expense Formatting"
+    },
+    "changes": {
+      "zh-TW": [
+        "補齊航班機場代碼與里程、住宿入住退房時間及在地轉乘耗時等明細欄位的型別與格式驗證，於新增與編輯時同步生效",
+        "將 AI 助理連線整合統一至後端內建的遠端 MCP 端點與使用指南，移除重複的本機套件，並補齊旅程編修刪除、行程排序與路線重算、分享連結管理、雲端附件檔名解析與花費編修刪除等完整工具支援",
+        "為花費頁的總金額、分類統計與消費明細套用千分位及依幣別顯示的整數／小數格式，並拆解大型頁面元件結構"
+      ],
+      "en": [
+        "Enforced typed validation and format checks for flight IATA codes and distances, stay check-in/out times, and local transit durations on item creation and updates",
+        "Consolidated AI assistant integration onto the built-in remote MCP endpoint and guide, retiring the duplicate standalone package while adding full tool parity for trip edits/deletion, item reordering, share links, cloud attachment title resolution, and expense edits/deletion",
+        "Formatted Expenses totals, category bars, and ledger rows with thousand separators and currency-aware decimals, while modularizing large page components"
+      ]
+    }
+  },
+  {
     "version": "0.9.5-beta",
     "date": "2026-11-26",
     "title": {
