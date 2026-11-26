@@ -1,0 +1,389 @@
+<div class="page">
+  <header class="page-head">
+    <h2 class="page-title font-display">{{ 'stats.title' | t }}</h2>
+
+    <div class="segmented scope-tabs" role="tablist" [attr.aria-label]="'stats.scopeAria' | t">
+      @for (sc of scopes; track sc) {
+        <button
+          type="button"
+          role="tab"
+          class="seg-btn"
+          [attr.aria-selected]="store.selectedScope() === sc"
+          [class.active]="store.selectedScope() === sc"
+          (click)="store.loadStats(store.selectedYear(), sc)"
+        >
+          {{ scopeKey(sc) | t }}
+        </button>
+      }
+    </div>
+
+    <mat-form-field
+      appearance="outline"
+      subscriptSizing="dynamic"
+      class="year-select-field"
+    >
+      <mat-select
+        class="tabular-nums"
+        [value]="selectedYearValue()"
+        [panelWidth]="null"
+        [aria-label]="'stats.yearAria' | t"
+        (selectionChange)="onYearChange($event.value)"
+      >
+        <mat-option value="all">{{ 'stats.allTime' | t }}</mat-option>
+        @for (yr of sortedYears(); track yr) {
+          <mat-option class="tabular-nums" [value]="yr">{{ yr }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </header>
+
+  @if (store.loading() && !store.stats()) {
+    <p class="empty-box">{{ 'common.loading' | t }}</p>
+  } @else if (store.stats(); as s) {
+    <div class="dashboard-body" [class.refreshing]="store.loading()">
+      <!-- Unified Editorial Logbook Spread -->
+      <section class="logbook-ledger">
+        <article class="logbook-hero">
+          <!-- Subtle cartographic route watermark echoing login & aviation identity -->
+          <svg
+            class="hero-carto"
+            viewBox="0 0 420 220"
+            preserveAspectRatio="xMaxYMid slice"
+            fill="none"
+            aria-hidden="true"
+          >
+            <g stroke="rgba(196, 146, 76, 0.14)" stroke-width="1">
+              <path d="M 150 185 C 225 145, 295 175, 435 110" />
+              <path d="M 185 215 C 255 178, 325 202, 445 145" />
+              <circle cx="348" cy="78" r="56" stroke-opacity="0.55" />
+              <circle cx="348" cy="78" r="92" stroke-opacity="0.3" />
+            </g>
+            <path
+              d="M 212 152 C 258 106, 304 88, 348 78"
+              stroke="#C4924C"
+              stroke-width="1.6"
+              stroke-dasharray="4 5"
+              stroke-opacity="0.42"
+              stroke-linecap="round"
+            />
+            <circle cx="212" cy="152" r="3.5" fill="#C4924C" fill-opacity="0.55" />
+            <circle
+              cx="348"
+              cy="78"
+              r="4.5"
+              fill="#162136"
+              stroke="#C4924C"
+              stroke-width="1.8"
+              stroke-opacity="0.7"
+            />
+          </svg>
+
+          <div class="hero-top">
+            <span class="hero-title">{{ 'stats.totalDistance' | t }}</span>
+            <span class="hero-stamp font-mono tabular-nums">{{ periodStamp() }}</span>
+          </div>
+
+          <strong class="kpi-value hero-value tabular-nums">
+            {{ formatMoney(animatedTotalDistanceKm()) }} <span class="hero-unit">km</span>
+          </strong>
+
+          <div class="hero-modes">
+            <div class="distance-bar" aria-hidden="true">
+              @for (mode of distanceModes(); track mode.id) {
+                @if (mode.km > 0) {
+                  <div
+                    class="distance-seg"
+                    [class.air]="mode.id === 'air'"
+                    [class.ground]="mode.id === 'ground'"
+                    [style.width.%]="mode.percent"
+                  ></div>
+                }
+              }
+            </div>
+
+            <div class="mode-split tabular-nums">
+              @for (mode of distanceModes(); track mode.id) {
+                <div class="mode-col">
+                  <span class="mode-label">
+                    <span
+                      class="mode-dot"
+                      [class.air]="mode.id === 'air'"
+                      [class.ground]="mode.id === 'ground'"
+                      aria-hidden="true"
+                    ></span>
+                    <span>{{ mode.labelKey | t }}</span>
+                  </span>
+                  <div class="mode-val-line">
+                    <strong class="mode-val">{{ formatMoney(mode.km) }} km</strong>
+                    @if (mode.meta) {
+                      <span class="mode-meta">· {{ mode.meta }}</span>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        </article>
+
+        <div class="logbook-metrics">
+          <!-- Cell 1: Trips (All / International / Domestic) -->
+          <div class="logbook-metric-row">
+            <span class="kpi-label">{{ tripsLabelKey() | t }}</span>
+            <strong class="kpi-value tabular-nums">{{ animatedTrips() }}</strong>
+            <span class="kpi-sub tabular-nums">{{ tripsSubtext() }}</span>
+          </div>
+
+          <!-- Cell 2: Travel Days -->
+          <div class="logbook-metric-row">
+            <span class="kpi-label">{{ 'stats.travelDays' | t }}</span>
+            <strong class="kpi-value tabular-nums">{{ animatedTravelDays() }}</strong>
+            <span class="kpi-sub tabular-nums">
+              {{ 'stats.avgTripDays' | t: { days: avgTripDays() } }}
+            </span>
+          </div>
+
+          <!-- Cell 3: Countries (All / Intl) OR Longest Trip (Domestic) -->
+          <div class="logbook-metric-row">
+            @if (s.scope === 'domestic') {
+              <span class="kpi-label">{{ 'stats.longestTrip' | t }}</span>
+              <strong class="kpi-value tabular-nums">
+                @if (longestTrip(); as longest) {
+                  {{ 'trips.daysCount' | t: { count: longest.days } }}
+                } @else {
+                  —
+                }
+              </strong>
+              <span class="kpi-sub" [title]="longestTrip()?.title ?? ''">
+                {{ longestTrip()?.title ?? ('stats.noTripsShort' | t) }}
+              </span>
+            } @else {
+              <span class="kpi-label">{{ 'stats.countries' | t }}</span>
+              <strong class="kpi-value tabular-nums">{{ animatedCountries() }}</strong>
+              <span class="kpi-sub" [title]="countriesPreview()">
+                {{ countriesPreview() }}
+              </span>
+            }
+          </div>
+
+          <!-- Cell 4: Total Spend -->
+          <div class="logbook-metric-row">
+            <span class="kpi-label">{{ 'stats.totalSpend' | t }}</span>
+            <strong class="kpi-value spend-value tabular-nums">
+              {{ s.home_currency }} {{ formatMoney(animatedTotalSpend()) }}
+            </strong>
+            <span class="kpi-sub tabular-nums">
+              {{
+                'stats.avgPerDay'
+                  | t: { currency: s.home_currency, amount: formatMoney(s.avg_spend_per_day) }
+              }}
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Insights Grid: Spend Structure + Country Ranking (or Domestic Temporal Footprint) -->
+      <div class="insights-grid">
+        <section class="panel spend-panel">
+          <div class="panel-head">
+            <h3 class="font-display">{{ 'stats.spendBreakdown' | t }}</h3>
+            <span class="panel-total font-mono tabular-nums">
+              {{ s.home_currency }} {{ formatMoney(s.total_spend_home) }}
+            </span>
+          </div>
+
+          @if (spendEntries().length === 0) {
+            <p class="muted">{{ 'stats.noSpend' | t }}</p>
+          } @else {
+            <div class="stacked-bar" aria-hidden="true">
+              @for (item of spendEntries(); track item.category) {
+                <div
+                  class="stacked-seg"
+                  [style.width.%]="item.percent"
+                  [style.background]="item.color"
+                  [title]="(categoryKey(item.category) | t) + ' ' + item.percent + '%'"
+                ></div>
+              }
+            </div>
+
+            <div class="spend-list">
+              @for (item of spendEntries(); track item.category) {
+                <div class="spend-row">
+                  <div class="spend-left">
+                    <span class="cat-dot" [style.background]="item.color"></span>
+                    <span class="cat-name">{{ categoryKey(item.category) | t }}</span>
+                  </div>
+                  <div class="spend-right tabular-nums">
+                    <span class="cat-pct">{{ item.percent }}%</span>
+                    <span class="cat-amt">
+                      {{ s.home_currency }} {{ formatMoney(item.amount) }}
+                    </span>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </section>
+
+        @if (s.scope === 'domestic') {
+          <section class="panel footprint-panel">
+            @if (s.year !== null) {
+              <div class="panel-head">
+                <h3 class="font-display">{{ 'stats.monthlyFootprint' | t }}</h3>
+                <span class="panel-count font-mono tabular-nums">
+                  {{ activeMonthsCount() }}/12
+                </span>
+              </div>
+
+              @if (s.trips.length === 0) {
+                <p class="muted">{{ 'stats.emptyPeriod' | t }}</p>
+              } @else {
+                <div class="month-cadence tabular-nums">
+                  @for (m of monthlyCadence(); track m.month) {
+                    <div class="month-col" [class.active]="m.days > 0">
+                      <span class="month-days">{{ m.days > 0 ? m.days : '' }}</span>
+                      <div class="month-track" aria-hidden="true">
+                        @if (m.days > 0) {
+                          <div class="month-fill" [style.height.%]="m.percent"></div>
+                        }
+                      </div>
+                      <span class="month-num font-mono">{{ m.month }}</span>
+                    </div>
+                  }
+                </div>
+                <p class="cadence-caption tabular-nums">
+                  {{
+                    'stats.monthlyHint'
+                      | t: { months: activeMonthsCount(), days: s.total_travel_days }
+                  }}
+                </p>
+              }
+            } @else {
+              <div class="panel-head">
+                <h3 class="font-display">{{ 'stats.yearlyFootprint' | t }}</h3>
+                <span class="panel-count font-mono tabular-nums">
+                  {{ yearlyFootprint().length }}
+                </span>
+              </div>
+
+              @if (yearlyFootprint().length === 0) {
+                <p class="muted">{{ 'stats.emptyPeriod' | t }}</p>
+              } @else {
+                <div class="country-rank-list">
+                  @for (yr of yearlyFootprint(); track yr.year) {
+                    <div class="country-row">
+                      <div class="country-row-top tabular-nums">
+                        <span class="country-name">{{ yr.year }}</span>
+                        <span class="country-count">
+                          {{
+                            'stats.yearRowMeta' | t: { trips: yr.trips, days: yr.days }
+                          }}
+                        </span>
+                      </div>
+                      <div class="bar-track">
+                        <div class="bar-fill" [style.width.%]="yr.barPercent"></div>
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+            }
+          </section>
+        } @else {
+          <section class="panel countries-panel">
+            <div class="panel-head">
+              <h3 class="font-display">{{ 'stats.countriesVisited' | t }}</h3>
+              <span class="panel-count font-mono tabular-nums">
+                {{ countryRanking().length }}
+              </span>
+            </div>
+
+            @if (countryRanking().length === 0) {
+              <p class="muted">{{ 'stats.emptyPeriod' | t }}</p>
+            } @else {
+              <div class="country-rank-list">
+                @for (entry of countryRanking(); track entry.code) {
+                  <div class="country-row">
+                    <div class="country-row-top">
+                      <span class="country-label-group">
+                        <span class="country-code font-mono">{{ entry.code }}</span>
+                        <span class="country-name">{{ countryLabel(entry.code) }}</span>
+                      </span>
+                      <span class="country-count tabular-nums">
+                        {{ 'stats.visitsTimes' | t: { count: entry.count } }}
+                      </span>
+                    </div>
+                    <div class="bar-track">
+                      <div class="bar-fill" [style.width.%]="entry.barPercent"></div>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </section>
+        }
+      </div>
+
+      <!-- Clickable Trips List for This Period -->
+      <section class="panel trips-panel">
+        <div class="panel-head">
+          <h3 class="font-display">{{ 'stats.tripsInPeriod' | t }}</h3>
+          <span class="panel-count font-mono tabular-nums">{{ s.trips.length }}</span>
+        </div>
+
+        @if (s.trips.length === 0) {
+          <p class="muted">{{ 'stats.emptyPeriod' | t }}</p>
+        } @else {
+          <div class="trip-rows">
+            @for (trip of s.trips; track trip.id) {
+              <a class="trip-row" [routerLink]="['/trips', trip.id]">
+                <div class="trip-row-left">
+                  <div class="trip-title-line">
+                    <strong class="trip-row-title">{{ trip.title }}</strong>
+                    @if (s.scope === 'all') {
+                      <span class="scope-tag" [class.intl]="trip.is_international">
+                        {{
+                          (trip.is_international
+                            ? 'stats.scope.international'
+                            : 'stats.scope.domestic') | t
+                        }}
+                      </span>
+                    }
+                  </div>
+                  <div class="trip-row-meta tabular-nums">
+                    <span>{{ trip.start_date }} — {{ trip.end_date }}</span>
+                    <span>·</span>
+                    <span>{{ 'trips.daysCount' | t: { count: trip.days } }}</span>
+                    @if (trip.is_international && tripCountriesLabel(trip); as destLabel) {
+                      <span>·</span>
+                      <span>{{ destLabel }}</span>
+                    }
+                  </div>
+                </div>
+
+                <div class="trip-row-right tabular-nums">
+                  @if (+trip.spend_home > 0) {
+                    <span class="trip-spend">
+                      {{ s.home_currency }} {{ formatMoney(trip.spend_home) }}
+                    </span>
+                  }
+                  <span class="ms-icon sm chevron" aria-hidden="true">chevron_right</span>
+                </div>
+              </a>
+            }
+          </div>
+        }
+      </section>
+    </div>
+  } @else if (store.error(); as err) {
+    <div class="error-banner" role="alert">
+      <span>{{ err }}</span>
+      <button
+        type="button"
+        class="pill-btn"
+        (click)="store.loadStats(store.selectedYear(), store.selectedScope())"
+      >
+        {{ 'common.retry' | t }}
+      </button>
+    </div>
+  }
+</div>

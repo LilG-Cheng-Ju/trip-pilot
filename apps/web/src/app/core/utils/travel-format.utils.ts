@@ -169,6 +169,18 @@ export function addDaysToIsoDate(isoDate: string, daysOffset: number): string {
   return formatLocalIsoDate(local);
 }
 
+/** Find the TripDay ID containing a given itinerary item across all day options. */
+export function findTripDayIdForItem(days: readonly TripDay[], itemId: string): string | null {
+  for (const day of days) {
+    for (const opt of day.options) {
+      if (opt.items.some((it) => it.id === itemId)) {
+        return day.id;
+      }
+    }
+  }
+  return null;
+}
+
 /** Return the active DayOption for a TripDay (falling back to the first option). */
 export function getActiveDayOption(day: TripDay): DayOption | null {
   return day.options.find((o) => o.id === day.active_option_id) ?? day.options[0] ?? null;
@@ -786,6 +798,8 @@ export function buildMapRoutePath(
   return coords;
 }
 
+const ZERO_DECIMAL_CURRENCIES = new Set(['TWD', 'JPY', 'KRW', 'VND', 'IDR']);
+
 /** Format a numeric or string amount cleanly with locale thousand separators. */
 export function formatMoney(amount: number | string, maxFractionDigits = 0): string {
   const num = Number(amount);
@@ -794,5 +808,23 @@ export function formatMoney(amount: number | string, maxFractionDigits = 0): str
   }
   return num.toLocaleString(undefined, {
     maximumFractionDigits: maxFractionDigits,
+  });
+}
+
+/** Format an amount with thousand separators and currency-appropriate decimal places. */
+export function formatCurrencyAmount(amount: number | string, currency: string): string {
+  const num = Number(amount);
+  if (!Number.isFinite(num)) {
+    return String(amount);
+  }
+  if (ZERO_DECIMAL_CURRENCIES.has(currency.trim().toUpperCase())) {
+    return Math.round(num).toLocaleString(undefined, { maximumFractionDigits: 0 });
+  }
+  if (Math.abs(num - Math.round(num)) < 1e-9) {
+    return Math.round(num).toLocaleString(undefined, { maximumFractionDigits: 0 });
+  }
+  return num.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   });
 }

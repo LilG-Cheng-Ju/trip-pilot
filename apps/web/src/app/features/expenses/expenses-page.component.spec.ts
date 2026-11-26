@@ -209,8 +209,11 @@ describe('ExpensesPageComponent', () => {
       'Day 2 · 10-02',
     ]);
 
-    // Existing row shows Day 1 pill.
+    // Existing row shows Day 1 pill and currency-aware formatted amounts.
     expect(host.querySelector('.exp-day-pill')?.textContent?.trim()).toBe('Day 1');
+    expect(host.querySelector('.hero-amount > span:last-child')?.textContent?.trim()).toBe('645');
+    expect(host.querySelector('.exp-home')?.textContent?.trim()).toBe('TWD 645');
+    expect(host.querySelector('.exp-orig')?.textContent?.trim()).toBe('JPY 3,000');
 
     // Quick-add expense attributed to Day 2.
     const titleInput = host.querySelector('input[name="title"]') as HTMLInputElement;

@@ -151,6 +151,20 @@ export const COMMON_CURRENCIES: readonly QuickCurrencyOption[] = SUPPORTED_CURRE
   }),
 );
 
+/** Build quick-select currency options, prepending any unrecognized 3-letter codes. */
+export function buildQuickCurrencyOptions(
+  extras: readonly (string | undefined | null)[],
+): QuickCurrencyOption[] {
+  const list: QuickCurrencyOption[] = [...COMMON_CURRENCIES];
+  for (const code of extras) {
+    const upper = code?.trim().toUpperCase();
+    if (upper && upper.length === 3 && !list.some((c) => c.code === upper)) {
+      list.unshift({ code: upper, labelEn: upper, labelZh: upper });
+    }
+  }
+  return list;
+}
+
 /** Broad global travel country list with bilingual labels and default currency. */
 export const SUPPORTED_COUNTRIES: readonly CountryOption[] = [
   // East & Southeast Asia

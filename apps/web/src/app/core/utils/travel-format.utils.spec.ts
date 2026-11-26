@@ -13,6 +13,7 @@ import {
   decodePolyline,
   estimateOfflineFxRate,
   extractItemAttachments,
+  formatCurrencyAmount,
   formatDayNumber,
   groupItemsIntoSlots,
   removeItemWithChoicePromotion,
@@ -446,5 +447,12 @@ describe('travel-format.utils', () => {
     expect(formatDayNumber(1)).toBe('01');
     expect(formatDayNumber(9)).toBe('09');
     expect(formatDayNumber(12)).toBe('12');
+  });
+
+  it('formats currency amounts with thousand separators and currency-aware decimals', () => {
+    expect(formatCurrencyAmount('60360.72', 'TWD')).toBe('60,361');
+    expect(formatCurrencyAmount('210540', 'JPY')).toBe('210,540');
+    expect(formatCurrencyAmount('1234.5', 'USD')).toBe('1,234.50');
+    expect(formatCurrencyAmount('10.00', 'USD')).toBe('10');
   });
 });

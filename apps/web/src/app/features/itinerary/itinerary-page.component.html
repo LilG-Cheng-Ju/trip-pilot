@@ -1,0 +1,446 @@
+@if (store.trip(); as trip) {
+  <div class="itinerary-layout">
+    <section class="timeline-pane">
+      <!-- Frozen Header + Workspace Tabs + Day 1..N Strip -->
+      <div class="sticky-trip-top">
+        <app-trip-subnav
+          [tripId]="trip.id"
+          [title]="trip.title"
+          [dateRange]="trip.start_date + ' — ' + trip.end_date"
+        >
+          @if (store.usingOfflineCache()) {
+            <span class="status-pill offline" [title]="'sync.offlineCache' | t">
+              <span class="ms-icon sm" aria-hidden="true">cloud_off</span>
+            </span>
+          } @else if (store.syncing()) {
+            <span class="status-pill syncing" [title]="'sync.syncing' | t">
+              <span class="ms-icon sm spin" aria-hidden="true">sync</span>
+            </span>
+          }
+          <button
+            type="button"
+            class="icon-btn util-icon-btn"
+            [disabled]="isOfflineReadOnly()"
+            [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ('common.share' | t)"
+            [attr.aria-label]="'common.share' | t"
+            (click)="showShareModal.set(true)"
+          >
+            <span class="ms-icon sm" aria-hidden="true">share</span>
+          </button>
+        </app-trip-subnav>
+
+        <!-- Horizontal Day Switcher (wheel + arrow + touch scroll) -->
+        <div class="day-strip-wrap">
+          <button
+            type="button"
+            class="day-scroll-btn"
+            [attr.aria-label]="'itinerary.dayScrollLeft' | t"
+            (click)="scrollDayStrip(-dayStripScrollStepPx)"
+          >
+            <span class="ms-icon sm" aria-hidden="true">chevron_left</span>
+          </button>
+
+          <div
+            #dayStrip
+            class="day-strip"
+            role="tablist"
+            (wheel)="onDayStripWheel($event)"
+          >
+            @for (day of trip.days; track day.id) {
+              <button
+                type="button"
+                role="tab"
+                [attr.aria-selected]="store.selectedDay()?.id === day.id"
+                class="day-chip tabular-nums"
+                [class.active]="store.selectedDay()?.id === day.id"
+                (click)="selectDay(day.day_index, $event)"
+              >
+                <span class="day-num">Day {{ day.day_index }}</span>
+                <span class="day-date">{{ day.date.slice(5) }}</span>
+              </button>
+            }
+            <button
+              type="button"
+              class="day-add-btn"
+              [disabled]="isOfflineReadOnly()"
+              [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ''"
+              (click)="store.appendDay()"
+            >
+              {{ 'itinerary.addDay' | t }}
+            </button>
+          </div>
+
+          <button
+            type="button"
+            class="day-scroll-btn"
+            [attr.aria-label]="'itinerary.dayScrollRight' | t"
+            (click)="scrollDayStrip(dayStripScrollStepPx)"
+          >
+            <span class="ms-icon sm" aria-hidden="true">chevron_right</span>
+          </button>
+        </div>
+      </div>
+
+      <div #timelineScroll class="timeline-scroll" cdkScrollable>
+        @if (store.error(); as err) {
+          <div class="error-banner" role="alert">
+            <span>{{ err }}</span>
+            <button
+              type="button"
+              class="error-dismiss"
+              [attr.aria-label]="'common.cancel' | t"
+              (click)="store.clearError()"
+            >
+              <span class="ms-icon sm" aria-hidden="true">close</span>
+            </button>
+          </div>
+        }
+        @if (store.selectedDay(); as day) {
+          <!-- Magazine Chapter Opener (Inline Editable Day Theme) -->
+          <div class="day-chapter">
+            <div class="day-chapter-kicker">
+              <span class="chapter-num font-display-italic">
+                Day {{ formatDayNumber(day.day_index) }}
+              </span>
+              <span class="chapter-sep" aria-hidden="true">·</span>
+              <span class="chapter-date tabular-nums">{{ day.date }}</span>
+              @if (trip.days.length > 1) {
+                <button
+                  type="button"
+                  class="icon-btn icon-btn--danger chapter-del-btn"
+                  [disabled]="isOfflineReadOnly()"
+                  [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ('itinerary.deleteDay' | t)"
+                  [attr.aria-label]="'itinerary.deleteDay' | t"
+                  (click)="pendingDeleteDay.set(day)"
+                >
+                  <span class="ms-icon sm" aria-hidden="true">delete</span>
+                </button>
+              }
+            </div>
+            <input
+              type="text"
+              class="day-chapter-input font-display"
+              [readOnly]="isOfflineReadOnly()"
+              [value]="day.title || ''"
+              (blur)="saveDayTheme(day.id, readInputValue($event), day.title)"
+              (keydown.enter)="blurInput($event)"
+              [placeholder]="'itinerary.dayThemePlaceholder' | t"
+            />
+          </div>
+
+          <!-- Whole-Day Plan A / Plan B Segmented Switcher (shown once a day has 2+ plans) -->
+          @if (day.options.length > 1) {
+            <div class="plan-bar">
+              <div class="plan-pills">
+                @for (opt of day.options; track opt.id) {
+                  <button
+                    type="button"
+                    class="plan-pill"
+                    [class.selected]="store.selectedOption()?.id === opt.id"
+                    (click)="store.previewOption(day.id, opt.id)"
+                  >
+                    @if (day.active_option_id === opt.id) {
+                      <span class="active-dot" aria-hidden="true"></span>
+                    }
+                    <span>{{ opt.label }}</span>
+                    @if (opt.cached_ground_distance_km > 0) {
+                      <span class="opt-km tabular-nums">
+                        {{ opt.cached_distance_is_approx ? '~' : '' }}{{ opt.cached_ground_distance_km }} km
+                      </span>
+                    }
+                  </button>
+                }
+              </div>
+              <div class="plan-actions">
+                @if (store.selectedOption(); as currentOpt) {
+                  <button
+                    type="button"
+                    class="icon-btn"
+                    [disabled]="isOfflineReadOnly()"
+                    [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ('itinerary.plan.rename' | t)"
+                    [attr.aria-label]="'itinerary.plan.rename' | t"
+                    (click)="optionModals()?.openRename(currentOpt.id, currentOpt.label)"
+                  >
+                    <span class="ms-icon sm" aria-hidden="true">edit</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="icon-btn icon-btn--danger"
+                    [disabled]="isOfflineReadOnly()"
+                    [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ('itinerary.plan.delete' | t)"
+                    [attr.aria-label]="'itinerary.plan.delete' | t"
+                    (click)="optionModals()?.confirmDelete(day.id, currentOpt.id, currentOpt.label)"
+                  >
+                    <span class="ms-icon sm" aria-hidden="true">delete</span>
+                  </button>
+                }
+                <button
+                  type="button"
+                  class="clone-btn"
+                  [disabled]="isOfflineReadOnly()"
+                  [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ''"
+                  (click)="optionModals()?.openClone()"
+                >
+                  {{ 'itinerary.plan.addOption' | t }}
+                </button>
+              </div>
+            </div>
+          }
+
+          @if (store.selectedOption(); as option) {
+            @if (!store.isPreviewingActiveOption()) {
+              <div class="activate-banner">
+                <span>{{ option.label }}</span>
+                <button
+                  type="button"
+                  class="btn-accent"
+                  [disabled]="isOfflineReadOnly()"
+                  [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ''"
+                  (click)="store.setActiveOption(day.id, option.id)"
+                >
+                  {{ 'itinerary.plan.setActive' | t }}
+                </button>
+              </div>
+            }
+
+            <div class="summary-bar">
+              <span class="summary-text tabular-nums">
+                {{ 'itinerary.summary.stops' | t: { count: store.stopCount() } }}
+                · {{ option.cached_distance_is_approx ? '~' : '' }}{{ option.cached_ground_distance_km }} km
+              </span>
+
+              <div class="summary-actions">
+                @if (day.options.length === 1) {
+                  <button
+                    type="button"
+                    class="clone-btn"
+                    [disabled]="isOfflineReadOnly()"
+                    [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ''"
+                    (click)="optionModals()?.openClone()"
+                  >
+                    {{ 'itinerary.plan.addOption' | t }}
+                  </button>
+                }
+                <button
+                  type="button"
+                  class="add-item-btn"
+                  [disabled]="isOfflineReadOnly()"
+                  [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ''"
+                  (click)="openAddItemModal()"
+                >
+                  <span class="ms-icon sm" aria-hidden="true">add</span>
+                  <span>{{ 'itinerary.addItem' | t }}</span>
+                </button>
+              </div>
+            </div>
+
+            @if (timelineSlots().length === 0) {
+              <div class="empty-state">{{ 'itinerary.emptyDay' | t }}</div>
+            } @else {
+              <div
+                class="timeline-list"
+                cdkDropList
+                [cdkDropListData]="timelineSlots()"
+                (cdkDropListDropped)="onSlotDropped($event)"
+              >
+                @for (slot of timelineSlots(); track slot.key; let first = $first, last = $last) {
+                  <div
+                    class="slot-group"
+                    [class.has-choices]="slot.choices.length > 1"
+                    [attr.data-slot-item-id]="slot.activeItem.id"
+                    cdkDrag
+                    [cdkDragData]="slot"
+                    [cdkDragDisabled]="isOfflineReadOnly()"
+                    [cdkDragStartDelay]="{ touch: 180, mouse: 0 }"
+                  >
+                    <div class="slot-drag-placeholder" *cdkDragPlaceholder></div>
+                    @if (slot.choices.length > 1) {
+                      <div class="choice-bar">
+                        <div class="choice-pills">
+                          @for (choice of slot.choices; track choice.id) {
+                            <button
+                              type="button"
+                              class="choice-pill"
+                              [class.active]="choice.is_selected"
+                              [disabled]="isOfflineReadOnly()"
+                              (click)="store.selectChoiceItem(choice.id)"
+                            >
+                              @if (choice.is_selected) {
+                                <span class="choice-dot" aria-hidden="true"></span>
+                              }
+                              <span>{{ choice.title }}</span>
+                            </button>
+                          }
+                        </div>
+                        <button
+                          type="button"
+                          class="choice-add-btn"
+                          [disabled]="isOfflineReadOnly()"
+                          (click)="openAlternativeModal(slot.activeItem)"
+                          [attr.aria-label]="'itinerary.choice.addAlt' | t"
+                        >
+                          <span class="ms-icon sm">add</span>
+                        </button>
+                      </div>
+                    }
+
+                    <app-itinerary-card
+                      [item]="slot.activeItem"
+                      [tripId]="trip.id"
+                      [readOnly]="isOfflineReadOnly()"
+                      [pinOrder]="pinOrderById().get(slot.activeItem.id) ?? null"
+                      [selected]="store.selectedItemId() === slot.activeItem.id"
+                      [canMoveUp]="!first"
+                      [canMoveDown]="!last"
+                      [expenseSummary]="expenseStore.expensesByItemId()[slot.activeItem.id] ?? null"
+                      (cardClicked)="store.selectItem($event)"
+                      (moveUp)="store.moveItem($event, -1)"
+                      (moveDown)="store.moveItem($event, 1)"
+                      (addAlternative)="openAlternativeModal($event)"
+                      (logExpense)="openQuickExpenseModal($event)"
+                      (edited)="openEditItemModal($event)"
+                      (deleted)="requestDeleteItem(slot.activeItem)"
+                    />
+                  </div>
+                }
+              </div>
+            }
+          }
+        }
+      </div>
+    </section>
+
+    <!-- Always-on Desktop Split Map (never mounted on mobile to avoid duplicate WebGL) -->
+    @if (viewport.isDesktop()) {
+      <aside class="desktop-map-pane">
+        <app-itinerary-map
+          [pins]="mapPins()"
+          [schematicRoutes]="schematicMapRoutes()"
+          [roadRoutes]="roadMapRoutes()"
+          [allowModeToggle]="true"
+          [routeMode]="store.mapRouteMode()"
+          (routeModeChange)="store.setMapRouteMode($event)"
+          [departureStayPin]="departureStayMapPin()"
+          [stayPin]="stayMapPin()"
+          [selectedPinId]="store.selectedItemId()"
+          [fallbackCenter]="tripMapCenter()"
+          (pinSelected)="onMapPinSelected($event)"
+        />
+      </aside>
+    }
+  </div>
+
+  <!-- Mobile Floating Map Pill (shown only when day has at least 1 map coordinate) -->
+  @if (!store.mobileMapOpen() && hasAnyMapPin()) {
+    <button
+      type="button"
+      class="mobile-map-fab"
+      (click)="store.setMobileMapOpen(true)"
+    >
+      <span class="ms-icon sm fab-ico" aria-hidden="true">map</span>
+      <span>{{ 'map.openSheet' | t }}</span>
+    </button>
+  }
+
+  <!-- Mobile Non-Destructive Bottom Sheet Map Overlay -->
+  @if (store.mobileMapOpen()) {
+    <app-mobile-map-sheet
+      [dayLabel]="selectedDayLabel()"
+      [readOnly]="isOfflineReadOnly()"
+      [pins]="mapPins()"
+      [schematicRoutes]="schematicMapRoutes()"
+      [roadRoutes]="roadMapRoutes()"
+      [allowModeToggle]="true"
+      [routeMode]="store.mapRouteMode()"
+      (routeModeChange)="store.setMapRouteMode($event)"
+      [departureStayPin]="departureStayMapPin()"
+      [stayPin]="stayMapPin()"
+      [selectedPinId]="store.selectedItemId()"
+      [fallbackCenter]="tripMapCenter()"
+      [selectedItem]="selectedMapItem()"
+      [selectedPinOrder]="selectedMapItem() ? (pinOrderById().get(selectedMapItem()!.id) ?? null) : null"
+      (pinSelected)="onMapPinSelected($event)"
+      (clearSelection)="store.selectItem(null)"
+      (logExpense)="openQuickExpenseModal($event)"
+      (closed)="store.setMobileMapOpen(false)"
+    />
+  }
+
+  <!-- Unified Add / Edit / Alternative Item Modal -->
+  <app-item-form-modal
+    [open]="showItemModal()"
+    [editingItem]="editingItem()"
+    [alternativeFor]="alternativeTarget()"
+    (closed)="showItemModal.set(false)"
+    (saved)="handleItemSaved($event)"
+  />
+
+  <!-- 1-Tap Quick Expense Modal -->
+  <app-quick-expense-modal
+    [open]="showQuickExpenseModal()"
+    [tripId]="trip.id"
+    [tripDayId]="store.selectedDay()?.id ?? null"
+    [item]="quickExpenseItem()"
+    [defaultCurrency]="trip.default_currency"
+    [homeCurrency]="
+      expenseStore.summary()?.home_currency ??
+      authStore.profile()?.home_currency ??
+      'TWD'
+    "
+    (closed)="showQuickExpenseModal.set(false)"
+  />
+
+  <!-- Day Plan Option Modals (Create/Clone, Rename, Delete) -->
+  <app-day-option-modals />
+
+  <!-- Confirm Delete Day -->
+  <app-confirm-modal
+    [open]="pendingDeleteDay() !== null"
+    [title]="'confirm.deleteDayTitle' | t"
+    [message]="
+      pendingDeleteDay()
+        ? ('confirm.deleteDayBody' | t: { day: pendingDeleteDay()!.day_index })
+        : ''
+    "
+    [busy]="deletingDay()"
+    (confirmed)="executeDeleteDay()"
+    (cancelled)="pendingDeleteDay.set(null)"
+  />
+
+  <!-- Confirm Delete Itinerary Item -->
+  <app-confirm-modal
+    [open]="pendingDeleteItem() !== null"
+    [title]="'confirm.deleteItemTitle' | t"
+    [message]="
+      pendingDeleteItem()
+        ? ('confirm.deleteItemBody' | t: { name: pendingDeleteItem()!.title })
+        : ''
+    "
+    [busy]="deletingItem()"
+    (confirmed)="executeDeleteItem()"
+    (cancelled)="pendingDeleteItem.set(null)"
+  />
+
+  <!-- Read-Only Share Settings & Revocation -->
+  <app-trip-share-modal
+    [open]="showShareModal()"
+    [tripId]="trip.id"
+    (closed)="showShareModal.set(false)"
+  />
+} @else if (store.loading()) {
+  <div class="cold-start-box">
+    <span class="ms-icon lg spin" aria-hidden="true">progress_activity</span>
+    <p>{{ 'sync.wakingServer' | t }}</p>
+  </div>
+} @else {
+  <div class="cold-start-box" role="alert">
+    <span class="ms-icon lg" aria-hidden="true">error_outline</span>
+    <p>{{ store.error() || ('itinerary.errLoad' | t) }}</p>
+    <div class="cold-start-actions">
+      <button type="button" class="btn-primary" (click)="retryLoad()">
+        {{ 'common.retry' | t }}
+      </button>
+      <a routerLink="/trips" class="btn-ghost">{{ 'itinerary.goTrips' | t }}</a>
+    </div>
+  </div>
+}

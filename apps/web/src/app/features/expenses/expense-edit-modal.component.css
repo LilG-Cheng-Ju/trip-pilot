@@ -1,0 +1,127 @@
+.field-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.amount-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 130px 116px;
+  gap: 8px;
+  align-items: end;
+}
+@media (max-width: 440px) {
+  .amount-row {
+    grid-template-columns: minmax(0, 1fr) 130px;
+  }
+  .amount-row > :last-child {
+    grid-column: 1 / -1;
+  }
+}
+.rate-box {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 40px;
+  padding: 0 4px 0 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+}
+.rate-box input {
+  width: 100%;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 0.8125rem;
+  outline: none;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.rate-box input::-webkit-outer-spin-button,
+.rate-box input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.field.has-error .rate-box {
+  border-color: var(--color-alert);
+}
+.fx-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-primary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.fx-btn:hover {
+  background: rgba(27, 42, 74, 0.08);
+}
+.fx-warning-banner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--color-alert-soft);
+  border: 1px solid rgba(200, 75, 59, 0.35);
+  color: var(--color-alert);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.preview-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: -4px;
+  min-height: 18px;
+}
+.preview-line {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+.fx-hint {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+}
+.fx-hint.cached {
+  color: var(--color-accent-ink);
+  font-weight: 600;
+}
+.cat-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cat-chip {
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cat-chip.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-text-on-primary);
+}
+.two-col {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
