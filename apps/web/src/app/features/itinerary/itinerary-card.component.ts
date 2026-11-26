@@ -120,8 +120,10 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     } @else if (item().type === 'FLIGHT') {
       <article
         class="card flight-card"
+        tabindex="0"
         [class.selected]="selected()"
         (click)="cardClicked.emit(item().id)"
+        (keydown)="onCardKeydown($event)"
       >
         <div class="flight-top">
           <div class="flight-head-left">
@@ -270,9 +272,11 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     } @else {
       <article
         class="card standard-card"
+        tabindex="0"
         [class.selected]="selected()"
         [attr.data-type]="item().type"
         (click)="cardClicked.emit(item().id)"
+        (keydown)="onCardKeydown($event)"
       >
         <div class="card-head">
           <div class="card-meta">
@@ -555,6 +559,10 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     .card.selected {
       outline: 2px solid var(--color-accent);
       outline-offset: 1px;
+    }
+    .card:focus-visible {
+      outline: 2px solid var(--color-primary);
+      outline-offset: 2px;
     }
     .flight-card {
       background: var(--color-primary);
@@ -1050,6 +1058,16 @@ export class ItineraryCardComponent {
   protected onDelete(): void {
     this.menuOpen.set(false);
     this.deleted.emit(this.item().id);
+  }
+
+  protected onCardKeydown(event: KeyboardEvent): void {
+    if (event.target !== event.currentTarget) {
+      return;
+    }
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      this.cardClicked.emit(this.item().id);
+    }
   }
 
   protected onDocumentClick(event: MouseEvent): void {

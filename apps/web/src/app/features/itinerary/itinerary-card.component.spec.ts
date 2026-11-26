@@ -61,6 +61,12 @@ describe('ItineraryCardComponent', () => {
     expenseBtn.click();
     expect(loggedItems).toEqual([spot]);
     expect(clickedIds).toEqual(['spot-1']);
+
+    // Keyboard Enter on card selects it, while Enter on inner button does not re-emit cardClicked.
+    card.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(clickedIds).toEqual(['spot-1', 'spot-1']);
+    expenseBtn.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(clickedIds).toEqual(['spot-1', 'spot-1']);
   });
 
   it('renders LOCAL_TRANSIT as a single-line pill with overflow menu ordering controls', async () => {

@@ -12,6 +12,7 @@ import { ActivatedRoute } from '@angular/router';
 
 import { TripilotApiService } from '../../core/api/tripilot-api.service';
 import { DAY_STRIP_SCROLL_STEP_PX } from '../../core/constants/app-limits';
+import { resolveCountryMapCenter } from '../../core/constants/travel-options';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ItineraryItem, PublicTrip } from '../../core/models/tripilot.models';
@@ -206,6 +207,7 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
               [departureStayPin]="departureStayMapPin()"
               [stayPin]="stayMapPin()"
               [selectedPinId]="selectedItemId()"
+              [fallbackCenter]="tripMapCenter()"
               (pinSelected)="onMapPinSelected($event)"
             />
           </aside>
@@ -227,6 +229,8 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
         <app-mobile-map-sheet
           [dayLabel]="selectedDayLabel()"
           [readOnly]="true"
+          [hasBottomNav]="false"
+          [fallbackCenter]="tripMapCenter()"
           [pins]="mapPins()"
           [schematicRoutes]="schematicMapRoutes()"
           [departureStayPin]="departureStayMapPin()"
@@ -566,6 +570,9 @@ export class PublicSharePageComponent implements OnInit {
   private readonly timelineScroll = viewChild<ElementRef<HTMLDivElement>>('timelineScroll');
 
   protected readonly trip = signal<PublicTrip | null>(null);
+  protected readonly tripMapCenter = computed<readonly [number, number]>(() =>
+    resolveCountryMapCenter(this.trip()?.country_codes ?? []),
+  );
   protected readonly selectedDayIndex = signal(1);
   protected readonly previewOptionByDay = signal<Record<string, string>>({});
   protected readonly previewChoiceByGroup = signal<Record<string, string>>({});

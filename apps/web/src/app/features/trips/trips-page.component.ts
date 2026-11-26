@@ -19,6 +19,7 @@ import {
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { TripDetail, TripStatus, TripSummary } from '../../core/models/tripilot.models';
+import { NetworkStatusService } from '../../core/network/network-status.service';
 import { isIncompleteNumberInput, readInputValue } from '../../core/utils/form-events.utils';
 import {
   addDaysToIsoDate,
@@ -53,7 +54,13 @@ type DateEndMode = 'end' | 'duration' | 'open';
     <div class="page">
       <header class="page-header">
         <h2 class="page-title font-display">{{ 'trips.title' | t }}</h2>
-        <button type="button" class="btn-primary" (click)="openCreateModal()">
+        <button
+          type="button"
+          class="btn-primary"
+          [disabled]="isOfflineReadOnly()"
+          [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ''"
+          (click)="openCreateModal()"
+        >
           <span class="ms-icon sm" aria-hidden="true">add</span>
           <span>{{ 'trips.new' | t }}</span>
         </button>
@@ -110,7 +117,13 @@ type DateEndMode = 'end' | 'duration' | 'open';
               </li>
             </ol>
             <div class="onboarding-actions">
-              <button type="button" class="btn-primary" (click)="openCreateModal()">
+              <button
+                type="button"
+                class="btn-primary"
+                [disabled]="isOfflineReadOnly()"
+                [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ''"
+                (click)="openCreateModal()"
+              >
                 <span class="ms-icon sm" aria-hidden="true">add</span>
                 <span>{{ 'trips.new' | t }}</span>
               </button>
@@ -191,6 +204,8 @@ type DateEndMode = 'end' | 'duration' | 'open';
                   <button
                     type="button"
                     class="card-ghost-action"
+                    [disabled]="isOfflineReadOnly()"
+                    [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ''"
                     (click)="$event.stopPropagation(); tripStore.updateTripStatus(trip.id, 'COMPLETED')"
                   >
                     <span class="ms-icon sm" aria-hidden="true">check_circle</span>
@@ -200,6 +215,8 @@ type DateEndMode = 'end' | 'duration' | 'open';
                   <button
                     type="button"
                     class="card-ghost-action alert"
+                    [disabled]="isOfflineReadOnly()"
+                    [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ''"
                     (click)="$event.stopPropagation(); tripStore.updateTripStatus(trip.id, 'PLANNING')"
                   >
                     <span class="ms-icon sm" aria-hidden="true">undo</span>
@@ -210,7 +227,8 @@ type DateEndMode = 'end' | 'duration' | 'open';
                   <button
                     type="button"
                     class="icon-btn card-icon-btn"
-                    [title]="'trips.edit' | t"
+                    [disabled]="isOfflineReadOnly()"
+                    [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ('trips.edit' | t)"
                     [attr.aria-label]="'trips.edit' | t"
                     (click)="$event.stopPropagation(); openEditModal(trip)"
                   >
@@ -219,7 +237,8 @@ type DateEndMode = 'end' | 'duration' | 'open';
                   <button
                     type="button"
                     class="icon-btn icon-btn--danger card-icon-btn"
-                    [title]="'common.delete' | t"
+                    [disabled]="isOfflineReadOnly()"
+                    [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ('common.delete' | t)"
                     [attr.aria-label]="'common.delete' | t"
                     (click)="$event.stopPropagation(); pendingDeleteTrip.set(trip)"
                   >
@@ -657,8 +676,12 @@ type DateEndMode = 'end' | 'duration' | 'open';
     .card-ghost-action:first-child {
       margin-left: -7px;
     }
-    .card-ghost-action:hover,
-    .card-ghost-action:focus-visible {
+    .card-ghost-action:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .card-ghost-action:hover:not(:disabled),
+    .card-ghost-action:focus-visible:not(:disabled) {
       background: rgba(20, 24, 31, 0.06);
       color: var(--color-primary);
     }
@@ -719,11 +742,16 @@ export class TripsPageComponent implements OnInit {
   protected readonly tripStore = inject(TripStore);
   protected readonly authStore = inject(AuthStore);
   protected readonly i18n = inject(I18nService);
+  private readonly network = inject(NetworkStatusService);
   private readonly api = inject(TripilotApiService);
   private readonly cache = inject(OfflineCacheService);
   private readonly itineraryStore = inject(ItineraryStore);
   private readonly expenseStore = inject(ExpenseStore);
   private readonly router = inject(Router);
+
+  protected readonly isOfflineReadOnly = computed(
+    () => !this.network.isOnline() || this.tripStore.usingOfflineCache(),
+  );
 
   protected readonly Math = Math;
   protected readonly readInputValue = readInputValue;
@@ -786,12 +814,22 @@ export class TripsPageComponent implements OnInit {
     }
   }
 
+  private defaultInternationalCountryCode(): string {
+    const home = (this.authStore.profile()?.home_country_code || 'TW').toUpperCase();
+    return home === 'JP' ? 'TW' : 'JP';
+  }
+
   protected openCreateModal(): void {
+    if (this.isOfflineReadOnly()) {
+      return;
+    }
     const today = formatLocalIsoDate();
+    const defaultCountryCode = this.defaultInternationalCountryCode();
+    const defaultCountry = findCountry(defaultCountryCode);
     this.editingTrip.set(null);
     this.scope.set('international');
-    this.selectedCountries.set(['JP']);
-    this.defaultCurrency.set('JPY');
+    this.selectedCountries.set([defaultCountryCode]);
+    this.defaultCurrency.set(defaultCountry?.defaultCurrency ?? 'JPY');
     this.title.set('');
     this.destination.set('');
     this.startDate.set(today);
@@ -903,9 +941,18 @@ export class TripsPageComponent implements OnInit {
     if (next === 'domestic') {
       const home = this.authStore.profile();
       this.defaultCurrency.set(home?.home_currency || 'TWD');
-    } else if (this.selectedCountries().length === 0) {
-      this.selectedCountries.set(['JP']);
-      this.defaultCurrency.set('JPY');
+      return;
+    }
+    const homeCode = (this.authStore.profile()?.home_country_code || 'TW').toUpperCase();
+    const current = this.selectedCountries();
+    if (
+      current.length === 0 ||
+      (current.length === 1 && current[0].toUpperCase() === homeCode)
+    ) {
+      const fallbackCode = this.defaultInternationalCountryCode();
+      const fallbackCountry = findCountry(fallbackCode);
+      this.selectedCountries.set([fallbackCode]);
+      this.defaultCurrency.set(fallbackCountry?.defaultCurrency ?? 'JPY');
     }
   }
 

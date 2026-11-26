@@ -23,6 +23,7 @@ import {
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ExpenseCategory, ExpenseItem, TripDay } from '../../core/models/tripilot.models';
+import { NetworkStatusService } from '../../core/network/network-status.service';
 import { isIncompleteNumberInput, readInputValue } from '../../core/utils/form-events.utils';
 import {
   EXPENSE_CATEGORIES,
@@ -275,7 +276,13 @@ import { ItineraryStore } from '../../state/itinerary.store';
             <button
               type="submit"
               class="submit-btn"
-              [disabled]="submitting() || fetchingRate() || (isQuickForeign() && exchangeRate() === null)"
+              [disabled]="
+                isOfflineReadOnly() ||
+                submitting() ||
+                fetchingRate() ||
+                (isQuickForeign() && exchangeRate() === null)
+              "
+              [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ''"
             >
               + {{ 'common.add' | t }}
             </button>
@@ -361,8 +368,9 @@ import { ItineraryStore } from '../../state/itinerary.store';
                     <button
                       type="button"
                       class="row-icon-btn"
+                      [disabled]="isOfflineReadOnly()"
                       [attr.aria-label]="'common.edit' | t"
-                      [title]="'common.edit' | t"
+                      [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ('common.edit' | t)"
                       (click)="openEditExpenseModal(exp)"
                     >
                       <span class="ms-icon sm" aria-hidden="true">edit</span>
@@ -370,8 +378,9 @@ import { ItineraryStore } from '../../state/itinerary.store';
                     <button
                       type="button"
                       class="row-icon-btn danger"
+                      [disabled]="isOfflineReadOnly()"
                       [attr.aria-label]="'common.delete' | t"
-                      [title]="'common.delete' | t"
+                      [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ('common.delete' | t)"
                       (click)="pendingDeleteExpense.set({ id: exp.id, title: exp.title })"
                     >
                       <span class="ms-icon sm" aria-hidden="true">delete</span>
@@ -1015,11 +1024,15 @@ import { ItineraryStore } from '../../state/itinerary.store';
       color: var(--color-text-muted);
       cursor: pointer;
     }
-    .row-icon-btn:hover {
+    .row-icon-btn:disabled {
+      opacity: 0.38;
+      cursor: not-allowed;
+    }
+    .row-icon-btn:hover:not(:disabled) {
       border-color: var(--color-border);
       color: var(--color-primary);
     }
-    .row-icon-btn.danger:hover {
+    .row-icon-btn.danger:hover:not(:disabled) {
       background: var(--color-alert-soft);
       color: var(--color-alert);
     }
@@ -1041,9 +1054,12 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
   protected readonly itineraryStore = inject(ItineraryStore);
   private readonly authStore = inject(AuthStore);
   protected readonly i18n = inject(I18nService);
+  private readonly network = inject(NetworkStatusService);
   private readonly fxResolver = inject(FxRateResolverService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+
+  protected readonly isOfflineReadOnly = computed(() => !this.network.isOnline());
 
   protected readonly tripId = signal('');
   protected readonly showMore = signal(false);

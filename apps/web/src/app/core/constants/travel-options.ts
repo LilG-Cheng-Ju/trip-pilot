@@ -215,6 +215,75 @@ const COUNTRY_BY_CODE = new Map<string, CountryOption>(
   SUPPORTED_COUNTRIES.map((country) => [country.code, country]),
 );
 
+const COUNTRY_MAP_CENTERS: Readonly<Record<string, readonly [number, number]>> = {
+  TW: [121.5654, 25.033],
+  JP: [139.7671, 35.6812],
+  KR: [126.978, 37.5665],
+  HK: [114.1694, 22.3193],
+  MO: [113.5439, 22.1987],
+  CN: [121.4737, 31.2304],
+  SG: [103.8198, 1.3521],
+  TH: [100.5018, 13.7563],
+  VN: [105.8342, 21.0278],
+  MY: [101.6869, 3.139],
+  ID: [115.1889, -8.4095],
+  PH: [120.9842, 14.5995],
+  KH: [104.9282, 11.5564],
+  IN: [77.209, 28.6139],
+  CZ: [14.4378, 50.0755],
+  AT: [16.3738, 48.2082],
+  HU: [19.0402, 47.4979],
+  DE: [13.405, 52.52],
+  CH: [8.5417, 47.3769],
+  FR: [2.3522, 48.8566],
+  IT: [12.4964, 41.9028],
+  ES: [-3.7038, 40.4168],
+  PT: [-9.1393, 38.7223],
+  GB: [-0.1276, 51.5072],
+  IE: [-6.2603, 53.3498],
+  NL: [4.9041, 52.3676],
+  BE: [4.3517, 50.8503],
+  LU: [6.1296, 49.6116],
+  PL: [21.0122, 52.2297],
+  SK: [17.1077, 48.1486],
+  SI: [14.5058, 46.0569],
+  HR: [15.9819, 45.815],
+  GR: [23.7275, 37.9838],
+  IS: [-21.9426, 64.1466],
+  NO: [10.7522, 59.9139],
+  SE: [18.0686, 59.3293],
+  DK: [12.5683, 55.6761],
+  FI: [24.9384, 60.1699],
+  TR: [28.9784, 41.0082],
+  AE: [55.2708, 25.2048],
+  EG: [31.2357, 30.0444],
+  MA: [-7.9811, 31.6295],
+  ZA: [18.4241, -33.9249],
+  US: [-74.006, 40.7128],
+  CA: [-79.3832, 43.6532],
+  MX: [-99.1332, 19.4326],
+  PE: [-77.0428, -12.0464],
+  BR: [-43.1729, -22.9068],
+  AR: [-58.3816, -34.6037],
+  CL: [-70.6693, -33.4489],
+  AU: [151.2093, -33.8688],
+  NZ: [174.7633, -36.8485],
+};
+
 export function findCountry(code: string): CountryOption | undefined {
   return COUNTRY_BY_CODE.get(code.toUpperCase());
+}
+
+/** Resolves a destination-appropriate [lng, lat] center when a day has no pinned coordinates yet. */
+export function resolveCountryMapCenter(
+  countryCodes: readonly string[],
+  fallbackCountryCode = 'TW',
+): readonly [number, number] {
+  for (const code of countryCodes) {
+    const match = COUNTRY_MAP_CENTERS[code.toUpperCase()];
+    if (match) {
+      return match;
+    }
+  }
+  return COUNTRY_MAP_CENTERS[fallbackCountryCode.toUpperCase()] ?? COUNTRY_MAP_CENTERS['TW'];
 }

@@ -8,6 +8,7 @@ import { TripilotApiService } from '../../core/api/tripilot-api.service';
 import { provideTripilotDateAdapter } from '../../core/config/material-date-formats';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TripDetail } from '../../core/models/tripilot.models';
+import { NetworkStatusService } from '../../core/network/network-status.service';
 import { AuthStore } from '../../state/auth.store';
 import { TripStore } from '../../state/trip.store';
 import { TripsPageComponent } from './trips-page.component';
@@ -55,6 +56,14 @@ describe('TripsPageComponent', () => {
               display_name: 'Traveler',
               home_country_code: 'TW',
               home_currency: 'TWD',
+              created_at: '2026-01-01T00:00:00Z',
+            }),
+            updateMe: async (payload: Record<string, unknown>) => ({
+              id: 'user-1',
+              email: 'dev@tripilot.app',
+              display_name: 'Traveler',
+              home_country_code: String(payload['home_country_code'] ?? 'TW'),
+              home_currency: String(payload['home_currency'] ?? 'TWD'),
               created_at: '2026-01-01T00:00:00Z',
             }),
             listTrips: async () => [makeTripDetail()],
@@ -212,5 +221,56 @@ describe('TripsPageComponent', () => {
     } finally {
       router.navigate = origNavigate;
     }
+  });
+
+  it('disables write actions offline, avoids JP home-country conflict on create, and supports keyboard country picker', async () => {
+    const network = TestBed.inject(NetworkStatusService);
+    const authStore = TestBed.inject(AuthStore);
+    const fixture = TestBed.createComponent(TripsPageComponent);
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await fixture.whenStable();
+
+    // Simulate a resident of Japan and verify offline write guards first.
+    await authStore.updateProfile({ home_country_code: 'JP', home_currency: 'JPY' });
+    network.isOnline.set(false);
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const newTripBtn = host.querySelector('.page-header .btn-primary') as HTMLButtonElement;
+    const editBtn = host.querySelector('.card-icon-btn[aria-label="Edit Trip"]') as HTMLButtonElement;
+    expect(newTripBtn.disabled).toBe(true);
+    expect(editBtn.disabled).toBe(true);
+
+    // Go back online: Create Trip defaults to TW + TWD instead of contradicting JP home country.
+    network.isOnline.set(true);
+    fixture.detectChanges();
+    expect(newTripBtn.disabled).toBe(false);
+
+    newTripBtn.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const combobox = host.querySelector('app-country-picker [role="combobox"]') as HTMLElement;
+    expect(combobox.textContent).toContain('Taiwan (TW)');
+    const currencySelect = fixture.debugElement.query(
+      By.css('mat-select[name="currency"]'),
+    ).componentInstance as MatSelect;
+    expect(currencySelect.value).toBe('TWD');
+
+    // Verify keyboard combobox navigation on AppCountryPickerComponent.
+    expect(combobox.getAttribute('aria-expanded')).toBe('false');
+    combobox.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    fixture.detectChanges();
+    expect(combobox.getAttribute('aria-expanded')).toBe('true');
+
+    const searchInput = host.querySelector('app-country-picker .search-box input') as HTMLInputElement;
+    searchInput.value = 'KR';
+    searchInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    fixture.detectChanges();
+
+    expect(combobox.textContent).toContain('South Korea (KR)');
   });
 });

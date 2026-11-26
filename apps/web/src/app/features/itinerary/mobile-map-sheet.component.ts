@@ -12,6 +12,8 @@ import {
 } from '../../core/utils/travel-format.utils';
 import { ItineraryMapComponent, MapPin, StayMapPin } from './itinerary-map.component';
 
+const SWIPE_CLOSE_THRESHOLD_PX = 84;
+
 /** Mobile thumb-zone bottom sheet displaying the interactive map and floating spot preview card. */
 @Component({
   selector: 'app-mobile-map-sheet',
@@ -23,11 +25,19 @@ import { ItineraryMapComponent, MapPin, StayMapPin } from './itinerary-map.compo
   template: `
     <div
       class="mobile-map-sheet"
-      [class.no-bottom-nav]="readOnly()"
+      [class.no-bottom-nav]="!hasBottomNav()"
+      [class.dragging]="isDragging()"
+      [style.transform]="dragOffsetY() > 0 ? 'translateY(' + dragOffsetY() + 'px)' : null"
       role="dialog"
       [attr.aria-label]="'map.openSheet' | t"
     >
-      <div class="sheet-bar">
+      <div
+        class="sheet-bar"
+        (pointerdown)="onBarPointerDown($event)"
+        (pointermove)="onBarPointerMove($event)"
+        (pointerup)="onBarPointerEnd($event)"
+        (pointercancel)="onBarPointerEnd($event)"
+      >
         <span class="sheet-handle" aria-hidden="true"></span>
         <span class="sheet-title tabular-nums">
           @if (dayLabel()) {
@@ -55,6 +65,7 @@ import { ItineraryMapComponent, MapPin, StayMapPin } from './itinerary-map.compo
           [departureStayPin]="departureStayPin()"
           [stayPin]="stayPin()"
           [selectedPinId]="selectedPinId()"
+          [fallbackCenter]="fallbackCenter()"
           (pinSelected)="pinSelected.emit($event)"
         />
 
@@ -152,6 +163,11 @@ import { ItineraryMapComponent, MapPin, StayMapPin } from './itinerary-map.compo
       border-radius: 16px 16px 0 0;
       box-shadow: 0 -10px 30px rgba(15, 23, 42, 0.22);
       overflow: hidden;
+      transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+      will-change: transform;
+    }
+    .mobile-map-sheet.dragging {
+      transition: none;
     }
     .mobile-map-sheet.no-bottom-nav {
       bottom: 0;
@@ -162,10 +178,16 @@ import { ItineraryMapComponent, MapPin, StayMapPin } from './itinerary-map.compo
       align-items: center;
       justify-content: space-between;
       gap: 8px;
-      padding: 10px 14px;
+      padding: 12px 14px 10px;
       border-bottom: 1px solid var(--color-border);
       background: var(--color-surface);
       position: relative;
+      touch-action: none;
+      user-select: none;
+      cursor: grab;
+    }
+    .sheet-bar:active {
+      cursor: grabbing;
     }
     .sheet-handle {
       position: absolute;
@@ -175,7 +197,7 @@ import { ItineraryMapComponent, MapPin, StayMapPin } from './itinerary-map.compo
       width: 36px;
       height: 4px;
       border-radius: 99px;
-      background: var(--color-border);
+      background: var(--color-border-strong);
     }
     .sheet-title {
       font-size: 0.85rem;
@@ -333,6 +355,7 @@ import { ItineraryMapComponent, MapPin, StayMapPin } from './itinerary-map.compo
 export class MobileMapSheetComponent {
   readonly dayLabel = input('');
   readonly readOnly = input(false);
+  readonly hasBottomNav = input(true);
   readonly pins = input<MapPin[]>([]);
   readonly schematicRoutes = input<DayMapRoutes>(EMPTY_DAY_MAP_ROUTES);
   readonly roadRoutes = input<DayMapRoutes>(EMPTY_DAY_MAP_ROUTES);
@@ -341,6 +364,7 @@ export class MobileMapSheetComponent {
   readonly departureStayPin = input<StayMapPin | null>(null);
   readonly stayPin = input<StayMapPin | null>(null);
   readonly selectedPinId = input<string | null>(null);
+  readonly fallbackCenter = input<readonly [number, number]>([121.5654, 25.033]);
   readonly selectedItem = input<ItineraryItem | null>(null);
   readonly selectedPinOrder = input<number | null>(null);
 
@@ -351,6 +375,47 @@ export class MobileMapSheetComponent {
   readonly closed = output<void>();
 
   protected readonly copiedLocal = signal(false);
+  protected readonly dragOffsetY = signal(0);
+  protected readonly isDragging = signal(false);
+
+  private activePointerId: number | null = null;
+  private dragStartY = 0;
+
+  protected onBarPointerDown(event: PointerEvent): void {
+    if (event.pointerType === 'mouse' && event.button !== 0) {
+      return;
+    }
+    if ((event.target as HTMLElement | null)?.closest('button')) {
+      return;
+    }
+    this.activePointerId = event.pointerId;
+    this.dragStartY = event.clientY;
+    this.isDragging.set(true);
+    this.dragOffsetY.set(0);
+    (event.currentTarget as HTMLElement | null)?.setPointerCapture?.(event.pointerId);
+  }
+
+  protected onBarPointerMove(event: PointerEvent): void {
+    if (!this.isDragging() || event.pointerId !== this.activePointerId) {
+      return;
+    }
+    const deltaY = Math.max(0, event.clientY - this.dragStartY);
+    this.dragOffsetY.set(deltaY);
+  }
+
+  protected onBarPointerEnd(event: PointerEvent): void {
+    if (!this.isDragging() || event.pointerId !== this.activePointerId) {
+      return;
+    }
+    (event.currentTarget as HTMLElement | null)?.releasePointerCapture?.(event.pointerId);
+    const pulled = this.dragOffsetY();
+    this.activePointerId = null;
+    this.isDragging.set(false);
+    this.dragOffsetY.set(0);
+    if (pulled >= SWIPE_CLOSE_THRESHOLD_PX) {
+      this.closed.emit();
+    }
+  }
 
   protected mapsUrl(item: ItineraryItem): string | null {
     return buildGoogleMapsUrl(item);

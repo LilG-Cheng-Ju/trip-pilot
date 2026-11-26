@@ -262,6 +262,7 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
   readonly departureStayPin = input<StayMapPin | null>(null);
   readonly stayPin = input<StayMapPin | null>(null);
   readonly selectedPinId = input<string | null>(null);
+  readonly fallbackCenter = input<readonly [number, number]>([121.5654, 25.033]);
   readonly emptyText = input('');
 
   readonly pinSelected = output<string>();
@@ -293,6 +294,7 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
       const currentPins = this.pins();
       const depStay = this.departureStayPin();
       const stay = this.stayPin();
+      this.fallbackCenter();
       this.schematicRoutes();
       if (this.map && this.styleLoaded) {
         this.renderPinsAndRoute(
@@ -334,11 +336,12 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
     }
 
     try {
+      const initialCenter = this.fallbackCenter();
       this.map = new maplibregl.Map({
         container,
         style: POSITRON_STYLE_URL,
-        center: [139.7671, 35.6812],
-        zoom: 11,
+        center: [initialCenter[0], initialCenter[1]],
+        zoom: 10,
         attributionControl: false,
       });
       this.map.addControl(
@@ -696,6 +699,9 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
         bounds.extend(pt);
       }
       this.map.fitBounds(bounds, { padding: 48, maxZoom: 14, duration: 500 });
+    } else {
+      const center = untracked(() => this.fallbackCenter());
+      this.map.jumpTo?.({ center: [center[0], center[1]], zoom: 10 });
     }
   }
 }

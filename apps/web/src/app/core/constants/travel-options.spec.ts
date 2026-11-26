@@ -1,6 +1,7 @@
 import {
   COMMON_CURRENCIES,
   findCountry,
+  resolveCountryMapCenter,
   SUPPORTED_COUNTRIES,
   SUPPORTED_CURRENCIES,
 } from './travel-options';
@@ -44,5 +45,11 @@ describe('travel-options', () => {
     expect(findCountry('GB')?.defaultCurrency).toBe('GBP');
     expect(findCountry('CA')?.defaultCurrency).toBe('CAD');
     expect(findCountry('AU')?.defaultCurrency).toBe('AUD');
+  });
+
+  it('resolves destination country map centers and falls back to home country', () => {
+    expect(resolveCountryMapCenter(['FR'], 'TW')).toEqual([2.3522, 48.8566]);
+    expect(resolveCountryMapCenter([], 'KR')).toEqual([126.978, 37.5665]);
+    expect(resolveCountryMapCenter(['ZZ'], 'TW')).toEqual([121.5654, 25.033]);
   });
 });

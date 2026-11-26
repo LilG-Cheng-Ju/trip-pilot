@@ -2,6 +2,13 @@
 
 <!-- Auto-generated from releases.json. Run `node scripts/sync-releases.mjs` after editing releases.json. -->
 
+## v0.9.5-beta (2026-11-26) — 離線唯讀防呆、手機地圖下拉手勢與鍵盤無障礙
+*Offline Read-Only Guards, Map Sheet Swipe Gesture & Keyboard Accessibility*
+
+- 離線或檢視快取時停用新增、編輯、刪除、排序與記帳等變更按鈕並顯示提示，保留導航、複製原文店名與檢視功能
+- 手機版地圖抽屜頂部支援往下滑動關閉，當天尚無座標點時自動隱藏右下角地圖按鈕，並依旅程目的地國碼定位無釘選時的預設地圖中心
+- 建立國外旅程時自動避開與居住國相同的預設國別，並為國家選擇器與行程卡片補齊純鍵盤開啟、切換與選取支援
+
 ## v0.9.4-beta (2026-11-26) — 足跡里程碑排版、方案分頁籤與表單統整
 *Travel Logbook Layout, Plan Tabs & Form Style Consolidation*
 

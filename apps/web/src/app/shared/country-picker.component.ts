@@ -7,6 +7,7 @@ import {
   input,
   output,
   signal,
+  viewChild,
 } from '@angular/core';
 
 import {
@@ -18,7 +19,7 @@ import { I18nService } from '../core/i18n/i18n.service';
 import { TranslatePipe } from '../core/i18n/translate.pipe';
 import { readInputValue } from '../core/utils/form-events.utils';
 
-/** Reusable searchable country picker supporting single and multi-select modes. */
+/** Reusable searchable country picker supporting single and multi-select modes with full keyboard navigation. */
 @Component({
   selector: 'app-country-picker',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -29,7 +30,17 @@ import { readInputValue } from '../core/utils/form-events.utils';
   },
   template: `
     <div class="picker">
-      <div class="selected-row" (click)="open.set(!open())">
+      <div
+        #triggerEl
+        class="selected-row"
+        tabindex="0"
+        role="combobox"
+        aria-haspopup="listbox"
+        [attr.aria-expanded]="open()"
+        [attr.aria-label]="placeholder()"
+        (click)="toggleOpen()"
+        (keydown)="onTriggerKeydown($event)"
+      >
         @if (selectedCodes().length === 0) {
           <span class="placeholder">{{ placeholder() }}</span>
         } @else {
@@ -42,36 +53,45 @@ import { readInputValue } from '../core/utils/form-events.utils';
                     type="button"
                     class="chip-x"
                     (click)="$event.stopPropagation(); removeCode(code)"
+                    (keydown.enter)="$event.stopPropagation()"
+                    (keydown.space)="$event.stopPropagation()"
                     aria-label="Remove"
                   >
-                    <span class="ms-icon sm">close</span>
+                    <span class="ms-icon sm" aria-hidden="true">close</span>
                   </button>
                 }
               </span>
             }
           </div>
         }
-        <span class="ms-icon chevron">{{ open() ? 'expand_less' : 'expand_more' }}</span>
+        <span class="ms-icon chevron" aria-hidden="true">
+          {{ open() ? 'expand_less' : 'expand_more' }}
+        </span>
       </div>
 
       @if (open()) {
         <div class="dropdown">
           <div class="search-box">
-            <span class="ms-icon sm search-icon">search</span>
+            <span class="ms-icon sm search-icon" aria-hidden="true">search</span>
             <input
+              #searchInput
               type="text"
               [value]="query()"
-              (input)="query.set(readInputValue($event))"
+              (input)="onQueryInput($event)"
+              (keydown)="onSearchKeydown($event)"
               [placeholder]="'countryPicker.searchPlaceholder' | t"
-              autofocus
             />
           </div>
-          <div class="options-list">
-            @for (country of filteredCountries(); track country.code) {
+          <div class="options-list" role="listbox">
+            @for (country of filteredCountries(); track country.code; let idx = $index) {
               <button
                 type="button"
+                role="option"
                 class="option-item"
+                [attr.aria-selected]="isSelected(country.code)"
                 [class.selected]="isSelected(country.code)"
+                [class.focused]="idx === activeIndex()"
+                (mouseenter)="activeIndex.set(idx)"
                 (click)="toggleCountry(country)"
               >
                 <span>
@@ -79,7 +99,7 @@ import { readInputValue } from '../core/utils/form-events.utils';
                   <small class="code">{{ country.code }}</small>
                 </span>
                 @if (isSelected(country.code)) {
-                  <span class="ms-icon sm check">check</span>
+                  <span class="ms-icon sm check" aria-hidden="true">check</span>
                 }
               </button>
             } @empty {
@@ -97,7 +117,7 @@ import { readInputValue } from '../core/utils/form-events.utils';
       position: relative;
     }
     .selected-row {
-      min-height: 42px;
+      min-height: 40px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -105,8 +125,17 @@ import { readInputValue } from '../core/utils/form-events.utils';
       padding: 6px 10px;
       border: 1px solid var(--color-border);
       border-radius: var(--radius-sm);
-      background: var(--color-bg);
+      background: var(--color-surface);
       cursor: pointer;
+      transition: border-color 140ms ease, box-shadow 140ms ease;
+    }
+    .selected-row:hover {
+      border-color: var(--color-border-strong);
+    }
+    .selected-row:focus-visible {
+      outline: none;
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px var(--color-primary-tint);
     }
     .placeholder {
       color: var(--color-text-muted);
@@ -162,12 +191,15 @@ import { readInputValue } from '../core/utils/form-events.utils';
     }
     .search-box input {
       width: 100%;
+      height: auto;
+      padding: 0;
       border: none;
       background: transparent;
       color: var(--color-text-primary);
       font: inherit;
       font-size: 0.875rem;
       outline: none;
+      box-shadow: none;
     }
     .options-list {
       max-height: 210px;
@@ -188,7 +220,8 @@ import { readInputValue } from '../core/utils/form-events.utils';
       text-align: left;
       cursor: pointer;
     }
-    .option-item:hover {
+    .option-item:hover,
+    .option-item.focused {
       background: var(--color-bg);
     }
     .option-item.selected {
@@ -217,7 +250,8 @@ import { readInputValue } from '../core/utils/form-events.utils';
 export class AppCountryPickerComponent {
   protected readonly i18n = inject(I18nService);
   private readonly hostRef = inject(ElementRef<HTMLElement>);
-  protected readonly readInputValue = readInputValue;
+  private readonly triggerEl = viewChild<ElementRef<HTMLElement>>('triggerEl');
+  private readonly searchInput = viewChild<ElementRef<HTMLInputElement>>('searchInput');
 
   readonly selectedCodes = input<string[]>([]);
   readonly multiple = input(false);
@@ -227,6 +261,7 @@ export class AppCountryPickerComponent {
 
   protected readonly open = signal(false);
   protected readonly query = signal('');
+  protected readonly activeIndex = signal(0);
 
   onDocumentClick(event: MouseEvent): void {
     if (this.open() && !this.hostRef.nativeElement.contains(event.target as Node)) {
@@ -237,6 +272,61 @@ export class AppCountryPickerComponent {
   onEscape(): void {
     if (this.open()) {
       this.open.set(false);
+    }
+  }
+
+  protected toggleOpen(): void {
+    const next = !this.open();
+    this.open.set(next);
+    if (next) {
+      this.activeIndex.set(0);
+      queueMicrotask(() => this.searchInput()?.nativeElement.focus());
+    }
+  }
+
+  protected onTriggerKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowDown') {
+      event.preventDefault();
+      if (!this.open()) {
+        this.open.set(true);
+        this.activeIndex.set(0);
+      }
+      queueMicrotask(() => this.searchInput()?.nativeElement.focus());
+    } else if (event.key === 'Escape' && this.open()) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.open.set(false);
+    }
+  }
+
+  protected onQueryInput(event: Event): void {
+    this.query.set(readInputValue(event));
+    this.activeIndex.set(0);
+  }
+
+  protected onSearchKeydown(event: KeyboardEvent): void {
+    const list = this.filteredCountries();
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      if (list.length > 0) {
+        this.activeIndex.update((idx) => (idx + 1) % list.length);
+      }
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (list.length > 0) {
+        this.activeIndex.update((idx) => (idx - 1 + list.length) % list.length);
+      }
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      const target = list[this.activeIndex()];
+      if (target) {
+        this.toggleCountry(target);
+      }
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      this.open.set(false);
+      this.triggerEl()?.nativeElement.focus();
     }
   }
 
@@ -268,6 +358,7 @@ export class AppCountryPickerComponent {
       this.selectionChange.emit([country.code]);
       this.open.set(false);
       this.query.set('');
+      this.triggerEl()?.nativeElement.focus();
       return;
     }
     const current = this.selectedCodes();

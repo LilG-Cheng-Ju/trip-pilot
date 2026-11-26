@@ -23,8 +23,10 @@ import {
   DAY_STRIP_SCROLL_STEP_PX,
   SHARE_COPY_FEEDBACK_DURATION_MS,
 } from '../../core/constants/app-limits';
+import { resolveCountryMapCenter } from '../../core/constants/travel-options';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ItineraryItem, TripDay } from '../../core/models/tripilot.models';
+import { NetworkStatusService } from '../../core/network/network-status.service';
 import { readCheckedValue, readInputValue } from '../../core/utils/form-events.utils';
 import { ViewportService } from '../../core/utils/viewport.service';
 import {
@@ -100,7 +102,8 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
               <button
                 type="button"
                 class="icon-btn util-icon-btn"
-                [title]="'common.share' | t"
+                [disabled]="isOfflineReadOnly()"
+                [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ('common.share' | t)"
                 [attr.aria-label]="'common.share' | t"
                 (click)="openShareModal(trip.id)"
               >
@@ -138,7 +141,13 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
                     <span class="day-date">{{ day.date.slice(5) }}</span>
                   </button>
                 }
-                <button type="button" class="day-add-btn" (click)="store.appendDay()">
+                <button
+                  type="button"
+                  class="day-add-btn"
+                  [disabled]="isOfflineReadOnly()"
+                  [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ''"
+                  (click)="store.appendDay()"
+                >
                   {{ 'itinerary.addDay' | t }}
                 </button>
               </div>
@@ -181,7 +190,8 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
                     <button
                       type="button"
                       class="icon-btn icon-btn--danger chapter-del-btn"
-                      [title]="'itinerary.deleteDay' | t"
+                      [disabled]="isOfflineReadOnly()"
+                      [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ('itinerary.deleteDay' | t)"
                       [attr.aria-label]="'itinerary.deleteDay' | t"
                       (click)="pendingDeleteDay.set(day)"
                     >
@@ -192,6 +202,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
                 <input
                   type="text"
                   class="day-chapter-input font-display"
+                  [readOnly]="isOfflineReadOnly()"
                   [value]="day.title || ''"
                   (blur)="saveDayTheme(day.id, readInputValue($event), day.title)"
                   (keydown.enter)="blurInput($event)"
@@ -227,7 +238,8 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
                       <button
                         type="button"
                         class="icon-btn"
-                        [title]="'itinerary.plan.rename' | t"
+                        [disabled]="isOfflineReadOnly()"
+                        [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ('itinerary.plan.rename' | t)"
                         [attr.aria-label]="'itinerary.plan.rename' | t"
                         (click)="openRenameOptionModal(currentOpt.id, currentOpt.label)"
                       >
@@ -236,14 +248,21 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
                       <button
                         type="button"
                         class="icon-btn icon-btn--danger"
-                        [title]="'itinerary.plan.delete' | t"
+                        [disabled]="isOfflineReadOnly()"
+                        [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ('itinerary.plan.delete' | t)"
                         [attr.aria-label]="'itinerary.plan.delete' | t"
                         (click)="confirmDeleteOption(day.id, currentOpt.id, currentOpt.label)"
                       >
                         <span class="ms-icon sm" aria-hidden="true">delete</span>
                       </button>
                     }
-                    <button type="button" class="clone-btn" (click)="openCloneModal()">
+                    <button
+                      type="button"
+                      class="clone-btn"
+                      [disabled]="isOfflineReadOnly()"
+                      [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ''"
+                      (click)="openCloneModal()"
+                    >
                       {{ 'itinerary.plan.addOption' | t }}
                     </button>
                   </div>
@@ -257,6 +276,8 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
                     <button
                       type="button"
                       class="btn-accent"
+                      [disabled]="isOfflineReadOnly()"
+                      [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ''"
                       (click)="store.setActiveOption(day.id, option.id)"
                     >
                       {{ 'itinerary.plan.setActive' | t }}
@@ -272,11 +293,23 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
 
                   <div class="summary-actions">
                     @if (day.options.length === 1) {
-                      <button type="button" class="clone-btn" (click)="openCloneModal()">
+                      <button
+                        type="button"
+                        class="clone-btn"
+                        [disabled]="isOfflineReadOnly()"
+                        [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ''"
+                        (click)="openCloneModal()"
+                      >
                         {{ 'itinerary.plan.addOption' | t }}
                       </button>
                     }
-                    <button type="button" class="add-item-btn" (click)="openAddItemModal()">
+                    <button
+                      type="button"
+                      class="add-item-btn"
+                      [disabled]="isOfflineReadOnly()"
+                      [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ''"
+                      (click)="openAddItemModal()"
+                    >
                       <span class="ms-icon sm" aria-hidden="true">add</span>
                       <span>{{ 'itinerary.addItem' | t }}</span>
                     </button>
@@ -299,6 +332,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
                         [attr.data-slot-item-id]="slot.activeItem.id"
                         cdkDrag
                         [cdkDragData]="slot"
+                        [cdkDragDisabled]="isOfflineReadOnly()"
                         [cdkDragStartDelay]="{ touch: 180, mouse: 0 }"
                       >
                         <div class="slot-drag-placeholder" *cdkDragPlaceholder></div>
@@ -310,6 +344,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
                                   type="button"
                                   class="choice-pill"
                                   [class.active]="choice.is_selected"
+                                  [disabled]="isOfflineReadOnly()"
                                   (click)="store.selectChoiceItem(choice.id)"
                                 >
                                   @if (choice.is_selected) {
@@ -322,6 +357,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
                             <button
                               type="button"
                               class="choice-add-btn"
+                              [disabled]="isOfflineReadOnly()"
                               (click)="openAlternativeModal(slot.activeItem)"
                               [attr.aria-label]="'itinerary.choice.addAlt' | t"
                             >
@@ -333,6 +369,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
                         <app-itinerary-card
                           [item]="slot.activeItem"
                           [tripId]="trip.id"
+                          [readOnly]="isOfflineReadOnly()"
                           [pinOrder]="pinOrderById().get(slot.activeItem.id) ?? null"
                           [selected]="store.selectedItemId() === slot.activeItem.id"
                           [canMoveUp]="!first"
@@ -368,14 +405,15 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
               [departureStayPin]="departureStayMapPin()"
               [stayPin]="stayMapPin()"
               [selectedPinId]="store.selectedItemId()"
+              [fallbackCenter]="tripMapCenter()"
               (pinSelected)="onMapPinSelected($event)"
             />
           </aside>
         }
       </div>
 
-      <!-- Mobile Floating Map Pill (Thumb-Zone Airbnb pattern) -->
-      @if (!store.mobileMapOpen()) {
+      <!-- Mobile Floating Map Pill (shown only when day has at least 1 map coordinate) -->
+      @if (!store.mobileMapOpen() && hasAnyMapPin()) {
         <button
           type="button"
           class="mobile-map-fab"
@@ -390,6 +428,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       @if (store.mobileMapOpen()) {
         <app-mobile-map-sheet
           [dayLabel]="selectedDayLabel()"
+          [readOnly]="isOfflineReadOnly()"
           [pins]="mapPins()"
           [schematicRoutes]="schematicMapRoutes()"
           [roadRoutes]="roadMapRoutes()"
@@ -399,6 +438,7 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
           [departureStayPin]="departureStayMapPin()"
           [stayPin]="stayMapPin()"
           [selectedPinId]="store.selectedItemId()"
+          [fallbackCenter]="tripMapCenter()"
           [selectedItem]="selectedMapItem()"
           [selectedPinOrder]="selectedMapItem() ? (pinOrderById().get(selectedMapItem()!.id) ?? null) : null"
           (pinSelected)="onMapPinSelected($event)"
@@ -778,10 +818,19 @@ import { MobileMapSheetComponent } from './mobile-map-sheet.component';
       cursor: pointer;
       transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
     }
-    .day-add-btn:hover {
+    .day-add-btn:hover:not(:disabled) {
       border-color: var(--color-primary);
       background: var(--color-surface);
       color: var(--color-primary);
+    }
+    .day-add-btn:disabled,
+    .clone-btn:disabled,
+    .btn-accent:disabled,
+    .add-item-btn:disabled,
+    .choice-pill:disabled,
+    .choice-add-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
     }
     .day-chapter {
       padding: 2px 0 6px;
@@ -1162,8 +1211,13 @@ export class ItineraryPageComponent implements OnInit {
   protected readonly expenseStore = inject(ExpenseStore);
   protected readonly authStore = inject(AuthStore);
   protected readonly viewport = inject(ViewportService);
+  private readonly network = inject(NetworkStatusService);
   private readonly tripStore = inject(TripStore);
   private readonly route = inject(ActivatedRoute);
+
+  protected readonly isOfflineReadOnly = computed(
+    () => !this.network.isOnline() || this.store.usingOfflineCache(),
+  );
 
   protected readonly showItemModal = signal(false);
   protected readonly editingItem = signal<ItineraryItem | null>(null);
@@ -1265,6 +1319,20 @@ export class ItineraryPageComponent implements OnInit {
     ),
   );
 
+  protected readonly hasAnyMapPin = computed(
+    () =>
+      this.mapPins().length > 0 ||
+      Boolean(this.stayMapPin()) ||
+      Boolean(this.departureStayMapPin()),
+  );
+
+  protected readonly tripMapCenter = computed<readonly [number, number]>(() =>
+    resolveCountryMapCenter(
+      this.store.trip()?.country_codes ?? [],
+      this.authStore.profile()?.home_country_code ?? 'TW',
+    ),
+  );
+
   /** Lookup map syncing card pin numbers (1, 2, 3) with MapLibre markers. */
   protected readonly pinOrderById = computed<Map<string, number>>(() =>
     buildPinOrderMap(this.mapPins()),
@@ -1315,7 +1383,7 @@ export class ItineraryPageComponent implements OnInit {
   protected readonly formatDayNumber = formatDayNumber;
 
   protected onSlotDropped(event: CdkDragDrop<ItinerarySlot[]>): void {
-    if (event.previousIndex === event.currentIndex) {
+    if (this.isOfflineReadOnly() || event.previousIndex === event.currentIndex) {
       return;
     }
     void this.store.reorderSlotIndex(event.previousIndex, event.currentIndex);
@@ -1403,6 +1471,9 @@ export class ItineraryPageComponent implements OnInit {
     nextValue: string,
     previousValue: string | null,
   ): Promise<void> {
+    if (this.isOfflineReadOnly()) {
+      return;
+    }
     const trimmed = nextValue.trim();
     if (trimmed === (previousValue ?? '').trim()) {
       return;
