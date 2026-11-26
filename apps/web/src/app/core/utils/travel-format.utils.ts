@@ -45,6 +45,21 @@ export type ExpenseCategoryTranslationKey =
   | 'expenses.cat.OTHER';
 
 const HTTP_URL_RE = /^https?:\/\//i;
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const ZH_WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'] as const;
+const EN_WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+
+/** Format YYYY-MM-DD with its localized weekday in UTC so browser timezone cannot shift the day. */
+export function formatDateWithWeekday(isoDate: string, locale: 'zh-TW' | 'en'): string {
+  if (!ISO_DATE_RE.test(isoDate)) {
+    return isoDate;
+  }
+  const [year, month, day] = isoDate.split('-').map(Number);
+  const weekdayIdx = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+  return locale === 'zh-TW'
+    ? `${isoDate} (${ZH_WEEKDAYS[weekdayIdx]})`
+    : `${isoDate} · ${EN_WEEKDAYS[weekdayIdx]}`;
+}
 
 /** Format a 1-based day index as zero-padded editorial chapter numeral (e.g. 01). */
 export function formatDayNumber(dayIndex: number): string {

@@ -167,29 +167,95 @@ import { AuthStore } from '../../state/auth.store';
           <div class="mcp-divider"></div>
           <div class="mcp-block">
             <h4 class="mcp-subhead">{{ 'profile.aiConnectTitle' | t }}</h4>
-            <div class="connect-row">
-              <div class="connect-info">
-                <span class="connect-label">{{ 'profile.aiMcpLabel' | t }}</span>
-                <code class="connect-url">{{ mcpEndpoint }}</code>
-              </div>
+
+            <div class="ai-tabs" role="tablist">
               <button
                 type="button"
-                class="pill-btn"
-                (click)="copySnippet('mcp', mcpEndpoint)"
+                role="tab"
+                class="ai-tab"
+                [class.active]="aiSurfaceTab() === 'mcp'"
+                [attr.aria-selected]="aiSurfaceTab() === 'mcp'"
+                (click)="aiSurfaceTab.set('mcp')"
               >
-                {{ copiedKey() === 'mcp' ? ('common.copied' | t) : ('common.copy' | t) }}
+                {{ 'profile.aiTabMcp' | t }}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                class="ai-tab"
+                [class.active]="aiSurfaceTab() === 'chatgpt'"
+                [attr.aria-selected]="aiSurfaceTab() === 'chatgpt'"
+                (click)="aiSurfaceTab.set('chatgpt')"
+              >
+                {{ 'profile.aiTabChatgpt' | t }}
               </button>
             </div>
-            <button
-              type="button"
-              class="btn-secondary"
-              (click)="copySnippet('prompt', quickStartPrompt())"
-            >
-              <span class="ms-icon sm" aria-hidden="true">content_copy</span>
-              <span>
-                {{ copiedKey() === 'prompt' ? ('common.copied' | t) : ('profile.aiCopyPrompt' | t) }}
-              </span>
-            </button>
+
+            @if (aiSurfaceTab() === 'mcp') {
+              <p class="ai-support-line">{{ 'profile.aiMcpSupported' | t }}</p>
+
+              <div class="connect-row">
+                <div class="connect-info">
+                  <span class="connect-label">{{ 'profile.aiMcpLabel' | t }}</span>
+                  <code class="connect-url">{{ mcpEndpoint }}</code>
+                </div>
+                <button
+                  type="button"
+                  class="copy-inline-btn"
+                  (click)="copySnippet('mcp', mcpEndpoint)"
+                >
+                  {{ copiedKey() === 'mcp' ? ('common.copied' | t) : ('common.copy' | t) }}
+                </button>
+              </div>
+
+              <div class="ai-actions-row">
+                <button
+                  type="button"
+                  class="ai-action-btn primary"
+                  (click)="copySnippet('mcpJson', mcpConfigSnippet())"
+                >
+                  {{ copiedKey() === 'mcpJson' ? ('common.copied' | t) : ('profile.aiCopyMcpJson' | t) }}
+                </button>
+                <button
+                  type="button"
+                  class="ai-action-btn"
+                  (click)="copySnippet('prompt', quickStartPrompt())"
+                >
+                  {{ copiedKey() === 'prompt' ? ('common.copied' | t) : ('profile.aiCopyPrompt' | t) }}
+                </button>
+              </div>
+            } @else {
+              <div class="connect-row">
+                <div class="connect-info">
+                  <span class="connect-label">{{ 'profile.aiOpenApiLabel' | t }}</span>
+                  <code class="connect-url">{{ gptOpenApiUrl }}</code>
+                </div>
+                <button
+                  type="button"
+                  class="copy-inline-btn"
+                  (click)="copySnippet('openapi', gptOpenApiUrl)"
+                >
+                  {{ copiedKey() === 'openapi' ? ('common.copied' | t) : ('common.copy' | t) }}
+                </button>
+              </div>
+
+              <ol class="ai-steps">
+                <li>{{ 'profile.aiChatgptStep1' | t }}</li>
+                <li>{{ 'profile.aiChatgptStep2' | t }}</li>
+              </ol>
+
+              <div class="ai-actions-row">
+                <button
+                  type="button"
+                  class="ai-action-btn primary"
+                  (click)="copySnippet('gptPrompt', customGptInstructions())"
+                >
+                  {{ copiedKey() === 'gptPrompt' ? ('common.copied' | t) : ('profile.aiCopyGptPrompt' | t) }}
+                </button>
+              </div>
+            }
+
+            <p class="ai-footnote">{{ 'profile.aiWebLimitNote' | t }}</p>
           </div>
         }
       </section>
@@ -392,14 +458,47 @@ import { AuthStore } from '../../state/auth.store';
     .mcp-block {
       display: flex;
       flex-direction: column;
-      align-items: flex-start;
-      gap: 10px;
+      align-items: stretch;
+      gap: 12px;
     }
     .mcp-subhead {
       margin: 0;
-      font-size: 0.85rem;
+      font-size: 0.9rem;
       font-weight: 600;
       color: var(--color-primary);
+    }
+    .ai-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      border-bottom: 1px solid var(--color-border);
+    }
+    .ai-tab {
+      padding: 7px 12px;
+      margin-bottom: -1px;
+      border: none;
+      border-bottom: 2px solid transparent;
+      border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+      background: transparent;
+      color: var(--color-text-secondary);
+      font: inherit;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: color 140ms ease, border-color 140ms ease;
+    }
+    .ai-tab:hover:not(.active) {
+      color: var(--color-primary);
+    }
+    .ai-tab.active {
+      color: var(--color-primary);
+      border-bottom-color: var(--color-primary);
+    }
+    .ai-support-line {
+      margin: 0;
+      font-size: 0.8rem;
+      color: var(--color-text-secondary);
+      line-height: 1.45;
     }
     .connect-row {
       width: 100%;
@@ -429,23 +528,67 @@ import { AuthStore } from '../../state/auth.store';
       color: var(--color-primary);
       word-break: break-all;
     }
-    .btn-secondary {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 9px 16px;
-      border: 1px solid var(--color-primary);
-      border-radius: var(--radius-pill);
-      background: var(--color-primary-tint);
+    .copy-inline-btn {
+      padding: 5px 10px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-xs);
+      background: var(--color-surface);
       color: var(--color-primary);
       font: inherit;
-      font-size: 0.82rem;
+      font-size: 0.75rem;
       font-weight: 600;
       cursor: pointer;
+      flex-shrink: 0;
     }
-    .btn-secondary:hover {
+    .copy-inline-btn:hover {
+      border-color: var(--color-primary);
+    }
+    .ai-steps {
+      margin: 0;
+      padding-left: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 0.8rem;
+      line-height: 1.5;
+      color: var(--color-text-secondary);
+    }
+    .ai-actions-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .ai-action-btn {
+      padding: 7px 13px;
+      border: 1px solid var(--color-border-strong);
+      border-radius: var(--radius-sm);
+      background: var(--color-surface);
+      color: var(--color-primary);
+      font: inherit;
+      font-size: 0.79rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+    }
+    .ai-action-btn:hover {
+      border-color: var(--color-primary);
+      background: var(--color-surface-alt);
+    }
+    .ai-action-btn.primary {
+      border-color: var(--color-primary);
+      background: var(--color-primary-tint);
+    }
+    .ai-action-btn.primary:hover {
       background: var(--color-primary);
       color: var(--color-text-on-primary);
+    }
+    .ai-footnote {
+      margin: 2px 0 0;
+      padding-top: 10px;
+      border-top: 1px solid var(--color-border-soft);
+      font-size: 0.75rem;
+      line-height: 1.45;
+      color: var(--color-text-muted);
     }
   `,
 })
@@ -472,11 +615,13 @@ export class ProfilePageComponent implements OnInit {
   protected readonly tokenNameError = signal(false);
   protected readonly tokenApiError = signal<string | null>(null);
   protected readonly generatingToken = signal(false);
+  protected readonly aiSurfaceTab = signal<'mcp' | 'chatgpt'>('mcp');
 
   private readonly apiOrigin =
     getApiBaseUrl() || (typeof window !== 'undefined' ? window.location.origin : '');
   protected readonly mcpEndpoint = `${this.apiOrigin}/mcp`;
   protected readonly llmsTxtUrl = `${this.apiOrigin}/llms.txt`;
+  protected readonly gptOpenApiUrl = `${this.apiOrigin}/gpt-openapi.json`;
 
   protected readonly activeTokens = computed(() =>
     this.authStore.tokens().filter((tok) => !tok.revoked_at),
@@ -552,6 +697,33 @@ export class ProfilePageComponent implements OnInit {
       `(Remote MCP endpoint: ${this.mcpEndpoint}). ` +
       `I will provide my Personal API Token (tp_pat_...) so you can help me plan and update my trips.`
     );
+  }
+
+  protected mcpConfigSnippet(): string {
+    return JSON.stringify(
+      {
+        mcpServers: {
+          tripilot: {
+            url: this.mcpEndpoint,
+            headers: {
+              Authorization: 'Bearer <YOUR_TRIPILOT_TOKEN>',
+            },
+          },
+        },
+      },
+      null,
+      2,
+    );
+  }
+
+  protected customGptInstructions(): string {
+    return [
+      "You are the user's Tripilot travel planner.",
+      '1. Call search_places or resolve_place_url before adding STAY, SPOT, FOOD, or RESERVED_TRANSIT items so map coordinates render.',
+      '2. For non-English destinations (e.g. Japan, Korea, Europe), set details.local_name to the native venue name for taxi copy.',
+      '3. When logging expenses, omit exchange_rate unless overriding so Tripilot resolves the live FX rate automatically.',
+      '4. Keep Day Themes (TripDay.title) concise and scannable.',
+    ].join('\n');
   }
 
   protected async copySnippet(key: string, text: string): Promise<void> {

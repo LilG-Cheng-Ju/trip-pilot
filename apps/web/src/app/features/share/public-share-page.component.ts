@@ -22,6 +22,7 @@ import {
   buildDayMapRoutes,
   buildPinOrderMap,
   DayMapRoutes,
+  formatDateWithWeekday,
   formatDayNumber,
   groupItemsIntoSlots,
   ItinerarySlot,
@@ -118,7 +119,9 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
                     Day {{ formatDayNumber(day.day_index) }}
                   </span>
                   <span class="chapter-sep" aria-hidden="true">·</span>
-                  <span class="chapter-date tabular-nums">{{ day.date }}</span>
+                  <span class="chapter-date tabular-nums">
+                    {{ formatDateWithWeekday(day.date, i18n.locale()) }}
+                  </span>
                 </div>
                 @if (day.title) {
                   <h2 class="day-chapter-title font-display">{{ day.title }}</h2>
@@ -363,6 +366,7 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
       display: flex;
       align-items: center;
       gap: 7px;
+      min-height: 26px;
     }
     .chapter-num {
       color: var(--color-accent);
@@ -381,7 +385,7 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
       color: var(--color-text-muted);
     }
     .day-chapter-title {
-      margin: 2px 0 0;
+      margin: 5px 0 0;
       font-size: 1.32rem;
       font-weight: 600;
       line-height: 1.22;
@@ -579,6 +583,7 @@ export class PublicSharePageComponent implements OnInit {
   protected readonly errorKey = signal<'share.errInvalid' | 'share.errNotFound' | null>(null);
 
   protected readonly dayStripScrollStepPx = DAY_STRIP_SCROLL_STEP_PX;
+  protected readonly formatDateWithWeekday = formatDateWithWeekday;
   protected readonly formatDayNumber = formatDayNumber;
   protected readonly selectedDay = computed(() => {
     const t = this.trip();

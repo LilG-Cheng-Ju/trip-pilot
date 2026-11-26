@@ -100,36 +100,51 @@
           </div>
         }
         @if (store.selectedDay(); as day) {
-          <!-- Magazine Chapter Opener (Inline Editable Day Theme) -->
-          <div class="day-chapter">
+          <!-- Magazine Chapter Opener (Collapses cleanly when empty; expands on edit/value) -->
+          <div class="day-chapter" [class.has-theme]="isDayThemeVisible(day)">
             <div class="day-chapter-kicker">
               <span class="chapter-num font-display-italic">
                 Day {{ formatDayNumber(day.day_index) }}
               </span>
               <span class="chapter-sep" aria-hidden="true">·</span>
-              <span class="chapter-date tabular-nums">{{ day.date }}</span>
-              @if (trip.days.length > 1) {
-                <button
-                  type="button"
-                  class="icon-btn icon-btn--danger chapter-del-btn"
-                  [disabled]="isOfflineReadOnly()"
-                  [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ('itinerary.deleteDay' | t)"
-                  [attr.aria-label]="'itinerary.deleteDay' | t"
-                  (click)="pendingDeleteDay.set(day)"
-                >
-                  <span class="ms-icon sm" aria-hidden="true">delete</span>
-                </button>
-              }
+              <span class="chapter-date tabular-nums">{{ formatChapterDate(day.date) }}</span>
+              <div class="chapter-actions">
+                @if (!isDayThemeVisible(day) && !isOfflineReadOnly()) {
+                  <button
+                    type="button"
+                    class="theme-add-btn"
+                    (click)="startEditingDayTheme(day.id)"
+                  >
+                    {{ 'itinerary.addDayTheme' | t }}
+                  </button>
+                }
+                @if (trip.days.length > 1) {
+                  <button
+                    type="button"
+                    class="icon-btn icon-btn--danger chapter-del-btn"
+                    [disabled]="isOfflineReadOnly()"
+                    [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ('itinerary.deleteDay' | t)"
+                    [attr.aria-label]="'itinerary.deleteDay' | t"
+                    (click)="pendingDeleteDay.set(day)"
+                  >
+                    <span class="ms-icon sm" aria-hidden="true">delete</span>
+                  </button>
+                }
+              </div>
             </div>
-            <input
-              type="text"
-              class="day-chapter-input font-display"
-              [readOnly]="isOfflineReadOnly()"
-              [value]="day.title || ''"
-              (blur)="saveDayTheme(day.id, readInputValue($event), day.title)"
-              (keydown.enter)="blurInput($event)"
-              [placeholder]="'itinerary.dayThemePlaceholder' | t"
-            />
+            @if (isDayThemeVisible(day)) {
+              <input
+                #dayThemeInput
+                type="text"
+                class="day-chapter-input font-display"
+                [readOnly]="isOfflineReadOnly()"
+                [value]="day.title || ''"
+                (blur)="onDayThemeBlur(day.id, readInputValue($event), day.title)"
+                (keydown.enter)="blurInput($event)"
+                (keydown.escape)="cancelDayThemeEdit($event, day.title)"
+                [placeholder]="'itinerary.dayThemePlaceholder' | t"
+              />
+            }
           </div>
 
           <!-- Whole-Day Plan A / Plan B Segmented Switcher (shown once a day has 2+ plans) -->

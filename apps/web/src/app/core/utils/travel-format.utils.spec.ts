@@ -14,6 +14,7 @@ import {
   estimateOfflineFxRate,
   extractItemAttachments,
   formatCurrencyAmount,
+  formatDateWithWeekday,
   formatDayNumber,
   groupItemsIntoSlots,
   removeItemWithChoicePromotion,
@@ -454,5 +455,13 @@ describe('travel-format.utils', () => {
     expect(formatCurrencyAmount('210540', 'JPY')).toBe('210,540');
     expect(formatCurrencyAmount('1234.5', 'USD')).toBe('1,234.50');
     expect(formatCurrencyAmount('10.00', 'USD')).toBe('10');
+  });
+
+  it('formats YYYY-MM-DD dates with localized weekdays without timezone drift', () => {
+    expect(formatDateWithWeekday('2026-11-27', 'zh-TW')).toBe('2026-11-27 (五)');
+    expect(formatDateWithWeekday('2026-11-27', 'en')).toBe('2026-11-27 · Fri');
+    expect(formatDateWithWeekday('2024-02-29', 'zh-TW')).toBe('2024-02-29 (四)');
+    expect(formatDateWithWeekday('2026-11-29', 'en')).toBe('2026-11-29 · Sun');
+    expect(formatDateWithWeekday('invalid', 'en')).toBe('invalid');
   });
 });

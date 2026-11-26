@@ -22,6 +22,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { DAY_STRIP_SCROLL_STEP_PX } from '../../core/constants/app-limits';
 import { resolveCountryMapCenter } from '../../core/constants/travel-options';
+import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ItineraryItem, TripDay } from '../../core/models/tripilot.models';
 import { NetworkStatusService } from '../../core/network/network-status.service';
@@ -31,6 +32,7 @@ import {
   buildDayMapRoutes,
   buildPinOrderMap,
   DayMapRoutes,
+  formatDateWithWeekday,
   formatDayNumber,
   groupItemsIntoSlots,
   ItinerarySlot,
@@ -87,6 +89,7 @@ export class ItineraryPageComponent implements OnInit {
   protected readonly expenseStore = inject(ExpenseStore);
   protected readonly authStore = inject(AuthStore);
   protected readonly viewport = inject(ViewportService);
+  private readonly i18n = inject(I18nService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly network = inject(NetworkStatusService);
   private readonly tripStore = inject(TripStore);
@@ -109,9 +112,11 @@ export class ItineraryPageComponent implements OnInit {
   protected readonly deletingItem = signal(false);
   protected readonly showShareModal = signal(false);
   protected readonly mobileHeaderCollapsed = signal(false);
+  protected readonly editingDayThemeId = signal<string | null>(null);
   protected readonly readInputValue = readInputValue;
 
   private readonly dayStrip = viewChild<ElementRef<HTMLDivElement>>('dayStrip');
+  private readonly dayThemeInput = viewChild<ElementRef<HTMLInputElement>>('dayThemeInput');
   private readonly timelineScroll = viewChild<ElementRef<HTMLDivElement>>('timelineScroll');
   protected readonly optionModals = viewChild(DayOptionModalsComponent);
   protected readonly dayStripScrollStepPx = DAY_STRIP_SCROLL_STEP_PX;
@@ -319,6 +324,7 @@ export class ItineraryPageComponent implements OnInit {
 
   protected selectDay(dayIndex: number, event?: Event): void {
     this.mobileHeaderCollapsed.set(false);
+    this.editingDayThemeId.set(null);
     this.store.selectDay(dayIndex);
     (event?.currentTarget as HTMLElement | null)?.scrollIntoView({
       behavior: 'smooth',
@@ -363,6 +369,40 @@ export class ItineraryPageComponent implements OnInit {
       await this.store.addItem(event.payload);
     }
     this.showItemModal.set(false);
+  }
+
+  protected formatChapterDate(isoDate: string): string {
+    return formatDateWithWeekday(isoDate, this.i18n.locale());
+  }
+
+  protected isDayThemeVisible(day: TripDay): boolean {
+    return Boolean(day.title?.trim()) || this.editingDayThemeId() === day.id;
+  }
+
+  protected startEditingDayTheme(dayId: string): void {
+    if (this.isOfflineReadOnly()) {
+      return;
+    }
+    this.editingDayThemeId.set(dayId);
+    queueMicrotask(() => this.dayThemeInput()?.nativeElement.focus());
+  }
+
+  protected async onDayThemeBlur(
+    dayId: string,
+    nextValue: string,
+    previousValue: string | null,
+  ): Promise<void> {
+    if (this.editingDayThemeId() === dayId) {
+      this.editingDayThemeId.set(null);
+    }
+    await this.saveDayTheme(dayId, nextValue, previousValue);
+  }
+
+  protected cancelDayThemeEdit(event: Event, previousValue: string | null): void {
+    const inputEl = event.target as HTMLInputElement;
+    inputEl.value = previousValue ?? '';
+    this.editingDayThemeId.set(null);
+    inputEl.blur();
   }
 
   protected blurInput(event: Event): void {

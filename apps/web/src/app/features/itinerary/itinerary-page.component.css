@@ -179,7 +179,11 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  margin-bottom: 2px;
+  min-height: 30px;
+  margin-bottom: 0;
+}
+.day-chapter.has-theme .day-chapter-kicker {
+  margin-bottom: 5px;
 }
 .chapter-num {
   color: var(--color-accent);
@@ -194,11 +198,32 @@
 .chapter-date {
   font-size: 0.76rem;
   font-weight: 500;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   color: var(--color-text-muted);
 }
-.chapter-del-btn {
+.chapter-actions {
   margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.theme-add-btn {
+  padding: 3px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease;
+}
+.theme-add-btn:hover,
+.theme-add-btn:focus-visible {
+  color: var(--color-primary);
+  background: var(--color-surface-alt);
+  border-color: var(--color-border);
 }
 .day-chapter-input {
   width: 100%;
