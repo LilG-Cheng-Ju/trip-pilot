@@ -224,11 +224,32 @@ class ExpenseService:
             )
         if "category" in updates and updates["category"] is not None:
             updates["category"] = updates["category"].value
+        if updates.get("exchange_rate") is None:
+            updates.pop("exchange_rate", None)
+        if (
+            "currency_original" in updates
+            and updates["currency_original"] is not None
+            and "exchange_rate" not in updates
+            and (
+                updates["currency_original"].upper()
+                != expense.currency_original.upper()
+            )
+        ):
+            next_currency = updates["currency_original"].upper()
+            if next_currency == user.home_currency.upper():
+                updates["exchange_rate"] = Decimal("1.000000")
+            else:
+                raw_rate, _, _ = await get_fx_provider().get_rate(
+                    next_currency, user.home_currency
+                )
+                updates["exchange_rate"] = Decimal(str(raw_rate))
         for field, value in updates.items():
             setattr(expense, field, value)
 
         if "amount_home" not in updates and (
-            "amount_original" in updates or "exchange_rate" in updates
+            "amount_original" in updates
+            or "exchange_rate" in updates
+            or "currency_original" in updates
         ):
             expense.amount_home = (
                 expense.amount_original * expense.exchange_rate

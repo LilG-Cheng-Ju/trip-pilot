@@ -1,6 +1,7 @@
 """Tests for the Remote Streamable HTTP MCP endpoint (/mcp) and public /llms.txt."""
 
 import json
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -56,11 +57,40 @@ async def test_remote_mcp_lifecycle_and_tool_calls(
     tool_names = {t["name"] for t in tools.json()["result"]["tools"]}
     expected = {
         "list_trips",
+        "get_trip",
+        "create_trip",
+        "update_trip",
+        "delete_trip",
+        "append_day",
+        "update_day_title",
+        "delete_trip_day",
+        "create_day_option",
+        "clone_day_option",
+        "rename_day_option",
+        "delete_day_option",
+        "set_active_option",
+        "recalculate_option_route",
         "add_itinerary_item",
+        "add_item_by_date",
+        "update_itinerary_item",
+        "delete_itinerary_item",
+        "select_choice_item",
+        "reorder_itinerary_items",
+        "list_trip_shares",
+        "create_trip_share",
+        "revoke_trip_share",
+        "search_places",
+        "resolve_google_maps_url",
+        "search_airports",
+        "resolve_link_title",
+        "list_expenses",
+        "add_expense",
+        "update_expense",
+        "delete_expense",
         "get_fx_rate",
         "get_travel_stats",
-        "delete_trip_day",
     }
+    assert len(expected) == 33
     assert expected <= tool_names
 
     fx = await api_client.post(
@@ -392,7 +422,7 @@ async def test_mcp_auto_fx_expense_flat_patches_and_schema_parity(
     )
     assert tools_res.status_code == 200
     tools_by_name = {t["name"]: t for t in tools_res.json()["result"]["tools"]}
-    assert len(tools_by_name) == 23
+    assert len(tools_by_name) == 33
     add_props = tools_by_name["add_itinerary_item"]["inputSchema"]["properties"]
     assert "type" in add_props
     assert "item_type" not in add_props
@@ -522,4 +552,150 @@ async def test_mcp_auto_fx_expense_flat_patches_and_schema_parity(
     assert float(exp["exchange_rate"]) == pytest.approx(0.215)
     assert float(exp["amount_home"]) == pytest.approx(430.0)
     assert "paid_at" in exp
+
+
+@pytest.mark.asyncio
+async def test_remote_mcp_full_parity_tools(
+    api_client: AsyncClient, dev_headers: dict[str, str]
+) -> None:
+    async def _call(tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        resp = await api_client.post(
+            "/mcp",
+            headers=dev_headers,
+            json={
+                "jsonrpc": "2.0",
+                "id": 99,
+                "method": "tools/call",
+                "params": {"name": tool_name, "arguments": arguments},
+            },
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert "error" not in body, body
+        assert body["result"]["isError"] is False, body
+        parsed: dict[str, Any] = json.loads(body["result"]["content"][0]["text"])
+        return parsed
+
+    trip = await _call(
+        "create_trip",
+        {
+            "title": "Seoul Draft",
+            "start_date": "2026-10-01",
+            "end_date": "2026-10-02",
+            "country_codes": ["KR"],
+            "default_currency": "KRW",
+        },
+    )
+    trip_id = str(trip["id"])
+    days = trip["days"]
+    assert isinstance(days, list)
+    opt_id = str(days[0]["active_option_id"])
+
+    updated_trip = await _call(
+        "update_trip",
+        {
+            "trip_id": trip_id,
+            "title": "Seoul Autumn",
+            "start_date": "2026-10-03",
+            "status": "ACTIVE",
+        },
+    )
+    assert updated_trip["title"] == "Seoul Autumn"
+    assert updated_trip["start_date"] == "2026-10-03"
+    assert updated_trip["end_date"] == "2026-10-04"
+    assert updated_trip["status"] == "ACTIVE"
+
+    item1 = await _call(
+        "add_itinerary_item",
+        {"option_id": opt_id, "type": "SPOT", "title": "Gyeongbokgung"},
+    )
+    item2 = await _call(
+        "add_itinerary_item",
+        {"option_id": opt_id, "type": "FOOD", "title": "Tosokchon"},
+    )
+    reordered = await _call(
+        "reorder_itinerary_items",
+        {"option_id": opt_id, "item_ids": [item2["id"], item1["id"]]},
+    )
+    reordered_items = reordered["items"]
+    assert isinstance(reordered_items, list)
+    assert [it["id"] for it in reordered_items] == [item2["id"], item1["id"]]
+
+    recalc = await _call("recalculate_option_route", {"option_id": opt_id})
+    assert recalc["id"] == opt_id
+
+    share = await _call(
+        "create_trip_share",
+        {
+            "trip_id": trip_id,
+            "label": "Friends",
+            "include_notes": True,
+            "expires_at": "2027-01-01",
+        },
+    )
+    assert share["label"] == "Friends"
+    shares_list = await api_client.post(
+        "/mcp",
+        headers=dev_headers,
+        json={
+            "jsonrpc": "2.0",
+            "id": 100,
+            "method": "tools/call",
+            "params": {"name": "list_trip_shares", "arguments": {"trip_id": trip_id}},
+        },
+    )
+    assert len(json.loads(shares_list.json()["result"]["content"][0]["text"])) == 1
+    revoked = await _call(
+        "revoke_trip_share", {"trip_id": trip_id, "share_id": share["id"]}
+    )
+    assert revoked == {"revoked": True, "share_id": share["id"]}
+
+    with patch(
+        "app.api.v1.mcp.fetch_cloud_link_title",
+        return_value="Seoul_Tickets.pdf",
+    ):
+        link_res = await _call(
+            "resolve_link_title",
+            {"url": "https://drive.google.com/file/d/abc123/view"},
+        )
+    assert link_res == {"title": "Seoul_Tickets.pdf"}
+
+    class _FakeFx:
+        async def get_rate(self, src: str, dst: str) -> tuple[float, str, bool]:
+            assert dst == "TWD"
+            return (0.024 if src == "KRW" else 32.0), "fake", False
+
+    with patch("app.services.expense_service.get_fx_provider", return_value=_FakeFx()):
+        exp = await _call(
+            "add_expense",
+            {
+                "trip_id": trip_id,
+                "title": "Samgyetang",
+                "category": "FOOD",
+                "amount_original": 20000,
+                "currency_original": "KRW",
+                "paid_at": "2026-10-03",
+            },
+        )
+        assert exp["paid_at"].startswith("2026-10-03")
+        assert float(exp["amount_home"]) == pytest.approx(480.0)
+
+        # Updating currency_original without exchange_rate refreshes FX automatically.
+        updated_exp = await _call(
+            "update_expense",
+            {
+                "expense_id": exp["id"],
+                "amount_original": 10,
+                "currency_original": "USD",
+            },
+        )
+        assert updated_exp["currency_original"] == "USD"
+        assert float(updated_exp["exchange_rate"]) == pytest.approx(32.0)
+        assert float(updated_exp["amount_home"]) == pytest.approx(320.0)
+
+    deleted_exp = await _call("delete_expense", {"expense_id": exp["id"]})
+    assert deleted_exp == {"deleted": True, "expense_id": exp["id"]}
+
+    deleted_trip = await _call("delete_trip", {"trip_id": trip_id})
+    assert deleted_trip == {"deleted": True, "trip_id": trip_id}
 

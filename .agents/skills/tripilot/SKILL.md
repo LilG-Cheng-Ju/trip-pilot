@@ -15,6 +15,7 @@ Use Tripilot's Remote MCP endpoint (`POST <API_URL>/mcp`) or `/api/v1` REST API 
 
 - **Trip -> TripDay -> DayOption -> ItineraryItem**:
   - Every trip auto-generates one `TripDay` per calendar date (`day_index` 1..N), each with a default `Plan A` `DayOption` set as `active_option_id`.
+  - Manage trips with `list_trips`, `get_trip`, `create_trip`, `update_trip` (metadata, status, or shifting `start_date`), and `delete_trip`.
   - Always set a concise **Day Theme (`TripDay.title`)** summarizing the main area/focus of each day (e.g., `東釜山體驗日 · 滑車＋天空膠囊`, `Prague Old Town & Castle`) via `update_day_title` or `PATCH /api/v1/days/{day_id}`.
 - **Item types (`type`)**:
   - `FLIGHT`: Commercial flights. Include `origin_iata`, `dest_iata`, `flight_number`, `booking_ref`, `origin_terminal`, `dest_terminal`, `seat` in `details`. The backend auto-computes Great-Circle `distance_km` and auto-pins the destination/foreign airport coordinates on the map.
@@ -26,15 +27,19 @@ Use Tripilot's Remote MCP endpoint (`POST <API_URL>/mcp`) or `/api/v1` REST API 
 - **Cloud Attachments (`details.attachments`)**:
   - Attach tickets, boarding passes, PDFs, or Drive folders via `details["attachments"] = [{"name": "BR169_Ticket.pdf", "url": "https://drive.google.com/..."}]`.
   - Attachments appear as 1-tap rounded chips on itinerary cards, are aggregated in the **Trip Brief** attachments vault, and are automatically stripped on public shares when booking refs are hidden.
-  - To resolve a filename from a whitelisted cloud link (Google Drive, Dropbox, OneDrive), call `POST /api/v1/links/resolve-title`.
+  - To resolve a filename from a whitelisted cloud link (Google Drive, Dropbox, OneDrive, iCloud, Notion), call `resolve_link_title` (`POST /api/v1/links/resolve-title`).
 - **Always populate `details.local_name` for international stops**:
   - Whenever adding a `STAY`, `SPOT`, `FOOD`, or `RESERVED_TRANSIT` in a non-Chinese/non-English destination (Japan, South Korea, Europe, etc.), ALWAYS include `details["local_name"]` with the authentic native-language venue name so the traveler can 1-tap copy it into taxi/map apps.
-- **Geolocation for Map Pins**:
+- **Geolocation, Ordering & Routes**:
   - Call `search_places` (`GET /api/v1/places/search?q=<query>&lang=zh-TW`) or `resolve_google_maps_url` (`POST /api/v1/places/resolve-url`) to populate `latitude`, `longitude`, `address`, and `google_maps_url` for every `SPOT`, `FOOD`, `STAY`, and `RESERVED_TRANSIT`.
+  - Use `reorder_itinerary_items(option_id, item_ids)` to reorder all stops inside an option, or `recalculate_option_route(option_id)` to force-refresh cached ground route legs and distance.
+- **Read-Only Share Links**:
+  - Manage public read-only links with `list_trip_shares`, `create_trip_share` (setting `include_booking_refs`, `include_notes`, `include_expenses`, `include_backup_options`, `expires_at`), and `revoke_trip_share`.
 - **Expenses & Live FX**:
   - Categories: `FLIGHT`, `LODGING`, `TRANSIT`, `FOOD`, `ACTIVITY`, `SHOPPING`, `OTHER`.
   - Link expenses to a specific stop via `trip_day_id` and `itinerary_item_id` so they group cleanly on cards and filter in `/trips/:id/expenses?itemId=...`.
-  - Omit `exchange_rate` in `add_expense` (or `POST /api/v1/trips/{trip_id}/expenses`) to auto-resolve the live FX rate into the user's home currency, or call `get_fx_rate` (`GET /api/v1/fx/rate?from=JPY&to=TWD`) when inspecting rates directly — never fabricate exchange rates.
+  - Manage expenses with `list_expenses`, `add_expense`, `update_expense`, and `delete_expense` (pass optional `paid_at` as `YYYY-MM-DD` or ISO-8601 datetime).
+  - Omit `exchange_rate` in `add_expense` or when changing `currency_original` in `update_expense` to auto-resolve the live FX rate into the user's home currency, or call `get_fx_rate` (`GET /api/v1/fx/rate?from=JPY&to=TWD`) when inspecting rates directly — never fabricate exchange rates.
 - **Updating Itinerary Items**:
   - Call `update_itinerary_item` with flat optional fields (`title`, `start_time`, `end_time`, `notes`, `details`, `is_selected`, `sort_order`, etc.) via Remote MCP.
 

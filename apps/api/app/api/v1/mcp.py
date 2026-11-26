@@ -7,7 +7,7 @@ from collections.abc import AsyncGenerator, AsyncIterator
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from dataclasses import asdict, dataclass
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Annotated, Any, Literal
 
@@ -20,6 +20,7 @@ from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.types import Message
 
+from app.api.v1.links import fetch_cloud_link_title
 from app.core.auth import AuthContext, require_member_auth
 from app.core.config import Settings, get_settings
 from app.core.constants import (
@@ -30,8 +31,8 @@ from app.core.constants import (
 )
 from app.core.database import get_db
 from app.core.rate_limit import enforce_user_rate_limit, limit_public_endpoint
-from app.models.enums import ExpenseCategory, ItemType
-from app.schemas.expense import ExpenseCreate, ExpenseResponse
+from app.models.enums import ExpenseCategory, ItemType, TripStatus
+from app.schemas.expense import ExpenseCreate, ExpenseResponse, ExpenseUpdate
 from app.schemas.trip import (
     DayOptionCloneRequest,
     DayOptionCreate,
@@ -40,11 +41,15 @@ from app.schemas.trip import (
     ItineraryItemCreate,
     ItineraryItemResponse,
     ItineraryItemUpdate,
+    ShareVisibilityPolicy,
     TripCreate,
     TripDayResponse,
     TripDayUpdate,
     TripDetailResponse,
+    TripShareCreate,
+    TripShareResponse,
     TripSummaryResponse,
+    TripUpdate,
 )
 from app.services.airport_service import search_airports as svc_search_airports
 from app.services.expense_service import ExpenseService
@@ -130,6 +135,21 @@ def _json_text(payload: Any) -> str:
 
 def _dump_model(schema_cls: Any, obj: Any) -> dict[str, Any]:
     return schema_cls.model_validate(obj).model_dump(mode="json")
+
+
+def _parse_iso_datetime(raw: str | None) -> datetime | None:
+    if raw is None:
+        return None
+    cleaned = raw.strip()
+    if not cleaned:
+        return None
+    if len(cleaned) == 10:
+        parsed_date = date.fromisoformat(cleaned)
+        return datetime(
+            parsed_date.year, parsed_date.month, parsed_date.day, tzinfo=UTC
+        )
+    dt = datetime.fromisoformat(cleaned)
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=UTC)
 
 
 @asynccontextmanager
@@ -279,6 +299,49 @@ async def create_trip(
         )
         trip = await TripService(ctx.db).create_trip(ctx.auth_ctx.user.id, payload)
         return _json_text(_dump_model(TripDetailResponse, trip))
+
+
+@mcp_server.tool()
+async def update_trip(
+    trip_id: str,
+    title: str | None = None,
+    destination_summary: str | None = None,
+    country_codes: list[str] | None = None,
+    start_date: str | None = None,
+    default_currency: str | None = None,
+    status: TripStatusLiteral | None = None,
+    notes: str | None = None,
+) -> str:
+    """Update trip metadata, status, or shift start_date (which shifts all day dates)."""
+    async with _tool_session("trips:write") as ctx:
+        raw: dict[str, Any] = {
+            "title": title,
+            "destination_summary": destination_summary,
+            "country_codes": [c.upper() for c in country_codes]
+            if country_codes is not None
+            else None,
+            "start_date": date.fromisoformat(start_date)
+            if start_date is not None
+            else None,
+            "default_currency": default_currency.upper()
+            if default_currency is not None
+            else None,
+            "status": TripStatus(status) if status is not None else None,
+            "notes": notes,
+        }
+        patch = {k: v for k, v in raw.items() if v is not None}
+        trip = await TripService(ctx.db).update_trip(
+            trip_id, ctx.auth_ctx.user.id, TripUpdate(**patch)
+        )
+        return _json_text(_dump_model(TripDetailResponse, trip))
+
+
+@mcp_server.tool()
+async def delete_trip(trip_id: str) -> str:
+    """Delete a trip and all of its days, options, items, shares, and expenses."""
+    async with _tool_session("trips:write") as ctx:
+        await TripService(ctx.db).delete_trip(trip_id, ctx.auth_ctx.user.id)
+        return _json_text({"deleted": True, "trip_id": trip_id})
 
 
 @mcp_server.tool()
@@ -516,6 +579,72 @@ async def select_choice_item(item_id: str) -> str:
 
 
 @mcp_server.tool()
+async def reorder_itinerary_items(option_id: str, item_ids: list[str]) -> str:
+    """Reorder all itinerary items within a DayOption and recalculate routes."""
+    async with _tool_session("trips:write") as ctx:
+        opt = await TripService(ctx.db).reorder_items(
+            option_id, ctx.auth_ctx.user.id, item_ids
+        )
+        return _json_text(_dump_model(DayOptionResponse, opt))
+
+
+@mcp_server.tool()
+async def recalculate_option_route(option_id: str) -> str:
+    """Force-refresh cached ground route segments and distance for a DayOption."""
+    async with _tool_session("trips:write") as ctx:
+        opt = await TripService(ctx.db).recalculate_option_route(
+            option_id, ctx.auth_ctx.user.id
+        )
+        return _json_text(_dump_model(DayOptionResponse, opt))
+
+
+@mcp_server.tool()
+async def list_trip_shares(trip_id: str) -> str:
+    """List all read-only share links and their visibility policies for a trip."""
+    async with _tool_session("trips:read") as ctx:
+        shares = await TripService(ctx.db).list_shares(trip_id, ctx.auth_ctx.user.id)
+        return _json_text([_dump_model(TripShareResponse, s) for s in shares])
+
+
+@mcp_server.tool()
+async def create_trip_share(
+    trip_id: str,
+    label: str | None = None,
+    include_booking_refs: bool = False,
+    include_notes: bool = False,
+    include_expenses: bool = False,
+    include_backup_options: bool = False,
+    expires_at: str | None = None,
+) -> str:
+    """Create a read-only share link for a trip with explicit privacy policy controls."""
+    async with _tool_session("trips:write") as ctx:
+        payload = TripShareCreate(
+            label=label,
+            visibility_policy=ShareVisibilityPolicy(
+                include_booking_refs=include_booking_refs,
+                include_notes=include_notes,
+                include_expenses=include_expenses,
+                include_backup_options=include_backup_options,
+            ),
+            expires_at=_parse_iso_datetime(expires_at),
+        )
+        share = await TripService(ctx.db).create_share(
+            trip_id, ctx.auth_ctx.user.id, payload
+        )
+        return _json_text(_dump_model(TripShareResponse, share))
+
+
+@mcp_server.tool()
+async def revoke_trip_share(trip_id: str, share_id: str) -> str:
+    """Revoke an existing read-only share link so it can no longer be viewed."""
+    async with _tool_session("trips:write") as ctx:
+        await TripService(ctx.db).revoke_share(
+            trip_id, share_id, ctx.auth_ctx.user.id
+        )
+        return _json_text({"revoked": True, "share_id": share_id})
+
+
+@mcp_server.tool()
 async def search_places(
     query: str,
     lang: str = "zh-TW",
@@ -557,6 +686,14 @@ async def search_airports(
 
 
 @mcp_server.tool()
+async def resolve_link_title(url: str) -> str:
+    """Resolve a display filename/title from a whitelisted cloud share URL."""
+    async with _tool_session("trips:read", rate_limit_bucket="places"):
+        title = await fetch_cloud_link_title(url)
+        return _json_text({"title": title})
+
+
+@mcp_server.tool()
 async def list_expenses(trip_id: str) -> str:
     """List all expenses and category totals for a trip."""
     async with _tool_session("expenses:read") as ctx:
@@ -576,6 +713,7 @@ async def add_expense(
     exchange_rate: float | None = None,
     trip_day_id: str | None = None,
     itinerary_item_id: str | None = None,
+    paid_at: str | None = None,
     payment_method: str | None = None,
     notes: str | None = None,
 ) -> str:
@@ -593,6 +731,7 @@ async def add_expense(
             ),
             trip_day_id=trip_day_id,
             itinerary_item_id=itinerary_item_id,
+            paid_at=_parse_iso_datetime(paid_at),
             payment_method=payment_method,
             notes=notes,
         )
@@ -600,6 +739,61 @@ async def add_expense(
             trip_id, ctx.auth_ctx.user, payload
         )
         return _json_text(_dump_model(ExpenseResponse, created))
+
+
+@mcp_server.tool()
+async def update_expense(
+    expense_id: str,
+    title: str | None = None,
+    category: ExpenseCategoryLiteral | None = None,
+    amount_original: float | None = None,
+    currency_original: str | None = None,
+    exchange_rate: float | None = None,
+    trip_day_id: str | None = None,
+    itinerary_item_id: str | None = None,
+    paid_at: str | None = None,
+    payment_method: str | None = None,
+    notes: str | None = None,
+) -> str:
+    """Partially update an expense (auto-refreshes FX if currency changes and exchange_rate is omitted)."""
+    async with _tool_session("expenses:write") as ctx:
+        raw: dict[str, Any] = {
+            "title": title,
+            "category": ExpenseCategory(category)
+            if category is not None
+            else None,
+            "amount_original": Decimal(str(amount_original))
+            if amount_original is not None
+            else None,
+            "currency_original": currency_original.upper()
+            if currency_original is not None
+            else None,
+            "exchange_rate": Decimal(str(exchange_rate))
+            if exchange_rate is not None
+            else None,
+            "paid_at": _parse_iso_datetime(paid_at),
+            "payment_method": payment_method,
+            "notes": notes,
+        }
+        patch: dict[str, Any] = {k: v for k, v in raw.items() if v is not None}
+        if trip_day_id is not None:
+            patch["trip_day_id"] = trip_day_id or None
+        if itinerary_item_id is not None:
+            patch["itinerary_item_id"] = itinerary_item_id or None
+        updated = await ExpenseService(ctx.db).update_expense(
+            expense_id, ctx.auth_ctx.user, ExpenseUpdate(**patch)
+        )
+        return _json_text(_dump_model(ExpenseResponse, updated))
+
+
+@mcp_server.tool()
+async def delete_expense(expense_id: str) -> str:
+    """Delete an expense record by ID."""
+    async with _tool_session("expenses:write") as ctx:
+        await ExpenseService(ctx.db).delete_expense(
+            expense_id, ctx.auth_ctx.user.id
+        )
+        return _json_text({"deleted": True, "expense_id": expense_id})
 
 
 @mcp_server.tool()
@@ -719,12 +913,13 @@ Headers:
 - `Content-Type: application/json`
 - `Accept: application/json, text/event-stream`
 
-Available MCP tools (23 total):
-- Trips & Days: `list_trips`, `get_trip`, `create_trip`, `append_day`, `update_day_title` (`title`, `notes`), `delete_trip_day`
-- Day Options (Plan A/B): `create_day_option`, `clone_day_option`, `rename_day_option`, `delete_day_option`, `set_active_option`
-- Itinerary Items: `add_itinerary_item` (`type`), `add_item_by_date` (`type`), `update_itinerary_item` (flat fields), `delete_itinerary_item`, `select_choice_item`
-- Places & Airports: `search_places` (`query`, `lang`, `limit`), `resolve_google_maps_url`, `search_airports` (`query`, `limit`)
-- Expenses & FX: `list_expenses`, `add_expense` (omit `exchange_rate` to auto-fetch live FX), `get_fx_rate`
+Available MCP tools (33 total):
+- Trips & Days: `list_trips`, `get_trip`, `create_trip`, `update_trip`, `delete_trip`, `append_day`, `update_day_title` (`title`, `notes`), `delete_trip_day`
+- Day Options & Routes (Plan A/B): `create_day_option`, `clone_day_option`, `rename_day_option`, `delete_day_option`, `set_active_option`, `recalculate_option_route`
+- Itinerary Items: `add_itinerary_item` (`type`), `add_item_by_date` (`type`), `update_itinerary_item` (flat fields), `delete_itinerary_item`, `select_choice_item`, `reorder_itinerary_items`
+- Share Links: `list_trip_shares`, `create_trip_share`, `revoke_trip_share`
+- Places, Airports & Cloud Links: `search_places` (`query`, `lang`, `limit`), `resolve_google_maps_url`, `search_airports` (`query`, `limit`), `resolve_link_title`
+- Expenses & FX: `list_expenses`, `add_expense` (omit `exchange_rate` to auto-fetch live FX), `update_expense`, `delete_expense`, `get_fx_rate`
 - Dashboard: `get_travel_stats` (supports `year` and `scope`: `all` | `domestic` | `international`)
 
 ## 3. Option B — REST API (OpenAPI)
