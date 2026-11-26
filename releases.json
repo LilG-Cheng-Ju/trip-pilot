@@ -1,5 +1,25 @@
 [
   {
+    "version": "0.9.9-beta",
+    "date": "2026-11-27",
+    "title": {
+      "zh-TW": "卡片底部降噪、導覽與表單文案精簡",
+      "en": "Cleaner Card Footers & Form Copy"
+    },
+    "changes": {
+      "zh-TW": [
+        "將行程卡底部的車次、座位與確認碼改為純文字顯示，僅保留附件與記帳標籤",
+        "移除桌面版旅程分頁籤的裝飾圖示，讓版面焦點回歸文字",
+        "精簡各處表單提示與選填標註，去除多餘的括號說明"
+      ],
+      "en": [
+        "Rendered transit, seat, and booking codes as plain footer text while keeping interactive chips",
+        "Removed decorative icons from desktop trip tabs for a calmer header",
+        "Simplified form labels and placeholders by removing redundant parenthetical hints"
+      ]
+    }
+  },
+  {
     "version": "0.9.8-beta",
     "date": "2026-11-27",
     "title": {

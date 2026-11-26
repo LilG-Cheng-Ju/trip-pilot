@@ -2,6 +2,13 @@
 
 <!-- Auto-generated from releases.json. Run `node scripts/sync-releases.mjs` after editing releases.json. -->
 
+## v0.9.9-beta (2026-11-27) — 卡片底部降噪、導覽與表單文案精簡
+*Cleaner Card Footers & Form Copy*
+
+- 將行程卡底部的車次、座位與確認碼改為純文字顯示，僅保留附件與記帳標籤
+- 移除桌面版旅程分頁籤的裝飾圖示，讓版面焦點回歸文字
+- 精簡各處表單提示與選填標註，去除多餘的括號說明
+
 ## v0.9.8-beta (2026-11-27) — ChatGPT 助理串接與行程章節調整
 *ChatGPT Integration & Day Header Polish*
 
