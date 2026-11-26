@@ -2,6 +2,13 @@
 
 <!-- Auto-generated from releases.json. Run `node scripts/sync-releases.mjs` after editing releases.json. -->
 
+## v0.9.8-beta (2026-11-27) — ChatGPT 專屬 OpenAPI 串接、設定頁 AI 分流與行程當日章節優化
+*ChatGPT OpenAPI Schema, AI Setup Guide & Collapsible Day Chapter*
+
+- 後端新增精簡公開的 /gpt-openapi.json 規格端點並同步更新 AI 說明指南，讓 ChatGPT 專屬助理也能在正式環境直接以 Personal API Token 讀寫行程與記帳
+- 設定頁「AI 助理串接」分為 MCP 桌面與開發工具（Gemini CLI、Antigravity、Claude Desktop、Cursor）及 ChatGPT 專屬助理雙頁籤，支援一鍵複製 MCP 設定 JSON 與 GPT 指令範本，並標註網頁版直連限制
+- 行程頁與公開分享頁的天數章節頭補上星期幾顯示；未填當日主題時收斂為單列「+ 當日主題」，並修正單日旅程未顯示刪除按鈕時文字過近的排版問題
+
 ## v0.9.7-beta (2026-11-27) — 手機單手導覽、花費雙頁籤切換與行程智慧預設
 *Thumb-Zone Mobile Nav, Expenses Tabs & Smart Itinerary Defaults*
 

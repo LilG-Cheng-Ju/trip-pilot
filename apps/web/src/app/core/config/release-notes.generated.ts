@@ -20,6 +20,26 @@ export interface ReleaseNoteEntry {
 
 export const RELEASE_NOTES: readonly ReleaseNoteEntry[] = [
   {
+    "version": "0.9.8-beta",
+    "date": "2026-11-27",
+    "title": {
+      "zh-TW": "ChatGPT 專屬 OpenAPI 串接、設定頁 AI 分流與行程當日章節優化",
+      "en": "ChatGPT OpenAPI Schema, AI Setup Guide & Collapsible Day Chapter"
+    },
+    "changes": {
+      "zh-TW": [
+        "後端新增精簡公開的 /gpt-openapi.json 規格端點並同步更新 AI 說明指南，讓 ChatGPT 專屬助理也能在正式環境直接以 Personal API Token 讀寫行程與記帳",
+        "設定頁「AI 助理串接」分為 MCP 桌面與開發工具（Gemini CLI、Antigravity、Claude Desktop、Cursor）及 ChatGPT 專屬助理雙頁籤，支援一鍵複製 MCP 設定 JSON 與 GPT 指令範本，並標註網頁版直連限制",
+        "行程頁與公開分享頁的天數章節頭補上星期幾顯示；未填當日主題時收斂為單列「+ 當日主題」，並修正單日旅程未顯示刪除按鈕時文字過近的排版問題"
+      ],
+      "en": [
+        "Added a public curated /gpt-openapi.json specification endpoint and updated the AI guide so ChatGPT Custom GPT Actions can authenticate with a Personal API Token in production",
+        "Split Profile AI setup into clean MCP Clients (Gemini CLI, Antigravity, Claude Desktop, Cursor) and ChatGPT Custom GPT tabs with one-click MCP config JSON and GPT instruction copy actions",
+        "Added weekday labels to itinerary and shared day chapter headers, collapsed empty day themes into a compact inline trigger, and fixed kicker spacing on single-day trips"
+      ]
+    }
+  },
+  {
     "version": "0.9.7-beta",
     "date": "2026-11-27",
     "title": {
