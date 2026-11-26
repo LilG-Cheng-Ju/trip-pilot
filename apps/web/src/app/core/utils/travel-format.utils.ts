@@ -25,6 +25,16 @@ export const EXPENSE_CATEGORIES: readonly ExpenseCategory[] = [
   'OTHER',
 ];
 
+export const EXPENSE_CATEGORY_COLORS: Readonly<Record<ExpenseCategory, string>> = {
+  FLIGHT: 'var(--item-flight)',
+  LODGING: 'var(--item-stay)',
+  FOOD: 'var(--item-food)',
+  TRANSIT: 'var(--item-reserved)',
+  ACTIVITY: 'var(--item-spot)',
+  SHOPPING: 'var(--category-shopping)',
+  OTHER: 'var(--category-other)',
+};
+
 export type ExpenseCategoryTranslationKey =
   | 'expenses.cat.FLIGHT'
   | 'expenses.cat.LODGING'

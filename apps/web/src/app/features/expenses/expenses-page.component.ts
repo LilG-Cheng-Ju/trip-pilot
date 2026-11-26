@@ -27,6 +27,7 @@ import { NetworkStatusService } from '../../core/network/network-status.service'
 import { isIncompleteNumberInput, readInputValue } from '../../core/utils/form-events.utils';
 import {
   EXPENSE_CATEGORIES,
+  EXPENSE_CATEGORY_COLORS,
   expenseCategoryKey,
   findTripDayIdForItem,
   formatCurrencyAmount,
@@ -85,6 +86,7 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
   protected readonly deletingExpense = signal(false);
   protected readonly editingExpense = signal<ExpenseItem | null>(null);
   protected readonly categories = EXPENSE_CATEGORIES;
+  protected readonly categoryColors = EXPENSE_CATEGORY_COLORS;
   protected readonly categoryKey = expenseCategoryKey;
   protected readonly formatCurrencyAmount = formatCurrencyAmount;
   protected readonly readInputValue = readInputValue;
@@ -202,11 +204,15 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
     if (!summary) return [];
     const total = Math.max(0.01, Number(summary.total_home_amount));
     return Object.entries(summary.by_category)
-      .map(([cat, amt]) => ({
-        category: cat as ExpenseCategory,
-        amount: amt,
-        percent: Math.min(100, Math.round((Number(amt) / total) * 100)),
-      }))
+      .map(([cat, amt]) => {
+        const category = cat as ExpenseCategory;
+        return {
+          category,
+          amount: amt,
+          percent: Math.min(100, Math.round((Number(amt) / total) * 100)),
+          color: EXPENSE_CATEGORY_COLORS[category] ?? 'var(--category-other)',
+        };
+      })
       .sort((a, b) => Number(b.amount) - Number(a.amount));
   });
 

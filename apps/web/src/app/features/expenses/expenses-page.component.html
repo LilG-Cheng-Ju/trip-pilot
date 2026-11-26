@@ -299,11 +299,18 @@
               (click)="toggleCategoryFilter(entry.category)"
             >
               <div class="bar-head">
-                <span>{{ categoryKey(entry.category) | t }}</span>
+                <span class="bar-label">
+                  <span class="bar-dot" [style.background]="entry.color" aria-hidden="true"></span>
+                  <span>{{ categoryKey(entry.category) | t }}</span>
+                </span>
                 <span class="tabular-nums">{{ formatCurrencyAmount(entry.amount, homeCurrency()) }}</span>
               </div>
               <div class="bar-track">
-                <div class="bar-fill" [style.width.%]="entry.percent"></div>
+                <div
+                  class="bar-fill"
+                  [style.width.%]="entry.percent"
+                  [style.background]="entry.color"
+                ></div>
               </div>
             </button>
           }
@@ -330,21 +337,59 @@
         <div class="ledger-list">
           @for (exp of expenseStore.filteredItems(); track exp.id) {
             <article class="exp-row">
-              <div class="exp-left">
-                <span class="exp-cat">{{ categoryKey(exp.category) | t }}</span>
-                <div>
-                  <h4 class="exp-title">{{ exp.title }}</h4>
-                  <p class="exp-meta tabular-nums">
-                    @if (exp.trip_day_id && dayIndexById().get(exp.trip_day_id); as dayNum) {
-                      <span class="exp-day-pill">{{ 'expenses.dayShort' | t: { day: dayNum } }}</span>
-                    }
-                    <span>{{ exp.paid_at.slice(0, 10) }}</span>
-                    @if (exp.payment_method) { · {{ exp.payment_method }} }
-                  </p>
+              <div class="exp-top">
+                <div class="exp-kicker tabular-nums">
+                  <span class="exp-cat" [attr.data-category]="exp.category">
+                    <span
+                      class="exp-cat-dot"
+                      [style.background]="categoryColors[exp.category] || 'var(--category-other)'"
+                      aria-hidden="true"
+                    ></span>
+                    <span>{{ categoryKey(exp.category) | t }}</span>
+                  </span>
+                  @if (exp.trip_day_id && dayIndexById().get(exp.trip_day_id); as dayNum) {
+                    <span class="exp-day-pill">{{ 'expenses.dayShort' | t: { day: dayNum } }}</span>
+                  }
+                  <span class="exp-date">
+                    {{ exp.trip_day_id ? exp.paid_at.slice(5, 10) : exp.paid_at.slice(0, 10) }}
+                  </span>
+                  @if (exp.payment_method) {
+                    <span class="exp-sep" aria-hidden="true">·</span>
+                    <span class="exp-pay">{{ exp.payment_method }}</span>
+                  }
+                </div>
+                <div class="exp-actions">
+                  <button
+                    type="button"
+                    class="row-icon-btn"
+                    [disabled]="isOfflineReadOnly()"
+                    [attr.aria-label]="'common.edit' | t"
+                    [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ('common.edit' | t)"
+                    (click)="editingExpense.set(exp)"
+                  >
+                    <span class="ms-icon sm" aria-hidden="true">edit</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="row-icon-btn danger"
+                    [disabled]="isOfflineReadOnly()"
+                    [attr.aria-label]="'common.delete' | t"
+                    [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ('common.delete' | t)"
+                    (click)="pendingDeleteExpense.set({ id: exp.id, title: exp.title })"
+                  >
+                    <span class="ms-icon sm" aria-hidden="true">delete</span>
+                  </button>
                 </div>
               </div>
-              <div class="exp-right tabular-nums">
-                <div class="exp-amounts">
+
+              <div class="exp-main">
+                <div class="exp-body">
+                  <h4 class="exp-title">{{ exp.title }}</h4>
+                  @if (exp.notes) {
+                    <p class="exp-notes">{{ exp.notes }}</p>
+                  }
+                </div>
+                <div class="exp-amounts tabular-nums">
                   <span class="exp-home">{{ exp.currency_home }} {{ formatCurrencyAmount(exp.amount_home, exp.currency_home) }}</span>
                   @if (exp.currency_original !== exp.currency_home) {
                     <span class="exp-orig">
@@ -352,26 +397,6 @@
                     </span>
                   }
                 </div>
-                <button
-                  type="button"
-                  class="row-icon-btn"
-                  [disabled]="isOfflineReadOnly()"
-                  [attr.aria-label]="'common.edit' | t"
-                  [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ('common.edit' | t)"
-                  (click)="editingExpense.set(exp)"
-                >
-                  <span class="ms-icon sm" aria-hidden="true">edit</span>
-                </button>
-                <button
-                  type="button"
-                  class="row-icon-btn danger"
-                  [disabled]="isOfflineReadOnly()"
-                  [attr.aria-label]="'common.delete' | t"
-                  [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ('common.delete' | t)"
-                  (click)="pendingDeleteExpense.set({ id: exp.id, title: exp.title })"
-                >
-                  <span class="ms-icon sm" aria-hidden="true">delete</span>
-                </button>
               </div>
             </article>
           }

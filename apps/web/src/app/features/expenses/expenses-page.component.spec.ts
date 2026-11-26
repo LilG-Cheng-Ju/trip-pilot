@@ -219,8 +219,9 @@ describe('ExpensesPageComponent', () => {
       'Day 2 · 10-02',
     ]);
 
-    // Existing row shows Day 1 pill and currency-aware formatted amounts.
+    // Existing row shows Day 1 pill, category badge, and currency-aware formatted amounts.
     expect(host.querySelector('.exp-day-pill')?.textContent?.trim()).toBe('Day 1');
+    expect(host.querySelector('.exp-cat[data-category="TRANSIT"]')).toBeTruthy();
     expect(host.querySelector('.hero-amount > span:last-child')?.textContent?.trim()).toBe('645');
     expect(host.querySelector('.exp-home')?.textContent?.trim()).toBe('TWD 645');
     expect(host.querySelector('.exp-orig')?.textContent?.trim()).toBe('JPY 3,000');
@@ -306,6 +307,7 @@ describe('ExpensesPageComponent', () => {
         notes: 'Airport kiosk',
       }),
     );
+    expect(host.querySelector('.exp-notes')?.textContent?.trim()).toBe('Airport kiosk');
 
     // Delete confirmation opens AppConfirmModalComponent and deletes on confirm.
     const deleteBtn = host.querySelector(

@@ -9,7 +9,11 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ExpenseCategory, StatsScope, TripStatSummary } from '../../core/models/tripilot.models';
 import { createAnimatedNumber } from '../../core/utils/count-up.utils';
-import { expenseCategoryKey, formatMoney } from '../../core/utils/travel-format.utils';
+import {
+  EXPENSE_CATEGORY_COLORS,
+  expenseCategoryKey,
+  formatMoney,
+} from '../../core/utils/travel-format.utils';
 import { StatsStore } from '../../state/stats.store';
 
 type YearSelectValue = 'all' | number;
@@ -34,16 +38,6 @@ interface YearFootprintEntry {
   days: number;
   barPercent: number;
 }
-
-const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
-  FLIGHT: 'var(--item-flight)',
-  LODGING: 'var(--item-stay)',
-  FOOD: 'var(--item-food)',
-  TRANSIT: 'var(--item-reserved)',
-  ACTIVITY: 'var(--item-spot)',
-  SHOPPING: 'var(--category-shopping)',
-  OTHER: 'var(--category-other)',
-};
 
 function parseUtcDateMs(isoDate: string): number {
   const [year, month, day] = isoDate.split('-').map(Number);
@@ -207,7 +201,7 @@ export class StatsPageComponent implements OnInit {
           category,
           amount,
           percent: Math.max(1, Math.round((Number(amount) / total) * 100)),
-          color: CATEGORY_COLORS[category] ?? 'var(--category-other)',
+          color: EXPENSE_CATEGORY_COLORS[category] ?? 'var(--category-other)',
         };
       })
       .sort((a, b) => Number(b.amount) - Number(a.amount));
