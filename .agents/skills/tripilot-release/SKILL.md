@@ -18,7 +18,6 @@ Update all version files to the new target version (`X.Y.Z-beta` for app/web, `X
 - `apps/web/package.json` and `apps/web/package-lock.json` (root `version` and `packages[""].version`)
 - `apps/api/app/core/config.py` (`app_version`)
 - `apps/api/pyproject.toml` -> run `uv lock` inside `apps/api`
-- `packages/mcp/pyproject.toml` and `packages/mcp/tripilot_mcp/__init__.py` -> run `uv lock` inside `packages/mcp`
 
 ## 2. Update User-Facing Release Notes (Single Source of Truth)
 
@@ -39,16 +38,14 @@ Update all version files to the new target version (`X.Y.Z-beta` for app/web, `X
 
 If the release adds or modifies REST endpoints, itinerary/expense schemas, or MCP tools:
 
-1. Verify 1:1 tool/parameter parity between `apps/api/app/api/v1/mcp.py` and `packages/mcp/tripilot_mcp/server.py`.
-2. Update the public `/llms.txt` guide inside `apps/api/app/api/v1/mcp.py`.
-3. Update `packages/mcp/SKILL.md` so AI assistants know the new workflows or parameters.
-4. **Ask the user** before mirroring `packages/mcp/SKILL.md` into their personal `~/.gemini/config/skills/tripilot/SKILL.md` (and never auto-commit `~/.gemini/config/` without explicit confirmation).
+1. Update the Remote MCP tools and public `/llms.txt` guide inside `apps/api/app/api/v1/mcp.py`.
+2. Update `.agents/skills/tripilot/SKILL.md` so AI assistants know the new workflows or parameters.
+3. **Ask the user** before mirroring `.agents/skills/tripilot/SKILL.md` into their personal `~/.gemini/config/skills/tripilot/SKILL.md` (and never auto-commit `~/.gemini/config/` without explicit confirmation).
 
 ## 4. Run Full Verification Before Committing
 
 - Release consistency: `node scripts/sync-releases.mjs --check`
 - Backend (`apps/api`): `ruff check .`, `mypy app tests`, `pytest -q`, and Alembic `alembic upgrade head` on a temp SQLite DB
-- MCP (`packages/mcp`): `uv run --frozen --extra dev ruff check .`, `mypy tripilot_mcp tests`, `pytest -q`
 - Frontend (`apps/web`): `npm run lint`, `npx ng test --watch=false`, `npm run build`
 
 ## 5. Commit, Push, and Tag Discipline

@@ -132,11 +132,6 @@ function checkVersionConsistency(latestVersion) {
       pattern: new RegExp(`^version\\s*=\\s*"${baseSemver.replace(/\./g, '\\.')}"`, 'm'),
       expected: baseSemver,
     },
-    {
-      file: 'packages/mcp/pyproject.toml',
-      pattern: new RegExp(`^version\\s*=\\s*"${baseSemver.replace(/\./g, '\\.')}"`, 'm'),
-      expected: baseSemver,
-    },
   ];
 
   let ok = true;

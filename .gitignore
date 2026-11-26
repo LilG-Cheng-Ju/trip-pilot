@@ -40,7 +40,3 @@ apps/web/dist/
 apps/web/.angular/
 apps/web/coverage/
 npm-debug.log*
-
-# MCP Package
-packages/mcp/dist/
-packages/mcp/*.egg-info/

@@ -1,11 +1,11 @@
 ---
 name: tripilot
-description: Manage trips, daily itineraries (including Day Themes, Plan A/B day options, slot-level multi-choice alternatives, and cloud attachments), travel expenses with live FX rates, Google Places lookups, airport lookups, and annual/lifetime travel stats through Tripilot (Remote MCP, local MCP, or REST API).
+description: Manage trips, daily itineraries (including Day Themes, Plan A/B day options, slot-level multi-choice alternatives, and cloud attachments), travel expenses with live FX rates, Google Places lookups, airport lookups, and annual/lifetime travel stats through Tripilot (Remote MCP or REST API).
 ---
 
 # Tripilot Agent Skill
 
-Use Tripilot's Remote MCP endpoint (`POST <API_URL>/mcp`), local MCP tools, or `/api/v1` REST API with `Authorization: Bearer tp_pat_...` to read and update the user's travel workspace cleanly.
+Use Tripilot's Remote MCP endpoint (`POST <API_URL>/mcp`) or `/api/v1` REST API with `Authorization: Bearer tp_pat_...` to read and update the user's travel workspace cleanly.
 
 - **Public AI Guide**: `GET <API_URL>/llms.txt` (English quick reference)
 - **OpenAPI Schema**: `GET <API_URL>/api/v1/openapi.json`
@@ -36,7 +36,7 @@ Use Tripilot's Remote MCP endpoint (`POST <API_URL>/mcp`), local MCP tools, or `
   - Link expenses to a specific stop via `trip_day_id` and `itinerary_item_id` so they group cleanly on cards and filter in `/trips/:id/expenses?itemId=...`.
   - Omit `exchange_rate` in `add_expense` (or `POST /api/v1/trips/{trip_id}/expenses`) to auto-resolve the live FX rate into the user's home currency, or call `get_fx_rate` (`GET /api/v1/fx/rate?from=JPY&to=TWD`) when inspecting rates directly — never fabricate exchange rates.
 - **Updating Itinerary Items**:
-  - Call `update_itinerary_item` with flat optional fields (`title`, `start_time`, `end_time`, `notes`, `details`, `is_selected`, `sort_order`, etc.) across both Remote and Local MCP.
+  - Call `update_itinerary_item` with flat optional fields (`title`, `start_time`, `end_time`, `notes`, `details`, `is_selected`, `sort_order`, etc.) via Remote MCP.
 
 ---
 

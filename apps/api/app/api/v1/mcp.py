@@ -719,7 +719,7 @@ Headers:
 - `Content-Type: application/json`
 - `Accept: application/json, text/event-stream`
 
-Available MCP tools (23 total, schema-aligned with local `tripilot-mcp`):
+Available MCP tools (23 total):
 - Trips & Days: `list_trips`, `get_trip`, `create_trip`, `append_day`, `update_day_title` (`title`, `notes`), `delete_trip_day`
 - Day Options (Plan A/B): `create_day_option`, `clone_day_option`, `rename_day_option`, `delete_day_option`, `set_active_option`
 - Itinerary Items: `add_itinerary_item` (`type`), `add_item_by_date` (`type`), `update_itinerary_item` (flat fields), `delete_itinerary_item`, `select_choice_item`

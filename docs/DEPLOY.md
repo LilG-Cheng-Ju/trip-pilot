@@ -72,11 +72,10 @@ Ensure Cloud Run's service account has access to verify Firebase ID tokens (auto
 
 ---
 
-## Step 4: Connect Antigravity / Gemini via MCP
+## Step 4: Connect Antigravity / Gemini via Remote MCP
 
 1. Sign in to your deployed Tripilot web app -> **Settings (`Profile`)** -> generate a **Personal API Token** (`tp_pat_...`).
-2. Configure `packages/mcp` with:
-   ```env
-   TRIPILOT_API_URL=https://tripilot-api-xxxxx-de.a.run.app
-   TRIPILOT_API_TOKEN=tp_pat_...
-   ```
+2. Copy the Remote MCP URL and quick-start prompt directly from **Settings -> MCP Connection**, or configure your MCP client to connect via Streamable HTTP:
+   - **URL**: `https://tripilot-api-xxxxx-de.a.run.app/mcp`
+   - **Header**: `Authorization: Bearer tp_pat_...`
+   - **Agent Skill**: [`.agents/skills/tripilot/SKILL.md`](../.agents/skills/tripilot/SKILL.md) and public `GET /llms.txt`
