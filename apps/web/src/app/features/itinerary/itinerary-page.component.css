@@ -21,6 +21,21 @@
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
 }
+.collapsible-subnav {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition: grid-template-rows 180ms ease, opacity 150ms ease;
+}
+.collapsible-subnav-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+.collapsible-subnav.collapsed {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  pointer-events: none;
+}
 .timeline-scroll {
   padding: 10px var(--space-3) calc(var(--nav-bottom-height) + env(safe-area-inset-bottom, 0px) + 64px);
 }
@@ -339,10 +354,8 @@
   opacity: 0.85;
 }
 .slot-group.has-choices {
-  padding: 8px;
-  border-radius: var(--radius-md);
-  background: var(--color-accent-tint);
-  border: 1px solid var(--color-accent-border);
+  padding-left: 10px;
+  border-left: 2px solid var(--color-accent-border);
 }
 .choice-bar {
   display: flex;
@@ -445,6 +458,15 @@
   .sticky-trip-top {
     position: static;
     padding: var(--space-4) var(--space-5) var(--space-3);
+  }
+  .collapsible-subnav,
+  .collapsible-subnav.collapsed {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .collapsible-subnav-inner {
+    overflow: visible;
   }
   .timeline-scroll {
     flex: 1;

@@ -10,6 +10,10 @@ import {
   TripDetail,
   TripExpensesSummary,
 } from '../core/models/tripilot.models';
+import {
+  addDaysToIsoDate,
+  formatLocalIsoDate,
+} from '../core/utils/travel-format.utils';
 import { ExpenseStore } from './expense.store';
 import { ItineraryStore } from './itinerary.store';
 import { TripStore } from './trip.store';
@@ -313,5 +317,49 @@ describe('CRUD SignalStores', () => {
 
     await itineraryStore.moveItem('c', -1);
     expect(spy).toHaveBeenCalledWith(2, 1);
+  });
+
+  it('ItineraryStore auto-selects today when loading an in-progress trip and resets when switching trips', async () => {
+    const today = formatLocalIsoDate();
+    const yesterday = addDaysToIsoDate(today, -1);
+    const tomorrow = addDaysToIsoDate(today, 1);
+
+    const activeTrip = makeTripDetail({
+      id: 'trip-active',
+      status: 'ACTIVE',
+      start_date: yesterday,
+      end_date: tomorrow,
+      days: [
+        makeDay('ad-1', 1, yesterday),
+        makeDay('ad-2', 2, today),
+        makeDay('ad-3', 3, tomorrow),
+      ],
+    });
+    const futureTrip = makeTripDetail({
+      id: 'trip-future',
+      status: 'PLANNING',
+      start_date: '2027-03-01',
+      end_date: '2027-03-03',
+      days: [
+        makeDay('fd-1', 1, '2027-03-01'),
+        makeDay('fd-2', 2, '2027-03-02'),
+        makeDay('fd-3', 3, '2027-03-03'),
+      ],
+    });
+
+    apiMock['getTrip'] = async (tripId: string) =>
+      structuredClone(tripId === 'trip-active' ? activeTrip : futureTrip);
+
+    const itineraryStore = TestBed.inject(ItineraryStore);
+    await itineraryStore.loadTrip('trip-active');
+    expect(itineraryStore.selectedDayIndex()).toBe(2);
+
+    // Reloading the same trip keeps manual day selection; switching trips resets to that trip's default.
+    itineraryStore.selectDay(3);
+    await itineraryStore.loadTrip('trip-active');
+    expect(itineraryStore.selectedDayIndex()).toBe(3);
+
+    await itineraryStore.loadTrip('trip-future');
+    expect(itineraryStore.selectedDayIndex()).toBe(1);
   });
 });

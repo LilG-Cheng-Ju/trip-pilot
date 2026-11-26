@@ -281,12 +281,18 @@ import { ItemExpenseSummary } from '../../state/expense.store';
         <div class="card-head">
           <div class="card-meta">
             @if (pinOrder() !== null) {
-              <span class="pin-badge tabular-nums" [class.selected]="selected()">
+              <span
+                class="pin-badge tabular-nums"
+                [attr.data-type]="item().type"
+                [class.selected]="selected()"
+              >
                 {{ pinOrder() }}
               </span>
             }
             <span class="type-label">
-              <span class="type-dot" [attr.data-type]="item().type" aria-hidden="true"></span>
+              @if (pinOrder() === null) {
+                <span class="type-dot" [attr.data-type]="item().type" aria-hidden="true"></span>
+              }
               <span>{{ typeLabel() | t }}</span>
             </span>
             @if (item().start_time) {
@@ -671,14 +677,26 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       width: 24px;
       height: 24px;
       border-radius: var(--radius-pill);
-      background: var(--color-primary);
+      background: var(--item-spot);
       color: var(--color-text-on-primary);
       font-size: 0.75rem;
       font-weight: 600;
       flex-shrink: 0;
+      transition: box-shadow 140ms ease;
+    }
+    .pin-badge[data-type='FOOD'] {
+      background: var(--item-food);
+    }
+    .pin-badge[data-type='STAY'] {
+      background: var(--item-stay);
+    }
+    .pin-badge[data-type='RESERVED_TRANSIT'] {
+      background: var(--item-reserved);
     }
     .pin-badge.selected {
-      background: var(--color-accent);
+      box-shadow:
+        0 0 0 2px var(--color-surface),
+        0 0 0 4px var(--color-accent);
     }
     .type-label {
       display: inline-flex;

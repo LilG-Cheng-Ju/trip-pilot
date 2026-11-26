@@ -157,16 +157,7 @@
   </main>
 
   @if (!hideAppChrome()) {
-    <nav class="mobile-bottom-nav" aria-label="Mobile navigation">
-      <a routerLink="/trips" routerLinkActive="active" class="bottom-item">
-        <span class="ms-icon" aria-hidden="true">luggage</span>
-        <span>{{ 'nav.trips' | t }}</span>
-      </a>
-      <a routerLink="/stats" routerLinkActive="active" class="bottom-item">
-        <span class="ms-icon" aria-hidden="true">bar_chart</span>
-        <span>{{ 'nav.stats' | t }}</span>
-      </a>
-    </nav>
+    <app-mobile-bottom-nav [currentUrl]="currentUrl()" />
   }
 
   <app-release-notes-modal

@@ -14,6 +14,10 @@ import {
   TripExpensesSummary,
 } from '../../core/models/tripilot.models';
 import { NetworkStatusService } from '../../core/network/network-status.service';
+import {
+  addDaysToIsoDate,
+  formatLocalIsoDate,
+} from '../../core/utils/travel-format.utils';
 import { ExpenseStore } from '../../state/expense.store';
 import { ItineraryStore } from '../../state/itinerary.store';
 import { ExpensesPageComponent } from './expenses-page.component';
@@ -63,6 +67,8 @@ describe('ExpensesPageComponent', () => {
   let updateCalls: Array<{ expenseId: string; payload: Record<string, unknown> }>;
   let deleteCalls: string[];
   let fxImpl: (from: string, to: string) => Promise<FxRateResponse>;
+  let tripOverride: Partial<TripDetail> | null;
+  let routeQueryParams: Record<string, string>;
 
   beforeEach(async () => {
     localStorage.clear();
@@ -70,6 +76,8 @@ describe('ExpensesPageComponent', () => {
     createCalls = [];
     updateCalls = [];
     deleteCalls = [];
+    tripOverride = null;
+    routeQueryParams = {};
     fxImpl = async (from, to) => ({
       from_currency: from,
       to_currency: to,
@@ -114,7 +122,9 @@ describe('ExpensesPageComponent', () => {
           useValue: {
             snapshot: {
               paramMap: convertToParamMap({ tripId: 'trip-1' }),
-              queryParamMap: convertToParamMap({}),
+              get queryParamMap() {
+                return convertToParamMap(routeQueryParams);
+              },
             },
           },
         },
@@ -123,7 +133,7 @@ describe('ExpensesPageComponent', () => {
           useValue: {
             getTrip: async (tripId: string) => {
               getTripCalls.push(tripId);
-              return makeTripDetail();
+              return { ...makeTripDetail(), ...tripOverride };
             },
             listExpenses: async () => summary,
             getExchangeRate: (from: string, to: string) => fxImpl(from, to),
@@ -314,5 +324,119 @@ describe('ExpensesPageComponent', () => {
     await fixture.whenStable();
 
     expect(deleteCalls).toHaveLength(1);
+  });
+
+  it('defaults mobile tab to Quick Add on active trips, pre-selects today, preserves input across tab switches, and surfaces feedback', async () => {
+    const today = formatLocalIsoDate();
+    const tomorrow = addDaysToIsoDate(today, 1);
+    tripOverride = {
+      status: 'ACTIVE',
+      start_date: today,
+      end_date: tomorrow,
+      days: [
+        {
+          id: 'day-today',
+          trip_id: 'trip-1',
+          day_index: 1,
+          date: today,
+          title: null,
+          active_option_id: 'opt-1',
+          notes: null,
+          options: [],
+        },
+        {
+          id: 'day-next',
+          trip_id: 'trip-1',
+          day_index: 2,
+          date: tomorrow,
+          title: null,
+          active_option_id: 'opt-2',
+          notes: null,
+          options: [],
+        },
+      ],
+    };
+
+    const fixture = TestBed.createComponent(ExpensesPageComponent);
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const tabs = Array.from(
+      host.querySelectorAll('.mobile-expense-tabs .expense-tab-btn'),
+    ) as HTMLButtonElement[];
+    expect(tabs[0].getAttribute('aria-selected')).toBe('true');
+    expect(host.querySelector('.quick-card')?.classList.contains('mobile-panel-hidden')).toBe(
+      false,
+    );
+    expect(host.querySelector('.ledger-col')?.classList.contains('mobile-panel-hidden')).toBe(
+      true,
+    );
+
+    const daySelect = fixture.debugElement.query(
+      By.css('mat-select[name="tripDayId"]'),
+    ).componentInstance as MatSelect;
+    expect(daySelect.value).toBe('day-today');
+
+    // Half-typed form input survives switching to Ledger and back.
+    const titleInput = host.querySelector('input[name="title"]') as HTMLInputElement;
+    titleInput.value = 'Matcha Latte';
+    titleInput.dispatchEvent(new Event('input'));
+    const amountInput = host.querySelector('input[name="amount"]') as HTMLInputElement;
+    amountInput.value = '650';
+    amountInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    tabs[1].click();
+    fixture.detectChanges();
+    expect(tabs[1].getAttribute('aria-selected')).toBe('true');
+    expect(host.querySelector('.quick-card')?.classList.contains('mobile-panel-hidden')).toBe(
+      true,
+    );
+    expect(host.querySelector('.ledger-col')?.classList.contains('mobile-panel-hidden')).toBe(
+      false,
+    );
+
+    tabs[0].click();
+    fixture.detectChanges();
+    expect((host.querySelector('input[name="title"]') as HTMLInputElement).value).toBe(
+      'Matcha Latte',
+    );
+
+    const submitBtn = host.querySelector('.quick-card button[type="submit"]') as HTMLButtonElement;
+    submitBtn.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const feedbackBtn = host.querySelector('.added-toast-btn') as HTMLButtonElement;
+    expect(feedbackBtn).toBeTruthy();
+    feedbackBtn.click();
+    fixture.detectChanges();
+    expect(tabs[1].getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('defaults mobile tab to Ledger when filtering by itemId even on active trips', async () => {
+    const today = formatLocalIsoDate();
+    tripOverride = {
+      status: 'ACTIVE',
+      start_date: today,
+      end_date: addDaysToIsoDate(today, 2),
+    };
+    routeQueryParams = { itemId: 'item-1' };
+
+    const fixture = TestBed.createComponent(ExpensesPageComponent);
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const tabs = Array.from(
+      host.querySelectorAll('.mobile-expense-tabs .expense-tab-btn'),
+    ) as HTMLButtonElement[];
+    expect(tabs[1].getAttribute('aria-selected')).toBe('true');
   });
 });

@@ -18,12 +18,77 @@
   gap: var(--space-4);
 }
 .hero-card {
-  padding: var(--space-5);
+  padding: var(--space-4);
   border-radius: var(--radius-md);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   color: var(--color-text-primary);
   box-shadow: var(--shadow-card);
+}
+.mobile-expense-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+}
+.expense-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 10px;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
+}
+.expense-tab-btn.active {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+.expense-tab-count {
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.expense-tab-btn.active .expense-tab-count {
+  background: var(--color-primary-tint);
+  color: var(--color-primary);
+}
+.expense-tab-btn.pulse .expense-tab-count {
+  background: var(--color-accent);
+  color: var(--color-text-on-primary);
+}
+.added-toast-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-accent-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-tint);
+  color: var(--color-accent-ink);
+  font: inherit;
+  font-size: 0.79rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.mobile-panel-hidden {
+  display: none;
 }
 .hero-label {
   font-size: 0.75rem;
@@ -417,6 +482,20 @@
   color: var(--color-alert);
 }
 @media (min-width: 1024px) {
+  .mobile-expense-tabs,
+  .added-toast-btn {
+    display: none;
+  }
+  .quick-card.mobile-panel-hidden,
+  .breakdown-card.mobile-panel-hidden {
+    display: flex;
+  }
+  .ledger-col.mobile-panel-hidden {
+    display: block;
+  }
+  .hero-card {
+    padding: var(--space-5);
+  }
   .expenses-grid {
     grid-template-columns: 380px 1fr;
     align-items: start;

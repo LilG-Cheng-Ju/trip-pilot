@@ -3,31 +3,35 @@
     <section class="timeline-pane">
       <!-- Frozen Header + Workspace Tabs + Day 1..N Strip -->
       <div class="sticky-trip-top">
-        <app-trip-subnav
-          [tripId]="trip.id"
-          [title]="trip.title"
-          [dateRange]="trip.start_date + ' — ' + trip.end_date"
-        >
-          @if (store.usingOfflineCache()) {
-            <span class="status-pill offline" [title]="'sync.offlineCache' | t">
-              <span class="ms-icon sm" aria-hidden="true">cloud_off</span>
-            </span>
-          } @else if (store.syncing()) {
-            <span class="status-pill syncing" [title]="'sync.syncing' | t">
-              <span class="ms-icon sm spin" aria-hidden="true">sync</span>
-            </span>
-          }
-          <button
-            type="button"
-            class="icon-btn util-icon-btn"
-            [disabled]="isOfflineReadOnly()"
-            [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ('common.share' | t)"
-            [attr.aria-label]="'common.share' | t"
-            (click)="showShareModal.set(true)"
-          >
-            <span class="ms-icon sm" aria-hidden="true">share</span>
-          </button>
-        </app-trip-subnav>
+        <div class="collapsible-subnav" [class.collapsed]="mobileHeaderCollapsed()">
+          <div class="collapsible-subnav-inner">
+            <app-trip-subnav
+              [tripId]="trip.id"
+              [title]="trip.title"
+              [dateRange]="trip.start_date + ' — ' + trip.end_date"
+            >
+              @if (store.usingOfflineCache()) {
+                <span class="status-pill offline" [title]="'sync.offlineCache' | t">
+                  <span class="ms-icon sm" aria-hidden="true">cloud_off</span>
+                </span>
+              } @else if (store.syncing()) {
+                <span class="status-pill syncing" [title]="'sync.syncing' | t">
+                  <span class="ms-icon sm spin" aria-hidden="true">sync</span>
+                </span>
+              }
+              <button
+                type="button"
+                class="icon-btn util-icon-btn"
+                [disabled]="isOfflineReadOnly()"
+                [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ('common.share' | t)"
+                [attr.aria-label]="'common.share' | t"
+                (click)="showShareModal.set(true)"
+              >
+                <span class="ms-icon sm" aria-hidden="true">share</span>
+              </button>
+            </app-trip-subnav>
+          </div>
+        </div>
 
         <!-- Horizontal Day Switcher (wheel + arrow + touch scroll) -->
         <div class="day-strip-wrap">

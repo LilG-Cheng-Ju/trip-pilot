@@ -30,8 +30,13 @@ import {
   expenseCategoryKey,
   findTripDayIdForItem,
   formatCurrencyAmount,
+  formatLocalIsoDate,
   roundFxRate,
 } from '../../core/utils/travel-format.utils';
+import {
+  MobileExpenseTab,
+  resolveInitialMobileExpenseTab,
+} from '../../core/utils/trip-context.utils';
 import { AppConfirmModalComponent } from '../../shared/confirm-modal.component';
 import { TripSubnavComponent } from '../../shared/trip-subnav.component';
 import { AuthStore } from '../../state/auth.store';
@@ -68,6 +73,9 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
 
   protected readonly tripId = signal('');
   protected readonly showMore = signal(false);
+  protected readonly mobileTab = signal<MobileExpenseTab>('add');
+  private readonly mobileTabTouched = signal(false);
+  protected readonly justAddedFeedback = signal(false);
   protected readonly submitting = signal(false);
   protected readonly fetchingRate = signal(false);
   protected readonly fxStatus = signal<FxResolutionStatus>('same');
@@ -82,6 +90,7 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
   protected readonly readInputValue = readInputValue;
 
   private quickRateSeq = 0;
+  private feedbackTimer: ReturnType<typeof setTimeout> | null = null;
 
   protected readonly title = signal('');
   protected readonly amountText = signal('');
@@ -206,19 +215,41 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
     const itemId = this.route.snapshot.queryParamMap.get('itemId');
     this.tripId.set(id);
     this.expenseStore.setItemFilter(itemId);
+    const cachedTrip = this.itineraryStore.trip()?.id === id ? this.itineraryStore.trip() : null;
+    this.mobileTab.set(
+      resolveInitialMobileExpenseTab({
+        hasItemFilter: Boolean(itemId),
+        isOfflineReadOnly: this.isOfflineReadOnly(),
+        trip: cachedTrip,
+      }),
+    );
     if (!id) return;
 
     await Promise.all([
       this.expenseStore.loadExpenses(id),
-      this.itineraryStore.trip()?.id === id
-        ? Promise.resolve()
-        : this.itineraryStore.loadTrip(id),
+      cachedTrip ? Promise.resolve() : this.itineraryStore.loadTrip(id),
     ]);
+
+    if (!this.mobileTabTouched()) {
+      this.mobileTab.set(
+        resolveInitialMobileExpenseTab({
+          hasItemFilter: Boolean(itemId),
+          isOfflineReadOnly: this.isOfflineReadOnly(),
+          trip: this.itineraryStore.trip(),
+        }),
+      );
+    }
 
     if (itemId) {
       const matchedDayId = findTripDayIdForItem(this.tripDays(), itemId);
       if (matchedDayId) {
         this.selectedDayId.set(matchedDayId);
+      }
+    } else if (!this.selectedDayId()) {
+      const todayIso = formatLocalIsoDate();
+      const todayDay = this.tripDays().find((day) => day.date === todayIso);
+      if (todayDay) {
+        this.selectedDayId.set(todayDay.id);
       }
     }
 
@@ -230,7 +261,19 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (this.feedbackTimer) {
+      clearTimeout(this.feedbackTimer);
+      this.feedbackTimer = null;
+    }
     this.expenseStore.setItemFilter(null);
+  }
+
+  protected setMobileTab(tab: MobileExpenseTab): void {
+    this.mobileTabTouched.set(true);
+    this.mobileTab.set(tab);
+    if (tab === 'ledger') {
+      this.justAddedFeedback.set(false);
+    }
   }
 
   protected async executeDeleteExpense(): Promise<void> {
@@ -360,6 +403,14 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
         this.title.set('');
         this.amountText.set('');
         this.notes.set('');
+        this.justAddedFeedback.set(true);
+        if (this.feedbackTimer) {
+          clearTimeout(this.feedbackTimer);
+        }
+        this.feedbackTimer = setTimeout(() => {
+          this.justAddedFeedback.set(false);
+          this.feedbackTimer = null;
+        }, 3500);
       }
     } finally {
       this.submitting.set(false);

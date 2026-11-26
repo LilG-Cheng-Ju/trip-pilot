@@ -18,6 +18,7 @@ import {
   MapRouteMode,
   removeItemWithChoicePromotion,
 } from '../core/utils/travel-format.utils';
+import { resolveInitialDayIndex } from '../core/utils/trip-context.utils';
 
 interface ItineraryState {
   trip: TripDetail | null;
@@ -161,6 +162,7 @@ export const ItineraryStore = signalStore(
       cache = inject(OfflineCacheService),
     ) => {
       let loadTripSeq = 0;
+      let dayTouchedDuringLoad = false;
       const recalculatedOptionIds = new Set<string>();
 
       const commitTrip = (nextTrip: TripDetail): void => {
@@ -192,6 +194,7 @@ export const ItineraryStore = signalStore(
         },
 
         selectDay(dayIndex: number): void {
+          dayTouchedDuringLoad = true;
           patchState(store, { selectedDayIndex: dayIndex, selectedItemId: null });
         },
 
@@ -277,17 +280,17 @@ export const ItineraryStore = signalStore(
 
         async loadTrip(tripId: string): Promise<void> {
           const seq = ++loadTripSeq;
-          if (store.trip()?.id !== tripId) {
+          const isSameTrip = store.trip()?.id === tripId;
+          dayTouchedDuringLoad = false;
+          if (!isSameTrip) {
             recalculatedOptionIds.clear();
           }
           const cached = cache.get<TripDetail>(`trip.${tripId}`);
-          const hasCurrent = store.trip()?.id === tripId;
 
-          if (!hasCurrent && cached) {
-            const validDayIdx = cached.days[0]?.day_index ?? 1;
+          if (!isSameTrip && cached) {
             patchState(store, {
               trip: cached,
-              selectedDayIndex: validDayIdx,
+              selectedDayIndex: resolveInitialDayIndex(cached.days),
               loading: false,
               syncing: true,
               usingOfflineCache: false,
@@ -295,8 +298,8 @@ export const ItineraryStore = signalStore(
             });
           } else {
             patchState(store, {
-              loading: !hasCurrent,
-              syncing: hasCurrent,
+              loading: !isSameTrip,
+              syncing: isSameTrip,
               usingOfflineCache: false,
               error: null,
             });
@@ -307,9 +310,12 @@ export const ItineraryStore = signalStore(
             if (seq !== loadTripSeq) return;
             cache.set(`trip.${tripId}`, trip);
             const currentDayIdx = store.selectedDayIndex();
-            const validDayIdx = trip.days.some((d) => d.day_index === currentDayIdx)
+            const preserveSelection =
+              (isSameTrip || dayTouchedDuringLoad) &&
+              trip.days.some((d) => d.day_index === currentDayIdx);
+            const validDayIdx = preserveSelection
               ? currentDayIdx
-              : (trip.days[0]?.day_index ?? 1);
+              : resolveInitialDayIndex(trip.days);
             patchState(store, {
               trip,
               selectedDayIndex: validDayIdx,
@@ -840,6 +846,7 @@ export const ItineraryStore = signalStore(
 
         reset(): void {
           loadTripSeq += 1;
+          dayTouchedDuringLoad = false;
           recalculatedOptionIds.clear();
           patchState(store, initialState);
         },

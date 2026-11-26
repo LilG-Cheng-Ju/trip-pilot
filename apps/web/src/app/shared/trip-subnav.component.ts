@@ -61,8 +61,8 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
     .trip-header {
       display: flex;
       flex-direction: column;
-      gap: 6px;
-      margin-bottom: 7px;
+      gap: 4px;
+      margin-bottom: 4px;
     }
     .header-top {
       display: flex;
@@ -76,9 +76,10 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
       gap: 8px;
       min-width: 0;
     }
+    /* Mobile (< 1024px) shifts Back + section switching to the thumb-zone bottom bar. */
     .back-btn {
       position: relative;
-      display: grid;
+      display: none;
       place-items: center;
       width: 30px;
       height: 30px;
@@ -123,7 +124,7 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
       flex-shrink: 0;
     }
     .workspace-tabs {
-      display: grid;
+      display: none;
       grid-template-columns: repeat(3, 1fr);
       gap: 3px;
       padding: 3px;
@@ -154,6 +155,15 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
       box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
     }
     @media (min-width: 768px) {
+      .trip-name {
+        font-size: 1.1875rem;
+      }
+      .trip-range {
+        margin: 2px 0 0;
+        font-size: 0.78rem;
+      }
+    }
+    @media (min-width: 1024px) {
       .trip-header {
         gap: 10px;
         margin-bottom: var(--space-3);
@@ -165,17 +175,12 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
         gap: var(--space-3);
       }
       .back-btn {
+        display: grid;
         width: 34px;
         height: 34px;
       }
-      .trip-name {
-        font-size: 1.1875rem;
-      }
-      .trip-range {
-        margin: 2px 0 0;
-        font-size: 0.78rem;
-      }
       .workspace-tabs {
+        display: grid;
         gap: 4px;
         padding: 4px;
         border-radius: var(--radius-md);

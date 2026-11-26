@@ -9,6 +9,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   effect,
   ElementRef,
   inject,
@@ -86,6 +87,7 @@ export class ItineraryPageComponent implements OnInit {
   protected readonly expenseStore = inject(ExpenseStore);
   protected readonly authStore = inject(AuthStore);
   protected readonly viewport = inject(ViewportService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly network = inject(NetworkStatusService);
   private readonly tripStore = inject(TripStore);
   private readonly route = inject(ActivatedRoute);
@@ -106,6 +108,7 @@ export class ItineraryPageComponent implements OnInit {
   protected readonly pendingDeleteItem = signal<ItineraryItem | null>(null);
   protected readonly deletingItem = signal(false);
   protected readonly showShareModal = signal(false);
+  protected readonly mobileHeaderCollapsed = signal(false);
   protected readonly readInputValue = readInputValue;
 
   private readonly dayStrip = viewChild<ElementRef<HTMLDivElement>>('dayStrip');
@@ -126,6 +129,58 @@ export class ItineraryPageComponent implements OnInit {
         untracked(() => void this.store.ensureOptionRoadRoutes(option.id, expected));
       }
     });
+
+    // Keep today's / newly selected Day chip visible when opening a multi-day trip.
+    effect(() => {
+      const tripId = this.store.trip()?.id;
+      const dayIdx = this.store.selectedDayIndex();
+      if (!tripId || !dayIdx) {
+        return;
+      }
+      queueMicrotask(() => {
+        const activeChip = this.dayStrip()?.nativeElement.querySelector<HTMLElement>(
+          '.day-chip.active',
+        );
+        activeChip?.scrollIntoView?.({ inline: 'nearest', block: 'nearest' });
+      });
+    });
+
+    if (typeof window !== 'undefined') {
+      let lastScrollY = Math.max(0, window.scrollY);
+      let lastToggleAt = 0;
+      const onWindowScroll = (): void => {
+        if (this.viewport.isDesktop()) {
+          this.mobileHeaderCollapsed.set(false);
+          return;
+        }
+        const y = Math.max(0, window.scrollY);
+        const now = Date.now();
+        // Cooldown prevents sticky-header height changes on short timelines from oscillating.
+        if (now - lastToggleAt < 260) {
+          lastScrollY = y;
+          return;
+        }
+        const delta = y - lastScrollY;
+        if (y <= 32) {
+          if (this.mobileHeaderCollapsed()) {
+            this.mobileHeaderCollapsed.set(false);
+            lastToggleAt = now;
+          }
+          lastScrollY = y;
+          return;
+        }
+        if (Math.abs(delta) >= 12) {
+          const shouldCollapse = delta > 0 && y > 120;
+          if (shouldCollapse !== this.mobileHeaderCollapsed()) {
+            this.mobileHeaderCollapsed.set(shouldCollapse);
+            lastToggleAt = now;
+          }
+          lastScrollY = y;
+        }
+      };
+      window.addEventListener('scroll', onWindowScroll, { passive: true });
+      this.destroyRef.onDestroy(() => window.removeEventListener('scroll', onWindowScroll));
+    }
   }
 
   /** Groups items sharing a choice_group_id into single timeline slots. */
@@ -263,6 +318,7 @@ export class ItineraryPageComponent implements OnInit {
   }
 
   protected selectDay(dayIndex: number, event?: Event): void {
+    this.mobileHeaderCollapsed.set(false);
     this.store.selectDay(dayIndex);
     (event?.currentTarget as HTMLElement | null)?.scrollIntoView({
       behavior: 'smooth',

@@ -433,10 +433,8 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
       gap: var(--space-3);
     }
     .slot-group.has-choices {
-      padding: 8px;
-      border-radius: var(--radius-md);
-      background: var(--color-accent-tint);
-      border: 1px solid var(--color-accent-border);
+      padding-left: 10px;
+      border-left: 2px solid var(--color-accent-border);
     }
     .choice-pills {
       display: flex;

@@ -24,6 +24,7 @@ import { I18nService } from './core/i18n/i18n.service';
 import { TranslatePipe } from './core/i18n/translate.pipe';
 import { NetworkStatusService } from './core/network/network-status.service';
 import { AppReleaseNotesModalComponent } from './shared/release-notes-modal.component';
+import { MobileBottomNavComponent } from './shared/mobile-bottom-nav.component';
 import { AuthStore } from './state/auth.store';
 
 const LAST_SEEN_VERSION_KEY = 'tripilot:last_seen_version';
@@ -52,6 +53,7 @@ function writeLastSeenVersion(version: string): void {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     AppReleaseNotesModalComponent,
+    MobileBottomNavComponent,
     RouterLink,
     RouterLinkActive,
     RouterOutlet,
@@ -84,7 +86,7 @@ export class App {
     () => this.lastSeenVersion() !== this.appVersion,
   );
 
-  private readonly currentUrl = toSignal(
+  protected readonly currentUrl = toSignal(
     this.router.events.pipe(
       filter((e): e is NavigationEnd => e instanceof NavigationEnd),
       map((e) => e.urlAfterRedirects),

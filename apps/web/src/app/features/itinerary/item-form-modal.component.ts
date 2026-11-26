@@ -50,116 +50,30 @@ export interface ItemFormSubmitEvent {
   template: `
     <app-modal [open]="open()" [title]="modalTitle() | t" (closed)="closed.emit()">
       <form class="modal-form" (submit)="$event.preventDefault(); submit()" novalidate>
-        <div class="two-col">
-          <div class="field">
-            <span>{{ 'itinerary.form.type' | t }}</span>
-            <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-select
-                [value]="itemType()"
-                (selectionChange)="onItemTypeChange($event.value)"
-                name="itemType"
-                [aria-label]="'itinerary.form.type' | t"
-              >
-                <mat-option value="SPOT">{{ 'item.type.spot' | t }}</mat-option>
-                <mat-option value="FOOD">{{ 'item.type.food' | t }}</mat-option>
-                <mat-option value="STAY">{{ 'item.type.stay' | t }}</mat-option>
-                <mat-option value="FLIGHT">{{ 'item.type.flight' | t }}</mat-option>
-                <mat-option value="RESERVED_TRANSIT">
-                  {{ 'item.type.reservedTransit' | t }}
-                </mat-option>
-                <mat-option value="LOCAL_TRANSIT">
-                  {{ 'item.type.localTransit' | t }}
-                </mat-option>
-              </mat-select>
-            </mat-form-field>
-          </div>
-          <label class="field" [class.has-error]="titleError()">
-            <span>{{ 'itinerary.form.title' | t }} <em class="req">*</em></span>
-            <input
-              type="text"
-              [value]="itemTitle()"
-              (input)="itemTitle.set(readInputValue($event)); titleError.set(false)"
-              name="itemTitle"
-            />
-            @if (titleError()) {
-              <small class="err-msg">{{ 'itinerary.form.errTitle' | t }}</small>
-            }
-          </label>
+        <div class="field">
+          <span>{{ 'itinerary.form.type' | t }}</span>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-select
+              [value]="itemType()"
+              (selectionChange)="onItemTypeChange($event.value)"
+              name="itemType"
+              [aria-label]="'itinerary.form.type' | t"
+            >
+              <mat-option value="SPOT">{{ 'item.type.spot' | t }}</mat-option>
+              <mat-option value="FOOD">{{ 'item.type.food' | t }}</mat-option>
+              <mat-option value="STAY">{{ 'item.type.stay' | t }}</mat-option>
+              <mat-option value="FLIGHT">{{ 'item.type.flight' | t }}</mat-option>
+              <mat-option value="RESERVED_TRANSIT">
+                {{ 'item.type.reservedTransit' | t }}
+              </mat-option>
+              <mat-option value="LOCAL_TRANSIT">
+                {{ 'item.type.localTransit' | t }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
         </div>
 
-        <div class="two-col">
-          <div class="field">
-            <span>{{ 'itinerary.form.startTime' | t }}</span>
-            <app-time-input [value]="startTime()" (valueChange)="startTime.set($event)" />
-          </div>
-          <div class="field">
-            <span>{{ 'itinerary.form.endTime' | t }}</span>
-            <app-time-input [value]="endTime()" (valueChange)="endTime.set($event)" />
-          </div>
-        </div>
-
-        @if (itemType() === 'FLIGHT') {
-          <label class="field">
-            <span>{{ 'itinerary.form.flightNo' | t }}</span>
-            <input
-              type="text"
-              [value]="flightNo()"
-              (input)="flightNo.set(readInputValue($event))"
-              name="flightNo"
-              placeholder="NH852"
-            />
-          </label>
-          <div class="two-col flight-airports">
-            <app-airport-picker
-              inputId="flight-origin-iata"
-              [label]="'itinerary.form.originIata' | t"
-              [placeholder]="'airportPicker.placeholder' | t"
-              [value]="originIata()"
-              (valueChange)="originIata.set($event)"
-            />
-            <app-airport-picker
-              inputId="flight-dest-iata"
-              [label]="'itinerary.form.destIata' | t"
-              [placeholder]="'airportPicker.placeholder' | t"
-              [value]="destIata()"
-              (valueChange)="destIata.set($event)"
-            />
-          </div>
-        } @else if (itemType() === 'LOCAL_TRANSIT') {
-          <label class="field">
-            <span>{{ 'itinerary.form.transitMin' | t }}</span>
-            <input
-              type="number"
-              [value]="transitMin() ?? ''"
-              (input)="transitMin.set(readNumberValue($event, transitMin()))"
-              name="transitMin"
-              min="1"
-            />
-          </label>
-        } @else {
-          @if (itemType() === 'RESERVED_TRANSIT') {
-            <div class="two-col">
-              <label class="field">
-                <span>{{ 'itinerary.form.trainLine' | t }}</span>
-                <input
-                  type="text"
-                  [value]="trainLine()"
-                  (input)="trainLine.set(readInputValue($event))"
-                  name="trainLine"
-                />
-              </label>
-              <label class="field">
-                <span>{{ 'itinerary.form.seat' | t }}</span>
-                <input
-                  type="text"
-                  [value]="seat()"
-                  (input)="seat.set(readInputValue($event))"
-                  name="seat"
-                />
-              </label>
-            </div>
-          }
-
+        @if (itemType() !== 'FLIGHT' && itemType() !== 'LOCAL_TRANSIT') {
           <div class="place-picker">
             <label class="field">
               <span>{{ 'itinerary.place.label' | t }}</span>
@@ -222,6 +136,95 @@ export interface ItemFormSubmitEvent {
               </div>
             }
           </div>
+        }
+
+        <label class="field" [class.has-error]="titleError()">
+          <span>{{ 'itinerary.form.title' | t }} <em class="req">*</em></span>
+          <input
+            type="text"
+            [value]="itemTitle()"
+            (input)="itemTitle.set(readInputValue($event)); titleError.set(false)"
+            name="itemTitle"
+          />
+          @if (titleError()) {
+            <small class="err-msg">{{ 'itinerary.form.errTitle' | t }}</small>
+          }
+        </label>
+
+        <div class="two-col">
+          <div class="field">
+            <span>{{ 'itinerary.form.startTime' | t }}</span>
+            <app-time-input [value]="startTime()" (valueChange)="startTime.set($event)" />
+          </div>
+          <div class="field">
+            <span>{{ 'itinerary.form.endTime' | t }}</span>
+            <app-time-input [value]="endTime()" (valueChange)="endTime.set($event)" />
+          </div>
+        </div>
+
+        @if (itemType() === 'FLIGHT') {
+          <label class="field">
+            <span>{{ 'itinerary.form.flightNo' | t }}</span>
+            <input
+              type="text"
+              [value]="flightNo()"
+              (input)="flightNo.set(readInputValue($event))"
+              name="flightNo"
+              placeholder="NH852"
+            />
+          </label>
+          <div class="two-col flight-airports">
+            <app-airport-picker
+              inputId="flight-origin-iata"
+              [label]="'itinerary.form.originIata' | t"
+              [placeholder]="'airportPicker.placeholder' | t"
+              [value]="originIata()"
+              (valueChange)="originIata.set($event)"
+            />
+            <app-airport-picker
+              inputId="flight-dest-iata"
+              [label]="'itinerary.form.destIata' | t"
+              [placeholder]="'airportPicker.placeholder' | t"
+              [value]="destIata()"
+              (valueChange)="destIata.set($event)"
+            />
+          </div>
+        } @else if (itemType() === 'LOCAL_TRANSIT') {
+          <label class="field">
+            <span>{{ 'itinerary.form.transitMin' | t }}</span>
+            <input
+              type="number"
+              [value]="transitMin() ?? ''"
+              (input)="transitMin.set(readNumberValue($event, transitMin()))"
+              name="transitMin"
+              min="1"
+            />
+          </label>
+        } @else {
+          @if (itemType() === 'RESERVED_TRANSIT') {
+            <div class="two-col">
+              <label class="field">
+                <span>{{ 'itinerary.form.trainLine' | t }}</span>
+                <input
+                  type="text"
+                  [value]="trainLine()"
+                  (input)="trainLine.set(readInputValue($event))"
+                  name="trainLine"
+                  placeholder="JR Odoriko 13"
+                />
+              </label>
+              <label class="field">
+                <span>{{ 'itinerary.form.seat' | t }}</span>
+                <input
+                  type="text"
+                  [value]="seat()"
+                  (input)="seat.set(readInputValue($event))"
+                  name="seat"
+                  placeholder="4A"
+                />
+              </label>
+            </div>
+          }
 
           @if (showAddress()) {
             <label class="field">
@@ -830,7 +833,6 @@ export class ItemFormModalComponent {
     }
     if (cand.address) {
       this.address.set(cand.address);
-      this.showAddress.set(true);
     }
   }
 

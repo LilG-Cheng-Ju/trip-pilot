@@ -45,7 +45,10 @@ describe('ItineraryCardComponent', () => {
     await fixture.whenStable();
 
     const host = fixture.nativeElement as HTMLElement;
-    expect(host.querySelector('.pin-badge')?.textContent?.trim()).toBe('2');
+    const badge = host.querySelector('.pin-badge');
+    expect(badge?.textContent?.trim()).toBe('2');
+    expect(badge?.getAttribute('data-type')).toBe('SPOT');
+    expect(host.querySelector('.type-dot')).toBeNull();
     expect(host.querySelector('.card-title')?.textContent?.trim()).toBe('Senso-ji Temple');
 
     const clickedIds: string[] = [];
@@ -116,5 +119,24 @@ describe('ItineraryCardComponent', () => {
     expect(host.querySelector('.action-menu')).toBeNull();
     // Ordering controls stay inside the overflow menu so the transit title is not compressed.
     expect(host.querySelector('.connector-order')).toBeNull();
+  });
+
+  it('shows type-dot only when a standard card has no map pinOrder', async () => {
+    const food = makeItem({
+      id: 'food-1',
+      type: 'FOOD',
+      title: 'Night Market Stall',
+      latitude: null,
+      longitude: null,
+    });
+    const fixture = TestBed.createComponent(ItineraryCardComponent);
+    fixture.componentRef.setInput('item', food);
+    fixture.componentRef.setInput('pinOrder', null);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('.pin-badge')).toBeNull();
+    expect(host.querySelector('.type-dot')?.getAttribute('data-type')).toBe('FOOD');
   });
 });

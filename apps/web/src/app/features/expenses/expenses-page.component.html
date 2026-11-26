@@ -9,6 +9,20 @@
     <app-trip-subnav [tripId]="tripId()" [title]="'expenses.title' | t" />
   }
 
+  @if (expenseStore.error(); as err) {
+    <div class="error-banner" role="alert">
+      <span>{{ err }}</span>
+      <button
+        type="button"
+        class="error-dismiss"
+        [attr.aria-label]="'common.close' | t"
+        (click)="expenseStore.clearError()"
+      >
+        <span class="ms-icon sm" aria-hidden="true">close</span>
+      </button>
+    </div>
+  }
+
   <div class="expenses-grid">
     <div class="summary-col">
       @if (expenseStore.summary(); as summary) {
@@ -33,8 +47,39 @@
         </section>
       }
 
+      <div class="mobile-expense-tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          class="expense-tab-btn"
+          [class.active]="mobileTab() === 'add'"
+          [attr.aria-selected]="mobileTab() === 'add'"
+          (click)="setMobileTab('add')"
+        >
+          {{ 'expenses.quickAdd' | t }}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="expense-tab-btn"
+          [class.active]="mobileTab() === 'ledger'"
+          [class.pulse]="justAddedFeedback()"
+          [attr.aria-selected]="mobileTab() === 'ledger'"
+          (click)="setMobileTab('ledger')"
+        >
+          <span>{{ 'expenses.tabLedger' | t }}</span>
+          @if (expenseStore.summary(); as summary) {
+            <span class="expense-tab-count tabular-nums">{{ summary.items.length }}</span>
+          }
+        </button>
+      </div>
+
       <!-- Ultra-Low-Friction Quick Add Form -->
-      <form class="quick-card" (submit)="$event.preventDefault(); submitExpense()">
+      <form
+        class="quick-card"
+        [class.mobile-panel-hidden]="mobileTab() !== 'add'"
+        (submit)="$event.preventDefault(); submitExpense()"
+      >
         <h3 class="section-title">{{ 'expenses.quickAdd' | t }}</h3>
 
         <label class="field">
@@ -232,10 +277,20 @@
         >
           + {{ 'common.add' | t }}
         </button>
+
+        @if (justAddedFeedback()) {
+          <button type="button" class="added-toast-btn" (click)="setMobileTab('ledger')">
+            <span class="ms-icon sm" aria-hidden="true">check_circle</span>
+            <span>{{ 'expenses.addedFeedback' | t }}</span>
+          </button>
+        }
       </form>
 
       @if (categoryEntries().length > 0) {
-        <section class="breakdown-card">
+        <section
+          class="breakdown-card"
+          [class.mobile-panel-hidden]="mobileTab() !== 'ledger'"
+        >
           @for (entry of categoryEntries(); track entry.category) {
             <button
               type="button"
@@ -256,21 +311,7 @@
       }
     </div>
 
-    <section class="ledger-col">
-      @if (expenseStore.error(); as err) {
-        <div class="error-banner" role="alert">
-          <span>{{ err }}</span>
-          <button
-            type="button"
-            class="error-dismiss"
-            [attr.aria-label]="'common.close' | t"
-            (click)="expenseStore.clearError()"
-          >
-            <span class="ms-icon sm" aria-hidden="true">close</span>
-          </button>
-        </div>
-      }
-
+    <section class="ledger-col" [class.mobile-panel-hidden]="mobileTab() !== 'ledger'">
       @if (filteredItemTitle(); as itemTitle) {
         <div class="filter-banner">
           <span class="ms-icon sm" aria-hidden="true">filter_alt</span>
