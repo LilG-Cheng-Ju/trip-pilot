@@ -5,8 +5,10 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 
+from app.core.config import Settings
+from app.main import create_app
 from app.services.places import PlaceCandidate
 
 
@@ -16,10 +18,55 @@ async def test_llms_txt_is_public_and_documents_mcp(api_client: AsyncClient) -> 
     assert resp.status_code == 200
     assert "Tripilot" in resp.text
     assert "/mcp" in resp.text
+    assert "/gpt-openapi.json" in resp.text
     assert "details.attachments" in resp.text
     assert "delete_trip_day" in resp.text
     assert "DELETE /api/v1/days/{day_id}" in resp.text
     assert "start_date" in resp.text
+
+
+@pytest.mark.asyncio
+async def test_gpt_openapi_schema_is_public_curated_and_within_chatgpt_limits(
+    api_client: AsyncClient,
+) -> None:
+    resp = await api_client.get(
+        "/gpt-openapi.json",
+        headers={"X-Forwarded-Proto": "https"},
+    )
+    assert resp.status_code == 200
+    schema = resp.json()
+    assert schema["servers"][0]["url"].startswith("https://")
+    assert set(schema["components"]["securitySchemes"].keys()) == {"HTTPBearer"}
+
+    operations: list[dict[str, Any]] = []
+    for path, path_item in schema["paths"].items():
+        assert not path.startswith("/api/v1/admin")
+        assert not path.startswith("/api/v1/invites")
+        assert not path.startswith("/api/v1/me")
+        assert not path.startswith("/api/v1/tokens")
+        assert not path.startswith("/api/v1/public")
+        assert "/shares" not in path
+        for method in ("get", "post", "patch", "put", "delete"):
+            if method in path_item:
+                op = path_item[method]
+                operations.append(op)
+                assert len(op["operationId"]) <= 64
+                assert op["security"] == [{"HTTPBearer": []}]
+
+    assert 1 <= len(operations) <= 30
+    assert len({op["operationId"] for op in operations}) == len(operations)
+    assert "/api/v1/trips" in schema["paths"]
+    assert "/api/v1/places/search" in schema["paths"]
+
+    # PROD disables full /api/v1/openapi.json, while /gpt-openapi.json stays available.
+    prod_app = create_app(Settings(app_env="PROD", rate_limit_enabled=False))
+    async with AsyncClient(
+        transport=ASGITransport(app=prod_app), base_url="http://testserver"
+    ) as prod_client:
+        assert (await prod_client.get("/api/v1/openapi.json")).status_code == 404
+        prod_gpt = await prod_client.get("/gpt-openapi.json")
+        assert prod_gpt.status_code == 200
+        assert "/api/v1/trips" in prod_gpt.json()["paths"]
 
 
 @pytest.mark.asyncio

@@ -8,7 +8,7 @@ description: Manage trips, daily itineraries (including Day Themes, Plan A/B day
 Use Tripilot's Remote MCP endpoint (`POST <API_URL>/mcp`) or `/api/v1` REST API with `Authorization: Bearer tp_pat_...` to read and update the user's travel workspace cleanly.
 
 - **Public AI Guide**: `GET <API_URL>/llms.txt` (English quick reference)
-- **OpenAPI Schema**: `GET <API_URL>/api/v1/openapi.json`
+- **OpenAPI Schema (ChatGPT Actions / REST)**: `GET <API_URL>/gpt-openapi.json`
 - **Remote MCP (Streamable HTTP / JSON-RPC 2.0)**: `POST <API_URL>/mcp`
 
 ## Core Data Model

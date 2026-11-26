@@ -12,7 +12,8 @@ from decimal import Decimal
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from fastapi.responses import PlainTextResponse
+from fastapi.openapi.utils import get_openapi
+from fastapi.responses import JSONResponse, PlainTextResponse
 from mcp import MCPError
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
@@ -889,6 +890,127 @@ async def mcp_endpoint(
         _mcp_ctx.reset(token)
 
 
+_EXCLUDED_GPT_OPENAPI_PREFIXES: tuple[str, ...] = (
+    "/api/v1/admin",
+    "/api/v1/invites",
+    "/api/v1/me",
+    "/api/v1/tokens",
+    "/api/v1/public",
+    "/api/v1/trips/{trip_id}/shares",
+)
+_HTTP_METHODS = frozenset({"get", "post", "patch", "put", "delete"})
+_SCHEMA_REF_PREFIX = "#/components/schemas/"
+
+
+def _resolve_public_origin(request: Request) -> str:
+    base = str(request.base_url).rstrip("/")
+    forwarded_proto = (
+        request.headers.get("x-forwarded-proto", "").split(",")[0].strip().lower()
+    )
+    if forwarded_proto == "https" and base.startswith("http://"):
+        return "https://" + base[len("http://") :]
+    return base
+
+
+def _collect_schema_refs(node: Any, refs: set[str]) -> None:
+    if isinstance(node, dict):
+        ref = node.get("$ref")
+        if isinstance(ref, str) and ref.startswith(_SCHEMA_REF_PREFIX):
+            refs.add(ref[len(_SCHEMA_REF_PREFIX) :])
+        for value in node.values():
+            _collect_schema_refs(value, refs)
+    elif isinstance(node, list):
+        for item in node:
+            _collect_schema_refs(item, refs)
+
+
+@router.get(
+    "/gpt-openapi.json",
+    response_class=JSONResponse,
+    include_in_schema=False,
+    dependencies=[Depends(limit_public_endpoint("public"))],
+)
+async def gpt_openapi_schema(
+    request: Request,
+    settings: SettingsDep,
+) -> JSONResponse:
+    """Public curated OpenAPI spec for ChatGPT Custom GPT Actions (<= 30 operations)."""
+    schema: dict[str, Any] = get_openapi(
+        title="Tripilot API",
+        version=settings.app_version,
+        description=(
+            "Personal travel itinerary, route map, place lookup, "
+            "and multi-currency expense API."
+        ),
+        routes=request.app.routes,
+    )
+    schema["servers"] = [{"url": _resolve_public_origin(request)}]
+
+    raw_paths = schema.get("paths")
+    filtered_paths: dict[str, Any] = {}
+    used_ids: set[str] = set()
+    if isinstance(raw_paths, dict):
+        for path, path_item in raw_paths.items():
+            if not path.startswith("/api/v1/"):
+                continue
+            if path.startswith(_EXCLUDED_GPT_OPENAPI_PREFIXES):
+                continue
+            if not isinstance(path_item, dict):
+                continue
+            cleaned_item: dict[str, Any] = {}
+            for key, value in path_item.items():
+                lowered = str(key).lower()
+                if lowered not in _HTTP_METHODS or not isinstance(value, dict):
+                    cleaned_item[key] = value
+                    continue
+                op = dict(value)
+                raw_op_id = str(op.get("operationId", "operation"))
+                candidate = (raw_op_id.split("_api_v1_", 1)[0] or raw_op_id)[:64]
+                unique_id = candidate
+                suffix = 2
+                while unique_id in used_ids:
+                    tag = f"_{suffix}"
+                    unique_id = f"{candidate[: 64 - len(tag)]}{tag}"
+                    suffix += 1
+                used_ids.add(unique_id)
+                op["operationId"] = unique_id
+                op["security"] = [{"HTTPBearer": []}]
+                cleaned_item[key] = op
+            filtered_paths[path] = cleaned_item
+
+    schema["paths"] = filtered_paths
+    schema["security"] = [{"HTTPBearer": []}]
+
+    components = schema.setdefault("components", {})
+    if isinstance(components, dict):
+        components["securitySchemes"] = {
+            "HTTPBearer": {
+                "type": "http",
+                "scheme": "bearer",
+                "description": "Tripilot Personal API Token (tp_pat_...)",
+            }
+        }
+        all_schemas = components.get("schemas")
+        if isinstance(all_schemas, dict):
+            # Prune unreferenced schemas so excluded admin/account models never leak.
+            needed: set[str] = set()
+            frontier: set[str] = set()
+            _collect_schema_refs(filtered_paths, frontier)
+            while frontier:
+                name = frontier.pop()
+                if name in needed:
+                    continue
+                needed.add(name)
+                target = all_schemas.get(name)
+                if target is not None:
+                    _collect_schema_refs(target, frontier)
+            components["schemas"] = {
+                k: v for k, v in all_schemas.items() if k in needed
+            }
+
+    return JSONResponse(content=schema)
+
+
 @router.get(
     "/llms.txt",
     response_class=PlainTextResponse,
@@ -896,7 +1018,7 @@ async def mcp_endpoint(
 )
 async def llms_txt(request: Request) -> str:
     """Public English guide enabling any AI assistant to discover and operate Tripilot."""
-    base = str(request.base_url).rstrip("/")
+    base = _resolve_public_origin(request)
     return f"""# Tripilot — AI Assistant Integration Guide
 
 Tripilot is a personal travel itinerary, route-map, trip-brief, and expense platform.
@@ -922,9 +1044,9 @@ Available MCP tools (33 total):
 - Expenses & FX: `list_expenses`, `add_expense` (omit `exchange_rate` to auto-fetch live FX), `update_expense`, `delete_expense`, `get_fx_rate`
 - Dashboard: `get_travel_stats` (supports `year` and `scope`: `all` | `domestic` | `international`)
 
-## 3. Option B — REST API (OpenAPI)
+## 3. Option B — ChatGPT Custom GPT Actions / REST API (OpenAPI)
 Base URL: `{base}/api/v1`
-OpenAPI Schema: `{base}/api/v1/openapi.json`
+OpenAPI Schema (ChatGPT Custom GPT Actions / REST): `{base}/gpt-openapi.json`
 
 Key endpoints:
 - `GET /api/v1/trips` — list trips
