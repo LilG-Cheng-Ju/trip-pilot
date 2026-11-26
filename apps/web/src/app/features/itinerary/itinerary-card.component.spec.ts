@@ -139,4 +139,46 @@ describe('ItineraryCardComponent', () => {
     expect(host.querySelector('.pin-badge')).toBeNull();
     expect(host.querySelector('.type-dot')?.getAttribute('data-type')).toBe('FOOD');
   });
+
+  it('renders passive footer details as quiet inline text while keeping interactive links', async () => {
+    const stay = makeItem({
+      id: 'stay-1',
+      type: 'RESERVED_TRANSIT',
+      title: 'Nozomi 12',
+      details: {
+        line_or_train_no: 'Shinkansen Nozomi 12',
+        seat: 'Car 7 · 12A',
+        confirmation_code: 'JR-8891',
+        free_cancellation_deadline: '2026-04-01',
+        attachments: [{ name: 'Ticket.pdf', url: 'https://drive.google.com/file/d/abc/view' }],
+      },
+    });
+    const fixture = TestBed.createComponent(ItineraryCardComponent);
+    fixture.componentRef.setInput('item', stay);
+    fixture.componentRef.setInput('tripId', 'trip-1');
+    fixture.componentRef.setInput('expenseSummary', {
+      count: 1,
+      totalHome: 3200,
+      currencyHome: 'TWD',
+    });
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('.meta-chip')).toBeNull();
+    const metaItems = Array.from(host.querySelectorAll('.footer-meta .meta-item')).map((el) =>
+      el.textContent?.trim(),
+    );
+    expect(metaItems).toEqual([
+      'Shinkansen Nozomi 12',
+      'Car 7 · 12A',
+      'Confirmation JR-8891',
+      'Free cancel by 2026-04-01',
+    ]);
+    expect(host.querySelector('.footer-meta .meta-item.alert')?.textContent?.trim()).toBe(
+      'Free cancel by 2026-04-01',
+    );
+    expect(host.querySelector('a.attachment-chip')?.textContent).toContain('Ticket.pdf');
+    expect(host.querySelector('a.head-expense-pill')?.textContent).toContain('TWD 3,200');
+  });
 });

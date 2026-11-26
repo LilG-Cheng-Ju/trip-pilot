@@ -198,21 +198,22 @@ import { ItemExpenseSummary } from '../../state/expense.store';
         @if (!readOnly() || hasFooterPills()) {
           <div class="card-footer dark" (click)="$event.stopPropagation()">
             <div class="footer-pills dark" (wheel)="onFooterWheel($event)">
-              @if (detail('booking_ref'); as ref) {
-                <span class="meta-chip dark tabular-nums">
-                  {{ 'detail.bookingRef' | t }} {{ ref }}
-                </span>
-              }
-              @if (detail('confirmation_code'); as conf) {
-                <span class="meta-chip dark tabular-nums">
-                  {{ 'detail.confirmation' | t }} {{ conf }}
-                </span>
-              }
-              @if (detail('free_cancellation_deadline'); as cancel) {
-                <span class="meta-chip dark alert tabular-nums">
-                  <span class="ms-icon sm" aria-hidden="true">warning</span>
-                  <span>{{ 'detail.freeCancelBy' | t }} {{ cancel }}</span>
-                </span>
+              @if (hasDetailChips()) {
+                <div class="footer-meta dark tabular-nums">
+                  @if (detail('booking_ref'); as ref) {
+                    <span class="meta-item">
+                      {{ 'detail.bookingRef' | t }} <span class="font-mono">{{ ref }}</span>
+                    </span>
+                  }
+                  @if (detail('confirmation_code'); as conf) {
+                    <span class="meta-item">
+                      {{ 'detail.confirmation' | t }} <span class="font-mono">{{ conf }}</span>
+                    </span>
+                  }
+                  @if (detail('free_cancellation_deadline'); as cancel) {
+                    <span class="meta-item alert">{{ 'detail.freeCancelBy' | t }} {{ cancel }}</span>
+                  }
+                </div>
               }
               @for (att of attachments(); track $index) {
                 <a
@@ -400,30 +401,28 @@ import { ItemExpenseSummary } from '../../state/expense.store';
         @if (!readOnly() || hasFooterPills()) {
           <div class="card-footer" (click)="$event.stopPropagation()">
             <div class="footer-pills" (wheel)="onFooterWheel($event)">
-              @if (detail('line_or_train_no'); as trainNo) {
-                <span class="meta-chip">
-                  <span class="ms-icon sm" aria-hidden="true">train</span>
-                  <span>{{ trainNo }}</span>
-                </span>
-              }
-              @if (detail('seat'); as seat) {
-                <span class="meta-chip">{{ seat }}</span>
-              }
-              @if (detail('confirmation_code'); as conf) {
-                <span class="meta-chip tabular-nums">
-                  {{ 'detail.confirmation' | t }} {{ conf }}
-                </span>
-              }
-              @if (detail('booking_ref'); as ref) {
-                <span class="meta-chip tabular-nums">
-                  {{ 'detail.bookingRef' | t }} {{ ref }}
-                </span>
-              }
-              @if (detail('free_cancellation_deadline'); as cancel) {
-                <span class="meta-chip alert tabular-nums">
-                  <span class="ms-icon sm" aria-hidden="true">warning</span>
-                  <span>{{ 'detail.freeCancelBy' | t }} {{ cancel }}</span>
-                </span>
+              @if (hasDetailChips()) {
+                <div class="footer-meta tabular-nums">
+                  @if (detail('line_or_train_no'); as trainNo) {
+                    <span class="meta-item">{{ trainNo }}</span>
+                  }
+                  @if (detail('seat'); as seat) {
+                    <span class="meta-item">{{ seat }}</span>
+                  }
+                  @if (detail('confirmation_code'); as conf) {
+                    <span class="meta-item">
+                      {{ 'detail.confirmation' | t }} <span class="font-mono">{{ conf }}</span>
+                    </span>
+                  }
+                  @if (detail('booking_ref'); as ref) {
+                    <span class="meta-item">
+                      {{ 'detail.bookingRef' | t }} <span class="font-mono">{{ ref }}</span>
+                    </span>
+                  }
+                  @if (detail('free_cancellation_deadline'); as cancel) {
+                    <span class="meta-item alert">{{ 'detail.freeCancelBy' | t }} {{ cancel }}</span>
+                  }
+                </div>
               }
               @for (att of attachments(); track $index) {
                 <a
@@ -914,32 +913,31 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     .footer-pills:hover::-webkit-scrollbar-thumb {
       background: rgba(20, 24, 31, 0.32);
     }
-    .meta-chip,
-    .attachment-chip {
+    .footer-meta {
       display: inline-flex;
       align-items: center;
-      gap: 4px;
-      text-decoration: none;
+      flex-wrap: nowrap;
+      flex-shrink: 0;
       font-size: 0.74rem;
       font-weight: 500;
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-    .meta-chip {
-      padding: 2px 0;
       color: var(--color-text-secondary);
+      white-space: nowrap;
     }
-    .meta-chip.alert {
-      padding: 2px 8px;
-      border-radius: var(--radius-xs);
-      background: var(--color-alert-soft);
-      color: var(--color-alert);
-    }
-    .meta-chip.dark {
+    .footer-meta.dark {
       color: rgba(248, 250, 252, 0.8);
     }
-    .meta-chip.dark.alert {
-      background: rgba(200, 75, 59, 0.24);
+    .meta-item + .meta-item::before {
+      content: '·';
+      margin: 0 6px;
+      color: var(--color-text-muted);
+    }
+    .footer-meta.dark .meta-item + .meta-item::before {
+      color: rgba(248, 250, 252, 0.42);
+    }
+    .meta-item.alert {
+      color: var(--color-alert);
+    }
+    .footer-meta.dark .meta-item.alert {
       color: var(--color-alert-light);
     }
     .footer-pills.dark {
@@ -958,10 +956,18 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       background: rgba(196, 146, 76, 0.22);
     }
     .attachment-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
       padding: 2px 8px;
       border-radius: var(--radius-xs);
       background: var(--color-surface-alt);
       color: var(--color-primary);
+      text-decoration: none;
+      font-size: 0.74rem;
+      font-weight: 500;
+      white-space: nowrap;
+      flex-shrink: 0;
       transition: background-color 140ms ease;
     }
     .attachment-chip:hover {
@@ -1117,23 +1123,6 @@ export class ItineraryCardComponent {
 
   protected detail(key: string): string | null {
     return getItemDetailString(this.item().details, key);
-  }
-
-  protected typeIcon(): string {
-    switch (this.item().type) {
-      case 'FLIGHT':
-        return 'flight';
-      case 'RESERVED_TRANSIT':
-        return 'train';
-      case 'LOCAL_TRANSIT':
-        return 'subway';
-      case 'STAY':
-        return 'hotel';
-      case 'FOOD':
-        return 'restaurant';
-      default:
-        return 'place';
-    }
   }
 
   protected typeLabel():

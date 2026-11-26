@@ -35,7 +35,6 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
           routerLinkActive="active"
           [routerLinkActiveOptions]="{ exact: true }"
         >
-          <span class="ms-icon sm" aria-hidden="true">event_note</span>
           <span>{{ 'trip.tab.itinerary' | t }}</span>
         </a>
         <a
@@ -43,7 +42,6 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
           [routerLink]="['/trips', tripId(), 'brief']"
           routerLinkActive="active"
         >
-          <span class="ms-icon sm" aria-hidden="true">summarize</span>
           <span>{{ 'trip.tab.brief' | t }}</span>
         </a>
         <a
@@ -51,7 +49,6 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
           [routerLink]="['/trips', tripId(), 'expenses']"
           routerLinkActive="active"
         >
-          <span class="ms-icon sm" aria-hidden="true">payments</span>
           <span>{{ 'trip.tab.expenses' | t }}</span>
         </a>
       </nav>
