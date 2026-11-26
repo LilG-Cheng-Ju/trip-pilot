@@ -29,12 +29,12 @@ export const RELEASE_NOTES: readonly ReleaseNoteEntry[] = [
     "changes": {
       "zh-TW": [
         "調整手機版旅程內底部導覽列為「所有旅程／行程／摘要／花費」快捷切換，並在向下捲動行程時自動收合頂部標題列以增加可視範圍",
-        "手機版花費頁於總金額下方新增「快速記帳」與「明細與分析」雙分頁，未結束旅程預設停在記帳並帶入今日天數，已結束或由行程點入時預設顯示明細",
+        "手機版花費頁於總金額下方新增「快速記帳」與「明細與分析」雙分頁（未結束旅程預設記帳並帶入今日天數，已結束或由行程點入預設看明細）；將消費明細改為雙列卡片搭配 7 種分類專屬色籤與統計條色彩，釋放標題寬度",
         "開啟進行中旅程自動定位至當天 Day 分頁，新增景點優先顯示地點搜尋與連結解析，並整合行程卡編號與地圖類型色點"
       ],
       "en": [
         "Updated the mobile bottom bar inside trips to switch between All Trips, Itinerary, Brief, and Expenses, while auto-collapsing the trip title row when scrolling down",
-        "Added mobile Quick Add and Ledger tabs beneath the Expenses total card, defaulting active trips to Quick Add (pre-selecting today) and completed or item-filtered views to Ledger",
+        "Added mobile Quick Add and Ledger tabs beneath the Expenses total card (defaulting active trips to Quick Add for today and completed or item-filtered views to Ledger), and redesigned ledger cards into two-row layouts with 7-category semantic color badges and colored breakdown bars",
         "Auto-selected today's Day tab on in-progress trips, prioritized place search above manual title entry in the item modal, and unified card pin badges with map category colors"
       ]
     }
