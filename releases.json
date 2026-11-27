@@ -1,5 +1,23 @@
 [
   {
+    "version": "0.9.13-beta",
+    "date": "2026-11-28",
+    "title": {
+      "zh-TW": "手機地圖按需載入與快取優化",
+      "en": "On-Demand Mobile Maps & Caching"
+    },
+    "changes": {
+      "zh-TW": [
+        "手機進入行程頁與公開分享頁不再預載地圖，點開地圖才即時下載",
+        "手機地圖開啟過後保留畫面狀態，同趟行程再次開啟免重載秒顯示"
+      ],
+      "en": [
+        "Deferred map downloads on mobile itinerary and share pages until you open the map",
+        "Kept the mobile map cached per trip so reopening it is instant without reloading"
+      ]
+    }
+  },
+  {
     "version": "0.9.12-beta",
     "date": "2026-11-28",
     "title": {

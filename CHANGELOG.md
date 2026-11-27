@@ -2,6 +2,12 @@
 
 <!-- Auto-generated from releases.json. Run `node scripts/sync-releases.mjs` after editing releases.json. -->
 
+## v0.9.13-beta (2026-11-28) — 手機地圖按需載入與快取優化
+*On-Demand Mobile Maps & Caching*
+
+- 手機進入行程頁與公開分享頁不再預載地圖，點開地圖才即時下載
+- 手機地圖開啟過後保留畫面狀態，同趟行程再次開啟免重載秒顯示
+
 ## v0.9.12-beta (2026-11-28) — 載入速度與系統優化
 *Faster Loads & System Polish*
 
