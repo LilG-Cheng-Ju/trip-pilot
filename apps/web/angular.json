@@ -57,7 +57,7 @@
                   "minify": true,
                   "inlineCritical": false
                 },
-                "fonts": true
+                "fonts": false
               },
               "outputHashing": "all",
               "serviceWorker": "ngsw-config.json"
