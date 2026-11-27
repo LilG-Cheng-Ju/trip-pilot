@@ -2,12 +2,12 @@
 
 <!-- Auto-generated from releases.json. Run `node scripts/sync-releases.mjs` after editing releases.json. -->
 
-## v0.9.11-beta (2026-11-27) — 手機版字級、分頁與旅程清單排版優化
-*Mobile Typography, Tabs & List Polish*
+## v0.9.11-beta (2026-11-28) — 行程操作列、足跡清單與設定體驗優化
+*Itinerary Actions, Logbook & Settings Polish*
 
-- 調整足跡「期間旅程清單」手機版為雙列配置，釋放旅程名稱寬度
-- 精簡設定頁 AI 分頁籤與說明字級，修正手機版雙排折行問題
-- 微調冷啟動提示卡、旅程卡與全站手機版按鈕和間距比例
+- 行程頁整合新增方案與新增項目按鈕，切換預覽方案改為行內設為採用
+- 重整足跡期間旅程清單，手機完整顯示長標題與國名並對齊電腦版欄位
+- 設定頁旅遊偏好改為選完自動儲存，同步精簡手機版字級、分頁與按鈕比例
 
 ## v0.9.10-beta (2026-11-27) — 後端冷啟動喚醒畫面與趣味提示
 *Server Wake Screen & Travel Tips*
