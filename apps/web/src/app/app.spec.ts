@@ -102,7 +102,7 @@ describe('App', () => {
 
     const offlineBar = compiled.querySelector('.offline-bar');
     expect(offlineBar).toBeTruthy();
-    expect(offlineBar?.textContent).toContain('Offline — showing cached data on this device');
+    expect(offlineBar?.textContent).toContain('Offline — viewing cached data');
 
     network.isOnline.set(true);
     fixture.detectChanges();

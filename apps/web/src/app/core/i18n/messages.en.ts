@@ -310,7 +310,7 @@ export const MESSAGES_EN = {
   'sync.syncing': 'Syncing...',
   'sync.offlineCache': 'Offline cache (read-only)',
   'sync.offlineReadOnly': 'Offline — read-only cached view',
-  'sync.deviceOffline': 'Offline — showing cached data on this device',
+  'sync.deviceOffline': 'Offline — viewing cached data',
   'sync.wakingServer': 'Connecting to server, please wait a moment...',
   'detail.confirmation': 'Confirmation',
   'detail.bookingRef': 'Ref',
