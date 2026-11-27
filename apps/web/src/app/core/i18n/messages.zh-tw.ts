@@ -307,6 +307,8 @@ export const MESSAGES_ZH_TW: Record<TranslationKey, string> = {
   'map.modeRoad': '自駕',
   'map.modeAria': '地圖路線顯示模式',
   'map.attribAria': '地圖圖資來源',
+  'map.loading': '正在載入地圖...',
+  'map.loadError': '無法載入地圖，請檢查網路連線後再試。',
   'sync.syncing': '同步中...',
   'sync.offlineCache': '離線快取檢視',
   'sync.offlineReadOnly': '目前離線，僅供檢視快取內容',

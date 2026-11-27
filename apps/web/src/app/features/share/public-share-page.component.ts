@@ -208,6 +208,21 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
                 [fallbackCenter]="tripMapCenter()"
                 (pinSelected)="onMapPinSelected($event)"
               />
+            } @placeholder {
+              <div class="map-defer-state">
+                <span class="ms-icon lg spin" aria-hidden="true">progress_activity</span>
+                <p>{{ 'map.loading' | t }}</p>
+              </div>
+            } @loading (after 100ms; minimum 250ms) {
+              <div class="map-defer-state">
+                <span class="ms-icon lg spin" aria-hidden="true">progress_activity</span>
+                <p>{{ 'map.loading' | t }}</p>
+              </div>
+            } @error {
+              <div class="map-defer-state is-error" role="alert">
+                <span class="ms-icon lg" aria-hidden="true">wifi_off</span>
+                <p>{{ 'map.loadError' | t }}</p>
+              </div>
             }
           </aside>
         }
@@ -243,6 +258,42 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
             (clearSelection)="selectedItemId.set(null)"
             (closed)="mobileMapOpen.set(false)"
           />
+        } @loading (after 100ms; minimum 250ms) {
+          <div class="map-defer-sheet no-bottom-nav" role="status" aria-live="polite">
+            <div class="map-defer-bar">
+              <span class="map-defer-title tabular-nums">{{ selectedDayLabel() }}</span>
+              <button
+                type="button"
+                class="map-defer-close"
+                (click)="mobileMapOpen.set(false)"
+              >
+                <span class="ms-icon sm" aria-hidden="true">close</span>
+                <span>{{ 'map.closeSheet' | t }}</span>
+              </button>
+            </div>
+            <div class="map-defer-state">
+              <span class="ms-icon lg spin" aria-hidden="true">progress_activity</span>
+              <p>{{ 'map.loading' | t }}</p>
+            </div>
+          </div>
+        } @error {
+          <div class="map-defer-sheet no-bottom-nav" role="alert">
+            <div class="map-defer-bar">
+              <span class="map-defer-title tabular-nums">{{ selectedDayLabel() }}</span>
+              <button
+                type="button"
+                class="map-defer-close"
+                (click)="mobileMapOpen.set(false)"
+              >
+                <span class="ms-icon sm" aria-hidden="true">close</span>
+                <span>{{ 'map.closeSheet' | t }}</span>
+              </button>
+            </div>
+            <div class="map-defer-state is-error">
+              <span class="ms-icon lg" aria-hidden="true">wifi_off</span>
+              <p>{{ 'map.loadError' | t }}</p>
+            </div>
+          </div>
         }
       }
     } @else if (errorKey(); as errKey) {

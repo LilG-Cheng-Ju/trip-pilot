@@ -305,6 +305,8 @@ export const MESSAGES_EN = {
   'map.modeRoad': 'Driving',
   'map.modeAria': 'Map route display mode',
   'map.attribAria': 'Map attribution',
+  'map.loading': 'Loading map...',
+  'map.loadError': 'Unable to load map. Check your connection and try again.',
   'sync.syncing': 'Syncing...',
   'sync.offlineCache': 'Offline cache (read-only)',
   'sync.offlineReadOnly': 'Offline — read-only cached view',
