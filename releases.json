@@ -1,5 +1,25 @@
 [
   {
+    "version": "0.9.11-beta",
+    "date": "2026-11-27",
+    "title": {
+      "zh-TW": "手機版字級、分頁與旅程清單排版優化",
+      "en": "Mobile Typography, Tabs & List Polish"
+    },
+    "changes": {
+      "zh-TW": [
+        "調整足跡「期間旅程清單」手機版為雙列配置，釋放旅程名稱寬度",
+        "精簡設定頁 AI 分頁籤與說明字級，修正手機版雙排折行問題",
+        "微調冷啟動提示卡、旅程卡與全站手機版按鈕和間距比例"
+      ],
+      "en": [
+        "Reworked Logbook period trip rows into a two-line mobile layout so long titles stay readable",
+        "Tightened Settings AI tabs and copy so tabs stay on one row on phones",
+        "Refined mobile font sizes, button padding, and card spacing across the wake overlay and core pages"
+      ]
+    }
+  },
+  {
     "version": "0.9.10-beta",
     "date": "2026-11-27",
     "title": {

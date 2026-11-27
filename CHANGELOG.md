@@ -2,6 +2,13 @@
 
 <!-- Auto-generated from releases.json. Run `node scripts/sync-releases.mjs` after editing releases.json. -->
 
+## v0.9.11-beta (2026-11-27) — 手機版字級、分頁與旅程清單排版優化
+*Mobile Typography, Tabs & List Polish*
+
+- 調整足跡「期間旅程清單」手機版為雙列配置，釋放旅程名稱寬度
+- 精簡設定頁 AI 分頁籤與說明字級，修正手機版雙排折行問題
+- 微調冷啟動提示卡、旅程卡與全站手機版按鈕和間距比例
+
 ## v0.9.10-beta (2026-11-27) — 後端冷啟動喚醒畫面與趣味提示
 *Server Wake Screen & Travel Tips*
 
