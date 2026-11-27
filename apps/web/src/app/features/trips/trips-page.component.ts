@@ -1,40 +1,24 @@
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatSelectModule } from '@angular/material/select';
 import { Router, RouterLink } from '@angular/router';
 
-import { TripilotApiService, TripUpdatePayload } from '../../core/api/tripilot-api.service';
+import { TripilotApiService } from '../../core/api/tripilot-api.service';
 import { OfflineCacheService } from '../../core/cache/offline-cache.service';
 import {
-  DEFAULT_TRIP_DURATION_DAYS,
-  MAX_TRIP_DURATION_DAYS,
   MIN_TRIP_DURATION_DAYS,
   MS_PER_DAY,
   TRIP_COUNTDOWN_MAX_DAYS,
 } from '../../core/constants/app-limits';
-import {
-  findCountry,
-  SUPPORTED_CURRENCIES,
-} from '../../core/constants/travel-options';
+import { findCountry } from '../../core/constants/travel-options';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { TripDetail, TripStatus, TripSummary } from '../../core/models/tripilot.models';
+import { TripDetail, TripSummary } from '../../core/models/tripilot.models';
 import { NetworkStatusService } from '../../core/network/network-status.service';
-import { isIncompleteNumberInput, readInputValue } from '../../core/utils/form-events.utils';
-import {
-  addDaysToIsoDate,
-  formatLocalIsoDate,
-} from '../../core/utils/travel-format.utils';
 import { AppConfirmModalComponent } from '../../shared/confirm-modal.component';
-import { AppCountryPickerComponent } from '../../shared/country-picker.component';
-import { AppDateInputComponent } from '../../shared/date-input.component';
-import { AppModalComponent } from '../../shared/modal.component';
 import { AuthStore } from '../../state/auth.store';
 import { ExpenseStore } from '../../state/expense.store';
 import { ItineraryStore } from '../../state/itinerary.store';
 import { TripListTab, TripStore } from '../../state/trip.store';
-
-type DateEndMode = 'end' | 'duration' | 'open';
+import { TripFormModalComponent, TripFormSubmitEvent } from './trip-form-modal.component';
 
 /** Multi-trip overview with Upcoming & Completed (reversible) tabs and full CRUD modals. */
 @Component({
@@ -43,12 +27,8 @@ type DateEndMode = 'end' | 'duration' | 'open';
   imports: [
     RouterLink,
     TranslatePipe,
-    MatFormFieldModule,
-    MatSelectModule,
-    AppModalComponent,
     AppConfirmModalComponent,
-    AppCountryPickerComponent,
-    AppDateInputComponent,
+    TripFormModalComponent,
   ],
   template: `
     <div class="page">
@@ -251,229 +231,17 @@ type DateEndMode = 'end' | 'duration' | 'open';
         </div>
       }
 
-      <app-modal
+      <app-trip-form-modal
         [open]="showTripModal()"
-        [title]="(editingTrip() ? 'trips.edit' : 'trips.new') | t"
+        [editingTrip]="editingTrip()"
+        [initialNotes]="editingInitialNotes()"
+        [notesReady]="editingNotesReady()"
+        [homeCountryCode]="authStore.profile()?.home_country_code || 'TW'"
+        [homeCurrency]="authStore.profile()?.home_currency || 'TWD'"
+        [submitting]="submitting()"
         (closed)="closeTripModal()"
-      >
-        <form class="modal-form" (submit)="$event.preventDefault(); submitTrip()" novalidate>
-          <div class="seg-row">
-            <button
-              type="button"
-              class="seg-btn"
-              [class.active]="scope() === 'domestic'"
-              (click)="setScope('domestic')"
-            >
-              {{ 'trips.form.scopeDomestic' | t }}
-            </button>
-            <button
-              type="button"
-              class="seg-btn"
-              [class.active]="scope() === 'international'"
-              (click)="setScope('international')"
-            >
-              {{ 'trips.form.scopeInternational' | t }}
-            </button>
-          </div>
-
-          <label class="field" [class.has-error]="titleError()">
-            <span>{{ 'trips.form.title' | t }} <em class="req">*</em></span>
-            <input
-              type="text"
-              [value]="title()"
-              name="title"
-              (input)="title.set(readInputValue($event)); titleError.set(null)"
-              [placeholder]="
-                (scope() === 'domestic'
-                  ? 'trips.form.titlePlaceholderDomestic'
-                  : 'trips.form.titlePlaceholderIntl'
-                ) | t
-              "
-            />
-            @if (titleError()) {
-              <small class="err-msg">{{ titleError()! | t }}</small>
-            }
-          </label>
-
-          <label class="field">
-            <span>{{ 'trips.form.destination' | t }}</span>
-            <input
-              type="text"
-              [value]="destination()"
-              (input)="destination.set(readInputValue($event))"
-              name="destination"
-              [placeholder]="
-                (scope() === 'domestic'
-                  ? 'trips.form.destPlaceholderDomestic'
-                  : 'trips.form.destPlaceholderIntl'
-                ) | t
-              "
-            />
-          </label>
-
-          @if (scope() === 'international') {
-            <div class="field" [class.has-error]="countryError()">
-              <span>{{ 'trips.form.country' | t }} <em class="req">*</em></span>
-              <app-country-picker
-                [selectedCodes]="selectedCountries()"
-                [multiple]="true"
-                [placeholder]="'trips.form.countryPlaceholder' | t"
-                (selectionChange)="onCountriesChange($event)"
-              />
-              <small class="field-hint">{{ 'trips.form.countryHint' | t }}</small>
-              @if (countryError()) {
-                <small class="err-msg">{{ 'trips.err.countryRequired' | t }}</small>
-              }
-            </div>
-          }
-
-          @if (scope() === 'international' || editingTrip() !== null) {
-            <div class="field">
-              <span>{{ 'trips.form.currency' | t }}</span>
-              <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                <mat-select
-                  [value]="defaultCurrency()"
-                  (selectionChange)="defaultCurrency.set($event.value)"
-                  name="currency"
-                  [aria-label]="'trips.form.currency' | t"
-                >
-                  @for (cur of currencies; track cur.code) {
-                    <mat-option [value]="cur.code">
-                      {{ i18n.locale() === 'zh-TW' ? cur.labelZh : cur.labelEn }}
-                    </mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-            </div>
-          }
-
-          <div class="field" [class.has-error]="dateError()">
-            <span>{{ 'trips.form.startDate' | t }} <em class="req">*</em></span>
-            <app-date-input
-              name="startDate"
-              [ariaLabel]="'trips.form.startDate' | t"
-              [value]="startDate()"
-              (valueChange)="startDate.set($event); dateError.set(null)"
-            />
-          </div>
-
-          @if (editingTrip() === null) {
-            <div class="seg-row compact">
-              <button
-                type="button"
-                class="seg-btn"
-                [class.active]="dateEndMode() === 'end'"
-                (click)="dateEndMode.set('end')"
-              >
-                {{ 'trips.form.dateModeEnd' | t }}
-              </button>
-              <button
-                type="button"
-                class="seg-btn"
-                [class.active]="dateEndMode() === 'duration'"
-                (click)="dateEndMode.set('duration')"
-              >
-                {{ 'trips.form.dateModeDuration' | t }}
-              </button>
-              <button
-                type="button"
-                class="seg-btn"
-                [class.active]="dateEndMode() === 'open'"
-                (click)="dateEndMode.set('open')"
-              >
-                {{ 'trips.form.dateModeOpen' | t }}
-              </button>
-            </div>
-
-            @if (dateEndMode() === 'end') {
-              <div class="field" [class.has-error]="dateError()">
-                <span>{{ 'trips.form.endDate' | t }}</span>
-                <app-date-input
-                  name="endDate"
-                  [ariaLabel]="'trips.form.endDate' | t"
-                  [value]="endDate()"
-                  (valueChange)="endDate.set($event); dateError.set(null)"
-                />
-              </div>
-            } @else if (dateEndMode() === 'duration') {
-              <label class="field">
-                <span>{{ 'trips.form.durationDays' | t }}</span>
-                <div class="stepper-row">
-                  <button
-                    type="button"
-                    class="step-btn"
-                    (click)="durationDays.set(Math.max(minTripDurationDays, durationDays() - 1))"
-                  >
-                    <span class="ms-icon sm">remove</span>
-                  </button>
-                  <input
-                    type="number"
-                    [min]="minTripDurationDays"
-                    [max]="maxTripDurationDays"
-                    class="tabular-nums step-input"
-                    [value]="durationDays()"
-                    (input)="onDurationDaysInput($event)"
-                    (blur)="normalizeDurationDays($event)"
-                    name="durationDays"
-                  />
-                  <button
-                    type="button"
-                    class="step-btn"
-                    (click)="durationDays.set(Math.min(maxTripDurationDays, durationDays() + 1))"
-                  >
-                    <span class="ms-icon sm">add</span>
-                  </button>
-                  <span class="computed-end tabular-nums">→ {{ computedEndDate() }}</span>
-                </div>
-              </label>
-            } @else {
-              <p class="open-hint">{{ 'trips.form.openHint' | t }}</p>
-            }
-          } @else {
-            <div class="field">
-              <span>{{ 'trips.form.status' | t }}</span>
-              <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                <mat-select
-                  [value]="status()"
-                  (selectionChange)="onStatusChange($event.value)"
-                  name="status"
-                  [aria-label]="'trips.form.status' | t"
-                >
-                  @for (st of statuses; track st) {
-                    <mat-option [value]="st">
-                      {{ statusKey(st) | t }}
-                    </mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-            </div>
-          }
-
-          @if (dateError()) {
-            <small class="err-msg">{{ dateError()! | t }}</small>
-          }
-
-          <label class="field">
-            <span>{{ 'trips.form.notes' | t }}</span>
-            <textarea
-              rows="2"
-              [value]="notes()"
-              (input)="notes.set(readInputValue($event)); notesDirty.set(true)"
-              name="notes"
-              [placeholder]="'trips.form.notesPlaceholder' | t"
-            ></textarea>
-          </label>
-
-          <div class="form-actions">
-            <button type="button" class="btn-ghost" (click)="closeTripModal()">
-              {{ 'common.cancel' | t }}
-            </button>
-            <button type="submit" class="btn-primary" [disabled]="submitting()">
-              {{ (editingTrip() ? 'trips.form.save' : 'trips.form.create') | t }}
-            </button>
-          </div>
-        </form>
-      </app-modal>
+        (submitted)="handleTripSubmitted($event)"
+      />
 
       <app-confirm-modal
         [open]="pendingDeleteTrip() !== null"
@@ -693,49 +461,6 @@ type DateEndMode = 'end' | 'duration' | 'open';
       background: var(--color-alert-soft);
       color: var(--color-alert);
     }
-    .field-hint {
-      font-size: 0.75rem;
-      font-weight: 400;
-      color: var(--color-text-muted);
-    }
-    .stepper-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .step-btn {
-      display: grid;
-      place-items: center;
-      width: 36px;
-      height: 36px;
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-sm);
-      background: var(--color-surface);
-      color: var(--color-primary);
-      cursor: pointer;
-    }
-    .step-input {
-      width: 72px;
-      text-align: center;
-    }
-    .computed-end {
-      font-size: 0.8125rem;
-      color: var(--color-text-muted);
-    }
-    .open-hint {
-      margin: 0;
-      padding: 10px 12px;
-      border-radius: var(--radius-sm);
-      background: var(--color-primary-tint);
-      color: var(--color-primary);
-      font-size: 0.8125rem;
-    }
-    .form-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: var(--space-2);
-      padding-top: var(--space-2);
-    }
     @media (min-width: 640px) {
       .trip-title {
         font-size: var(--text-card-hero);
@@ -755,7 +480,7 @@ type DateEndMode = 'end' | 'duration' | 'open';
 export class TripsPageComponent implements OnInit {
   protected readonly tripStore = inject(TripStore);
   protected readonly authStore = inject(AuthStore);
-  protected readonly i18n = inject(I18nService);
+  private readonly i18n = inject(I18nService);
   private readonly network = inject(NetworkStatusService);
   private readonly api = inject(TripilotApiService);
   private readonly cache = inject(OfflineCacheService);
@@ -767,32 +492,13 @@ export class TripsPageComponent implements OnInit {
     () => !this.network.isOnline() || this.tripStore.usingOfflineCache(),
   );
 
-  protected readonly Math = Math;
-  protected readonly readInputValue = readInputValue;
-  protected readonly currencies = SUPPORTED_CURRENCIES;
-  protected readonly statuses: readonly TripStatus[] = [
-    'PLANNING',
-    'ACTIVE',
-    'COMPLETED',
-    'ARCHIVED',
-  ];
-  protected readonly minTripDurationDays = MIN_TRIP_DURATION_DAYS;
-  protected readonly maxTripDurationDays = MAX_TRIP_DURATION_DAYS;
-
   protected readonly showTripModal = signal(false);
   protected readonly editingTrip = signal<TripSummary | null>(null);
+  protected readonly editingInitialNotes = signal('');
+  protected readonly editingNotesReady = signal(true);
   protected readonly pendingDeleteTrip = signal<TripSummary | null>(null);
   protected readonly deletingTrip = signal(false);
   protected readonly submitting = signal(false);
-  protected readonly scope = signal<'domestic' | 'international'>('international');
-  protected readonly dateEndMode = signal<DateEndMode>('duration');
-  protected readonly selectedCountries = signal<string[]>(['JP']);
-
-  protected readonly titleError = signal<'trips.err.titleRequired' | null>(null);
-  protected readonly countryError = signal(false);
-  protected readonly dateError = signal<
-    'trips.err.startRequired' | 'trips.err.endBeforeStart' | null
-  >(null);
 
   protected readonly tabs: {
     id: TripListTab;
@@ -802,25 +508,6 @@ export class TripsPageComponent implements OnInit {
     { id: 'completed', labelKey: 'trips.tab.completed' },
   ];
 
-  protected readonly title = signal('');
-  protected readonly destination = signal('');
-  protected readonly defaultCurrency = signal('JPY');
-  protected readonly startDate = signal(formatLocalIsoDate());
-  protected readonly endDate = signal(
-    addDaysToIsoDate(formatLocalIsoDate(), DEFAULT_TRIP_DURATION_DAYS - 1),
-  );
-  protected readonly durationDays = signal(DEFAULT_TRIP_DURATION_DAYS);
-  protected readonly status = signal<TripStatus>('PLANNING');
-  protected readonly notes = signal('');
-  protected readonly notesDirty = signal(false);
-  protected readonly notesReady = signal(true);
-
-  protected readonly computedEndDate = computed(() => {
-    const start = this.startDate();
-    if (!start) return '';
-    return addDaysToIsoDate(start, Math.max(0, this.durationDays() - 1));
-  });
-
   ngOnInit(): void {
     void this.tripStore.loadTrips();
     if (!this.authStore.profile()) {
@@ -828,63 +515,24 @@ export class TripsPageComponent implements OnInit {
     }
   }
 
-  private defaultInternationalCountryCode(): string {
-    const home = (this.authStore.profile()?.home_country_code || 'TW').toUpperCase();
-    return home === 'JP' ? 'TW' : 'JP';
-  }
-
   protected openCreateModal(): void {
     if (this.isOfflineReadOnly()) {
       return;
     }
-    const today = formatLocalIsoDate();
-    const defaultCountryCode = this.defaultInternationalCountryCode();
-    const defaultCountry = findCountry(defaultCountryCode);
     this.editingTrip.set(null);
-    this.scope.set('international');
-    this.selectedCountries.set([defaultCountryCode]);
-    this.defaultCurrency.set(defaultCountry?.defaultCurrency ?? 'JPY');
-    this.title.set('');
-    this.destination.set('');
-    this.startDate.set(today);
-    this.durationDays.set(DEFAULT_TRIP_DURATION_DAYS);
-    this.endDate.set(addDaysToIsoDate(today, DEFAULT_TRIP_DURATION_DAYS - 1));
-    this.dateEndMode.set('duration');
-    this.status.set('PLANNING');
-    this.notes.set('');
-    this.notesDirty.set(false);
-    this.notesReady.set(true);
-    this.titleError.set(null);
-    this.countryError.set(false);
-    this.dateError.set(null);
+    this.editingInitialNotes.set('');
+    this.editingNotesReady.set(true);
     this.showTripModal.set(true);
   }
 
   protected openEditModal(trip: TripSummary): void {
-    const homeCountry = (this.authStore.profile()?.home_country_code || 'TW').toUpperCase();
-    const isDomestic =
-      trip.country_codes.length === 1 && trip.country_codes[0].toUpperCase() === homeCountry;
-    this.editingTrip.set(trip);
-    this.scope.set(isDomestic ? 'domestic' : 'international');
-    this.selectedCountries.set(
-      trip.country_codes.length > 0 ? [...trip.country_codes] : [homeCountry],
-    );
-    this.defaultCurrency.set(trip.default_currency);
-    this.title.set(trip.title);
-    this.destination.set(trip.destination_summary ?? '');
-    this.startDate.set(trip.start_date);
-    this.status.set(trip.status);
-    this.titleError.set(null);
-    this.countryError.set(false);
-    this.dateError.set(null);
-
     const activeDetail =
       this.itineraryStore.trip()?.id === trip.id
         ? this.itineraryStore.trip()
         : this.cache.get<TripDetail>(`trip.${trip.id}`);
-    this.notes.set(activeDetail?.notes ?? '');
-    this.notesDirty.set(false);
-    this.notesReady.set(Boolean(activeDetail));
+    this.editingTrip.set(trip);
+    this.editingInitialNotes.set(activeDetail?.notes ?? '');
+    this.editingNotesReady.set(Boolean(activeDetail));
     this.showTripModal.set(true);
 
     if (!activeDetail) {
@@ -897,32 +545,35 @@ export class TripsPageComponent implements OnInit {
     this.editingTrip.set(null);
   }
 
-  protected onStatusChange(next: TripStatus): void {
-    this.status.set(next);
-  }
-
-  protected statusKey(
-    st: TripStatus,
-  ):
-    | 'trips.status.PLANNING'
-    | 'trips.status.ACTIVE'
-    | 'trips.status.COMPLETED'
-    | 'trips.status.ARCHIVED' {
-    return `trips.status.${st}`;
-  }
-
   private async loadEditingTripNotes(tripId: string): Promise<void> {
     try {
       const detail = await this.api.getTrip(tripId);
       this.cache.set(`trip.${tripId}`, detail);
       if (this.showTripModal() && this.editingTrip()?.id === tripId) {
-        if (!this.notesDirty()) {
-          this.notes.set(detail.notes ?? '');
-        }
-        this.notesReady.set(true);
+        this.editingInitialNotes.set(detail.notes ?? '');
+        this.editingNotesReady.set(true);
       }
     } catch {
       // Keep notesReady false when offline so saving preserves existing server notes.
+    }
+  }
+
+  protected async handleTripSubmitted(event: TripFormSubmitEvent): Promise<void> {
+    this.submitting.set(true);
+    try {
+      if (event.mode === 'edit') {
+        const updated = await this.tripStore.updateTrip(event.tripId, event.payload);
+        this.itineraryStore.applyTripUpdate(updated);
+        this.closeTripModal();
+      } else {
+        const id = await this.tripStore.createTrip(event.payload);
+        this.closeTripModal();
+        await this.router.navigate(['/trips', id]);
+      }
+    } catch {
+      // Error state is recorded on TripStore and surfaced in the error banner.
+    } finally {
+      this.submitting.set(false);
     }
   }
 
@@ -946,61 +597,6 @@ export class TripsPageComponent implements OnInit {
       this.pendingDeleteTrip.set(null);
     } finally {
       this.deletingTrip.set(false);
-    }
-  }
-
-  protected setScope(next: 'domestic' | 'international'): void {
-    this.scope.set(next);
-    this.countryError.set(false);
-    if (next === 'domestic') {
-      const home = this.authStore.profile();
-      this.defaultCurrency.set(home?.home_currency || 'TWD');
-      return;
-    }
-    const homeCode = (this.authStore.profile()?.home_country_code || 'TW').toUpperCase();
-    const current = this.selectedCountries();
-    if (
-      current.length === 0 ||
-      (current.length === 1 && current[0].toUpperCase() === homeCode)
-    ) {
-      const fallbackCode = this.defaultInternationalCountryCode();
-      const fallbackCountry = findCountry(fallbackCode);
-      this.selectedCountries.set([fallbackCode]);
-      this.defaultCurrency.set(fallbackCountry?.defaultCurrency ?? 'JPY');
-    }
-  }
-
-  protected onCountriesChange(codes: string[]): void {
-    this.selectedCountries.set(codes);
-    this.countryError.set(false);
-    const first = codes[0] ? findCountry(codes[0]) : undefined;
-    if (first) {
-      this.defaultCurrency.set(first.defaultCurrency);
-    }
-  }
-
-  protected onDurationDaysInput(event: Event): void {
-    if (isIncompleteNumberInput(event)) {
-      return;
-    }
-    const raw = readInputValue(event);
-    if (raw === '') {
-      return;
-    }
-    const parsed = Number(raw);
-    if (Number.isFinite(parsed)) {
-      const clamped = Math.max(
-        this.minTripDurationDays,
-        Math.min(this.maxTripDurationDays, Math.trunc(parsed)),
-      );
-      this.durationDays.set(clamped);
-    }
-  }
-
-  protected normalizeDurationDays(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    if (input.value === '') {
-      input.value = String(this.durationDays());
     }
   }
 
@@ -1047,91 +643,5 @@ export class TripsPageComponent implements OnInit {
     const days = this.daysUntil(trip);
     if (days < 0) return false;
     return TRIP_COUNTDOWN_MAX_DAYS === null || days <= TRIP_COUNTDOWN_MAX_DAYS;
-  }
-
-  protected async submitTrip(): Promise<void> {
-    this.titleError.set(null);
-    this.countryError.set(false);
-    this.dateError.set(null);
-
-    const editing = this.editingTrip();
-    const title = this.title().trim();
-    let hasError = false;
-    if (!title) {
-      this.titleError.set('trips.err.titleRequired');
-      hasError = true;
-    }
-    if (this.scope() === 'international' && this.selectedCountries().length === 0) {
-      this.countryError.set(true);
-      hasError = true;
-    }
-    const start = this.startDate();
-    if (!start) {
-      this.dateError.set('trips.err.startRequired');
-      hasError = true;
-    }
-
-    let resolvedEndDate = start;
-    if (!editing) {
-      if (this.dateEndMode() === 'end') {
-        resolvedEndDate = this.endDate() || start;
-        if (start && resolvedEndDate < start) {
-          this.dateError.set('trips.err.endBeforeStart');
-          hasError = true;
-        }
-      } else if (this.dateEndMode() === 'duration') {
-        resolvedEndDate = addDaysToIsoDate(start, Math.max(0, this.durationDays() - 1));
-      }
-    }
-
-    if (hasError) {
-      return;
-    }
-
-    const homeCountry = this.authStore.profile()?.home_country_code || 'TW';
-    const homeCurrency = this.authStore.profile()?.home_currency || 'TWD';
-    const countryCodes =
-      this.scope() === 'domestic' ? [homeCountry] : this.selectedCountries();
-    const currencyCode =
-      this.scope() === 'domestic' && !editing ? homeCurrency : this.defaultCurrency();
-
-    this.submitting.set(true);
-    try {
-      if (editing) {
-        const updatePayload: TripUpdatePayload = {
-          title,
-          destination_summary: this.destination().trim() || null,
-          country_codes: countryCodes,
-          start_date: start,
-          default_currency: currencyCode,
-          status: this.status(),
-          ...(this.notesReady() || this.notesDirty()
-            ? { notes: this.notes().trim() || null }
-            : {}),
-        };
-        const updated = await this.tripStore.updateTrip(editing.id, updatePayload);
-        this.itineraryStore.applyTripUpdate(updated);
-        this.closeTripModal();
-      } else {
-        const id = await this.tripStore.createTrip({
-          title,
-          destination_summary: this.destination().trim() || null,
-          country_codes: countryCodes,
-          start_date: start,
-          end_date: resolvedEndDate,
-          default_currency: currencyCode,
-          notes: this.notes().trim() || null,
-        });
-        this.closeTripModal();
-        this.title.set('');
-        this.destination.set('');
-        this.notes.set('');
-        await this.router.navigate(['/trips', id]);
-      }
-    } catch {
-      // Error state is recorded on TripStore and surfaced in the error banner.
-    } finally {
-      this.submitting.set(false);
-    }
   }
 }
