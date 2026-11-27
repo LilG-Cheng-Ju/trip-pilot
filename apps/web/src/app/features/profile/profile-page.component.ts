@@ -292,10 +292,10 @@ import { AuthStore } from '../../state/auth.store';
     .page {
       max-width: 720px;
       margin: 0 auto;
-      padding: var(--space-5) var(--space-4) calc(var(--nav-bottom-height) + var(--space-6));
+      padding: var(--space-4) var(--space-3) calc(var(--nav-bottom-height) + var(--space-6));
       display: flex;
       flex-direction: column;
-      gap: var(--space-5);
+      gap: var(--space-4);
     }
     .page-head {
       display: flex;
@@ -305,12 +305,12 @@ import { AuthStore } from '../../state/auth.store';
     }
     .page-title {
       margin: 0;
-      font-size: 1.375rem;
+      font-size: 1.25rem;
       font-weight: 600;
       color: var(--color-primary);
     }
     .panel {
-      padding: var(--space-5);
+      padding: var(--space-4);
       background: var(--color-surface);
       border: 1px solid var(--color-border);
       border-radius: var(--radius-md);
@@ -329,8 +329,9 @@ import { AuthStore } from '../../state/auth.store';
       color: var(--color-primary);
     }
     .hint {
-      margin: 0 0 var(--space-4);
-      font-size: 0.875rem;
+      margin: 0 0 var(--space-3);
+      font-size: 0.8rem;
+      line-height: 1.45;
       color: var(--color-text-secondary);
     }
     .pref-form {
@@ -509,12 +510,13 @@ import { AuthStore } from '../../state/auth.store';
     }
     .ai-tabs {
       display: flex;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       gap: 4px;
       border-bottom: 1px solid var(--color-border);
+      overflow-x: auto;
     }
     .ai-tab {
-      padding: 7px 12px;
+      padding: 6px 10px;
       margin-bottom: -1px;
       border: none;
       border-bottom: 2px solid transparent;
@@ -522,8 +524,10 @@ import { AuthStore } from '../../state/auth.store';
       background: transparent;
       color: var(--color-text-secondary);
       font: inherit;
-      font-size: 0.8125rem;
+      font-size: 0.78rem;
       font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
       cursor: pointer;
       transition: color 140ms ease, border-color 140ms ease;
     }
@@ -536,7 +540,7 @@ import { AuthStore } from '../../state/auth.store';
     }
     .ai-support-line {
       margin: 0;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       color: var(--color-text-secondary);
       line-height: 1.45;
     }
@@ -589,8 +593,8 @@ import { AuthStore } from '../../state/auth.store';
       display: flex;
       flex-direction: column;
       gap: 4px;
-      font-size: 0.8rem;
-      line-height: 1.5;
+      font-size: 0.76rem;
+      line-height: 1.45;
       color: var(--color-text-secondary);
     }
     .ai-actions-row {
@@ -599,13 +603,13 @@ import { AuthStore } from '../../state/auth.store';
       gap: 8px;
     }
     .ai-action-btn {
-      padding: 7px 13px;
+      padding: 6px 10px;
       border: 1px solid var(--color-border-strong);
       border-radius: var(--radius-sm);
       background: var(--color-surface);
       color: var(--color-primary);
       font: inherit;
-      font-size: 0.79rem;
+      font-size: 0.75rem;
       font-weight: 600;
       cursor: pointer;
       transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
@@ -626,9 +630,40 @@ import { AuthStore } from '../../state/auth.store';
       margin: 2px 0 0;
       padding-top: 10px;
       border-top: 1px solid var(--color-border-soft);
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       line-height: 1.45;
       color: var(--color-text-muted);
+    }
+    @media (min-width: 640px) {
+      .page {
+        padding: var(--space-5) var(--space-4) calc(var(--nav-bottom-height) + var(--space-6));
+        gap: var(--space-5);
+      }
+      .page-title {
+        font-size: 1.375rem;
+      }
+      .panel {
+        padding: var(--space-5);
+      }
+      .hint {
+        margin-bottom: var(--space-4);
+        font-size: 0.85rem;
+      }
+      .ai-tab {
+        padding: 7px 12px;
+        font-size: 0.8125rem;
+      }
+      .ai-support-line,
+      .ai-steps {
+        font-size: 0.8rem;
+      }
+      .ai-action-btn {
+        padding: 7px 13px;
+        font-size: 0.79rem;
+      }
+      .ai-footnote {
+        font-size: 0.75rem;
+      }
     }
   `,
 })

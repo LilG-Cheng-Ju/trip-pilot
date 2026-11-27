@@ -336,38 +336,33 @@
           <div class="trip-rows">
             @for (trip of s.trips; track trip.id) {
               <a class="trip-row" [routerLink]="['/trips', trip.id]">
-                <div class="trip-row-left">
-                  <div class="trip-title-line">
-                    <strong class="trip-row-title">{{ trip.title }}</strong>
-                    @if (s.scope === 'all') {
-                      <span class="scope-tag" [class.intl]="trip.is_international">
-                        {{
-                          (trip.is_international
-                            ? 'stats.scope.international'
-                            : 'stats.scope.domestic') | t
-                        }}
-                      </span>
-                    }
-                  </div>
-                  <div class="trip-row-meta tabular-nums">
-                    <span>{{ trip.start_date }} — {{ trip.end_date }}</span>
-                    <span>·</span>
-                    <span>{{ 'trips.daysCount' | t: { count: trip.days } }}</span>
-                    @if (trip.is_international && tripCountriesLabel(trip); as destLabel) {
-                      <span>·</span>
-                      <span>{{ destLabel }}</span>
-                    }
-                  </div>
-                </div>
-
-                <div class="trip-row-right tabular-nums">
-                  @if (+trip.spend_home > 0) {
-                    <span class="trip-spend">
-                      {{ s.home_currency }} {{ formatMoney(trip.spend_home) }}
+                <div class="trip-title-line">
+                  <strong class="trip-row-title">{{ trip.title }}</strong>
+                  @if (s.scope === 'all') {
+                    <span class="scope-tag" [class.intl]="trip.is_international">
+                      {{
+                        (trip.is_international
+                          ? 'stats.scope.international'
+                          : 'stats.scope.domestic') | t
+                      }}
                     </span>
                   }
-                  <span class="ms-icon sm chevron" aria-hidden="true">chevron_right</span>
                 </div>
+                <div class="trip-row-meta tabular-nums">
+                  <span>{{ trip.start_date }} — {{ trip.end_date }}</span>
+                  <span>·</span>
+                  <span>{{ 'trips.daysCount' | t: { count: trip.days } }}</span>
+                  @if (trip.is_international && tripCountriesLabel(trip); as destLabel) {
+                    <span>·</span>
+                    <span>{{ destLabel }}</span>
+                  }
+                </div>
+                @if (+trip.spend_home > 0) {
+                  <span class="trip-spend tabular-nums">
+                    {{ s.home_currency }} {{ formatMoney(trip.spend_home) }}
+                  </span>
+                }
+                <span class="ms-icon sm chevron" aria-hidden="true">chevron_right</span>
               </a>
             }
           </div>

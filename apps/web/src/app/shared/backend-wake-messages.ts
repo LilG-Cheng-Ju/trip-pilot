@@ -39,75 +39,72 @@ export const BACKEND_WAKE_MESSAGES: readonly WakeMessage[] = [
     kind: 'fun',
     tag: { 'zh-TW': '喚醒彩蛋', en: 'Cold start' },
     text: {
-      'zh-TW': 'Cloud Run 剛剛小睡了一下，正在幫它泡杯濃縮咖啡叫它起床，幾秒鐘就好 ☕',
-      en: 'Cloud Run just took a quick nap. Brewing an espresso to wake it up, just a few seconds ☕',
+      'zh-TW': 'Cloud Run 剛小睡了一下，正在幫它泡杯咖啡叫起床，幾秒就好 ☕',
+      en: 'Cloud Run took a quick nap. Brewing coffee to wake it up, just a moment ☕',
     },
   },
   {
     kind: 'tip',
     tag: { 'zh-TW': '足跡', en: 'Logbook' },
     text: {
-      'zh-TW': '點開「足跡」就能回顧歷年累積的飛行與陸路總里程、造訪國家排行，以及旅遊天數統計。',
-      en: 'Open Logbook to review your lifetime air and ground mileage, top visited countries, and total travel days.',
+      'zh-TW': '點開「足跡」就能回顧歷年飛行與陸路總里程、造訪國家與旅遊天數。',
+      en: 'Open Logbook to see lifetime air and ground mileage, visited countries, and travel days.',
     },
   },
   {
     kind: 'tip',
     tag: { 'zh-TW': '足跡', en: 'Logbook' },
     text: {
-      'zh-TW': '在「足跡」裡可以自由切換全部、出國或國內旅遊，也能按年份查看花費分類與每月旅行紀錄。',
-      en: 'Filter Logbook by All, International, or Domestic trips, or pick any year to inspect category spend and monthly travel footprints.',
+      'zh-TW': '在「足跡」可切換出國或國內旅遊，也能按年份查看花費與每月紀錄。',
+      en: 'Filter Logbook by International or Domestic trips, or inspect yearly spend and monthly footprints.',
     },
   },
   {
     kind: 'tip',
     tag: { 'zh-TW': 'AI 副駕駛', en: 'AI Copilot' },
     text: {
-      'zh-TW':
-        '懶得一筆筆手動排行程？到「設定」建立個人 API Token，就能讓 ChatGPT、Claude 或 Gemini CLI 直接幫你排行程跟記帳。',
-      en: 'Tired of entering every stop by hand? Create a Personal API Token in Settings so ChatGPT, Claude, or Gemini CLI can plan trips and log expenses for you.',
+      'zh-TW': '到「設定」建立 API 金鑰，就能讓 ChatGPT、Claude 或 Gemini CLI 幫你排行程。',
+      en: 'Create an API Token in Settings so ChatGPT, Claude, or Gemini CLI can help plan trips.',
     },
   },
   {
     kind: 'tip',
     tag: { 'zh-TW': '備案管理', en: 'Plan A & B' },
     text: {
-      'zh-TW':
-        '怕旅遊當天下雨？每一天都能建立 Plan A 與 Plan B 兩套完整行程，同一時段也能並排多間候選餐廳一鍵切換。',
-      en: 'Worried about rainy days? Build full Plan A and Plan B schedules for any day, or line up multiple restaurant choices for the same slot.',
+      'zh-TW': '怕當天下雨？每天都能建 Plan A 與 Plan B，同個時段也能放多間候選餐廳。',
+      en: 'Build Plan A and Plan B schedules for rainy days, or save backup restaurants in one slot.',
     },
   },
   {
     kind: 'tip',
     tag: { 'zh-TW': '地圖定位', en: 'Smart Maps' },
     text: {
-      'zh-TW':
-        '新增景點不用自己查座標，直接貼上 Google Maps 網址，Tripilot 會自動解析地點、釘上地圖並計算移動距離。',
-      en: 'No need to look up coordinates manually. Paste any Google Maps link and Tripilot automatically pins the spot and calculates route distances.',
+      'zh-TW': '新增景點直接貼上 Google Maps 網址，系統會自動定位並計算移動距離。',
+      en: 'Paste any Google Maps link when adding a spot to pin it on the map and calculate distance.',
     },
   },
   {
     kind: 'tip',
     tag: { 'zh-TW': '搭車救星', en: 'Local Copy' },
     text: {
-      'zh-TW': '幫飯店或餐廳填入「當地語言地名」，在國外搭計程車時點一下就能複製原文給司機看。',
-      en: 'Add a Local Language Name to hotels or restaurants for one-tap copying when showing addresses to taxi drivers abroad.',
+      'zh-TW': '填入「當地語言地名」，在國外搭計程車時點一下就能複製原文給司機看。',
+      en: 'Add a Local Language Name to copy native addresses in one tap for taxi drivers abroad.',
     },
   },
   {
     kind: 'tip',
     tag: { 'zh-TW': '行前摘要', en: 'Trip Brief' },
     text: {
-      'zh-TW': '出發前點開「摘要」，續住天數、換飯店提醒、航班訂位代號與雲端票券連結都幫你整理成一頁。',
-      en: 'Open Brief before departure to see hotel stay spans, hotel changes, flight booking refs, and cloud tickets on one page.',
+      'zh-TW': '出發前點開「摘要」，住宿天數、航班代號與雲端票券都整理在同一頁。',
+      en: 'Open Brief before departure to view hotel spans, flight refs, and cloud tickets together.',
     },
   },
   {
     kind: 'tip',
     tag: { 'zh-TW': '離線與分享', en: 'Offline & Share' },
     text: {
-      'zh-TW': '搭地鐵或出國沒訊號別緊張，開過的旅程會自動快取在手機裡；分享行程給旅伴時還能一鍵隱藏訂位代號。',
-      en: 'Opened trips stay cached offline when you lose signal underground, and public share links can hide booking codes and private notes in one click.',
+      'zh-TW': '開過的旅程會自動快取離線可看；分享連結給旅伴時還能一鍵隱藏訂位代號。',
+      en: 'Opened trips stay cached offline, and share links can hide booking codes in one tap.',
     },
   },
 ];

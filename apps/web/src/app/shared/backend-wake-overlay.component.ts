@@ -85,7 +85,7 @@ const AUTO_ROTATE_INTERVAL_MS = 5800;
       z-index: 40;
       display: grid;
       place-items: center;
-      padding: var(--space-4);
+      padding: var(--space-3);
       background: rgba(248, 247, 244, 0.88);
       backdrop-filter: blur(10px);
       animation: wake-fade-in 180ms ease;
@@ -95,14 +95,14 @@ const AUTO_ROTATE_INTERVAL_MS = 5800;
     }
     .wake-card {
       width: min(420px, 100%);
-      padding: var(--space-5);
+      padding: var(--space-4);
       border-radius: var(--radius-lg);
       border: 1px solid var(--color-border);
       background: var(--color-surface);
       box-shadow: var(--shadow-float);
       display: flex;
       flex-direction: column;
-      gap: var(--space-3);
+      gap: 10px;
     }
     .wake-head {
       display: flex;
@@ -127,7 +127,7 @@ const AUTO_ROTATE_INTERVAL_MS = 5800;
     }
     .wake-title {
       margin: 0;
-      font-size: 1.24rem;
+      font-size: 1.1rem;
       font-weight: 600;
       line-height: 1.2;
       color: var(--color-primary);
@@ -149,8 +149,8 @@ const AUTO_ROTATE_INTERVAL_MS = 5800;
     }
     .wake-sub {
       margin: 0;
-      font-size: 0.8125rem;
-      line-height: 1.45;
+      font-size: 0.76rem;
+      line-height: 1.4;
       color: var(--color-text-secondary);
     }
     .flight-track {
@@ -208,13 +208,13 @@ const AUTO_ROTATE_INTERVAL_MS = 5800;
       filter: drop-shadow(0 1px 2px rgba(255, 255, 255, 0.9));
     }
     .wake-note {
-      padding: 12px 14px;
+      padding: 10px 12px;
       border-radius: var(--radius-md);
       background: var(--color-bg);
       border: 1px solid var(--color-border-soft);
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
     }
     .wake-tag {
       align-self: flex-start;
@@ -232,8 +232,8 @@ const AUTO_ROTATE_INTERVAL_MS = 5800;
     }
     .wake-copy {
       margin: 0;
-      font-size: 0.86rem;
-      line-height: 1.55;
+      font-size: 0.8125rem;
+      line-height: 1.5;
       color: var(--color-text-primary);
     }
     .wake-note-foot {
@@ -244,13 +244,13 @@ const AUTO_ROTATE_INTERVAL_MS = 5800;
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      padding: 4px 10px;
+      padding: 3px 9px;
       border-radius: var(--radius-sm);
       border: 1px solid var(--color-border);
       background: var(--color-surface);
       color: var(--color-text-secondary);
       font: inherit;
-      font-size: 0.74rem;
+      font-size: 0.72rem;
       font-weight: 600;
       cursor: pointer;
       transition: border-color 140ms ease, color 140ms ease;
@@ -258,6 +258,33 @@ const AUTO_ROTATE_INTERVAL_MS = 5800;
     .wake-next-btn:hover {
       border-color: var(--color-primary);
       color: var(--color-primary);
+    }
+    @media (min-width: 640px) {
+      .wake-backdrop {
+        padding: var(--space-4);
+      }
+      .wake-card {
+        padding: var(--space-5);
+        gap: var(--space-3);
+      }
+      .wake-title {
+        font-size: 1.22rem;
+      }
+      .wake-sub {
+        font-size: 0.8125rem;
+      }
+      .wake-note {
+        padding: 12px 14px;
+        gap: 8px;
+      }
+      .wake-copy {
+        font-size: 0.85rem;
+        line-height: 1.55;
+      }
+      .wake-next-btn {
+        padding: 4px 10px;
+        font-size: 0.74rem;
+      }
     }
     @keyframes wake-fade-in {
       from {

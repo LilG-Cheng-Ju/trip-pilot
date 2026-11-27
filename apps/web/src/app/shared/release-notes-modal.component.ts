@@ -105,7 +105,7 @@ import { AppModalComponent } from './modal.component';
 
     .release-title {
       margin: 0 0 6px;
-      font-size: 0.94rem;
+      font-size: 0.88rem;
       font-weight: 700;
       color: var(--color-text-primary);
     }
@@ -116,9 +116,19 @@ import { AppModalComponent } from './modal.component';
       display: flex;
       flex-direction: column;
       gap: 4px;
-      font-size: 0.84rem;
+      font-size: 0.8rem;
       line-height: 1.5;
       color: var(--color-text-secondary);
+    }
+
+    @media (min-width: 640px) {
+      .release-title {
+        font-size: 0.94rem;
+      }
+
+      .release-bullets {
+        font-size: 0.84rem;
+      }
     }
   `,
 })

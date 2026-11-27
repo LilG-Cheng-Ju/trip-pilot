@@ -292,16 +292,16 @@ interface TripAttachmentEntry {
     .page {
       max-width: 1120px;
       margin: 0 auto;
-      padding: var(--space-4) var(--space-4) calc(var(--nav-bottom-height) + var(--space-6));
+      padding: var(--space-4) var(--space-3) calc(var(--nav-bottom-height) + var(--space-6));
     }
     .brief-grid {
       display: grid;
       grid-template-columns: minmax(0, 1fr);
-      gap: var(--space-4);
+      gap: var(--space-3);
     }
     .brief-section {
       min-width: 0;
-      padding: var(--space-5);
+      padding: 14px 16px;
       border-radius: var(--radius-md);
       background: var(--color-surface);
       border: 1px solid var(--color-border);
@@ -549,6 +549,17 @@ interface TripAttachmentEntry {
     }
     .vault-ext {
       color: var(--color-text-muted);
+    }
+    @media (min-width: 640px) {
+      .page {
+        padding: var(--space-4) var(--space-4) calc(var(--nav-bottom-height) + var(--space-6));
+      }
+      .brief-grid {
+        gap: var(--space-4);
+      }
+      .brief-section {
+        padding: var(--space-5);
+      }
     }
     @media (min-width: 900px) {
       .brief-grid {
