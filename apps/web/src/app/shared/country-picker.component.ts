@@ -180,7 +180,11 @@ import { readInputValue } from '../core/utils/form-events.utils';
       flex-shrink: 0;
     }
     .dropdown {
-      margin-top: 6px;
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      right: 0;
+      z-index: 40;
       border: 1px solid var(--color-border);
       border-radius: var(--radius-md);
       background: var(--color-surface);

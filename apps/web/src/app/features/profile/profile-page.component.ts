@@ -489,10 +489,9 @@ import { AuthStore } from '../../state/auth.store';
     }
     .ai-tabs {
       display: flex;
-      flex-wrap: nowrap;
+      flex-wrap: wrap;
       gap: 4px;
       border-bottom: 1px solid var(--color-border);
-      overflow-x: auto;
     }
     .ai-tab {
       padding: 6px 10px;
