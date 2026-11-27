@@ -8,7 +8,7 @@
 .topbar {
   position: sticky;
   top: 0;
-  z-index: 30;
+  z-index: 45;
   height: var(--topbar-height);
   display: flex;
   align-items: center;
@@ -211,6 +211,16 @@
 
 .menu-item.danger {
   color: var(--color-alert);
+}
+
+.nav-locked {
+  pointer-events: none;
+  opacity: 0.55;
+}
+
+.menu-item.disabled {
+  pointer-events: none;
+  opacity: 0.42;
 }
 
 .menu-trailing {

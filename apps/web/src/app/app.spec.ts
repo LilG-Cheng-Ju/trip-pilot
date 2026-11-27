@@ -7,6 +7,7 @@ import { TripilotApiService } from './core/api/tripilot-api.service';
 import { APP_VERSION } from './core/config/app-version';
 import { I18nService } from './core/i18n/i18n.service';
 import { UserProfile } from './core/models/tripilot.models';
+import { BackendWakeService } from './core/network/backend-wake.service';
 import { NetworkStatusService } from './core/network/network-status.service';
 import { AuthStore } from './state/auth.store';
 
@@ -135,5 +136,39 @@ describe('App', () => {
     expect(localStorage.getItem('tripilot:last_seen_version')).toBe(APP_VERSION);
     expect(compiled.textContent).toContain('Tripilot 更新日誌');
     expect(compiled.textContent).toContain(`v${APP_VERSION}`);
+  });
+
+  it('should show wake overlay, lock nav tabs, and keep avatar menu actions usable in preview mode', async () => {
+    const i18n = TestBed.inject(I18nService);
+    const wake = TestBed.inject(BackendWakeService);
+    i18n.setLocale('zh-TW');
+    wake.reset();
+
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.querySelector('.wake-backdrop')).toBeNull();
+
+    wake.setPreviewMode(true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(compiled.querySelector('.wake-backdrop')).toBeTruthy();
+    expect(compiled.querySelector('.nav-tab.nav-locked')).toBeTruthy();
+
+    const avatarBtn = compiled.querySelector('.avatar-btn') as HTMLButtonElement;
+    avatarBtn.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const dropdown = compiled.querySelector('.account-dropdown');
+    expect(dropdown).toBeTruthy();
+    expect(dropdown?.querySelector('a[routerLink="/profile"]')?.classList.contains('disabled')).toBe(
+      true,
+    );
+    expect(dropdown?.querySelector('.version-pill-btn')).toBeTruthy();
+
+    wake.reset();
   });
 });

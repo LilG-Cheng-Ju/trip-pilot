@@ -416,6 +416,10 @@ export const MESSAGES_EN = {
   'trips.onboarding.step2': 'Add flights, stays, and spots to map routes and travel distances.',
   'trips.onboarding.step3': 'Log multi-currency expenses or connect an AI assistant in Settings.',
   'trips.onboarding.settingsLink': 'Open Settings',
+  'wake.title': 'Waking up server',
+  'wake.subtitle': 'Usually ready in a few seconds. Features unlock automatically.',
+  'wake.next': 'Next',
+  'wake.closePreview': 'Exit preview',
 } as const;
 
 export type TranslationKey = keyof typeof MESSAGES_EN;

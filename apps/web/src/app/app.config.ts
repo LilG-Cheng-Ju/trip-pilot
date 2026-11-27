@@ -12,6 +12,7 @@ import { provideServiceWorker } from '@angular/service-worker';
 
 import { routes } from './app.routes';
 import { authInterceptor } from './core/api/auth.interceptor';
+import { backendWakeInterceptor } from './core/api/backend-wake.interceptor';
 import { provideTripilotDateAdapter } from './core/config/material-date-formats';
 
 export const appConfig: ApplicationConfig = {
@@ -19,7 +20,7 @@ export const appConfig: ApplicationConfig = {
     provideZonelessChangeDetection(),
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
-    provideHttpClient(withInterceptors([authInterceptor])),
+    provideHttpClient(withInterceptors([backendWakeInterceptor, authInterceptor])),
     provideTripilotDateAdapter(),
     {
       provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,

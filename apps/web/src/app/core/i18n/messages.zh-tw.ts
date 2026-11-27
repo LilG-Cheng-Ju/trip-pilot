@@ -418,4 +418,8 @@ export const MESSAGES_ZH_TW: Record<TranslationKey, string> = {
   'trips.onboarding.step2': '新增航班、住宿與景點，地圖會自動標記並計算移動距離。',
   'trips.onboarding.step3': '記錄多幣別花費，或至設定頁建立 Token 串接 AI 助手。',
   'trips.onboarding.settingsLink': '前往設定',
+  'wake.title': '後端啟動中',
+  'wake.subtitle': '首次喚醒約需數秒，完成後將自動解鎖。',
+  'wake.next': '換一則',
+  'wake.closePreview': '關閉預覽',
 };

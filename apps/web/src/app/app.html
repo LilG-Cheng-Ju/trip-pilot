@@ -2,7 +2,13 @@
   @if (!hideAppChrome()) {
     <header class="topbar">
       <div class="topbar-left">
-        <a class="brand" routerLink="/trips">
+        <a
+          class="brand"
+          routerLink="/trips"
+          [class.nav-locked]="backendWake.isWaking()"
+          [attr.aria-disabled]="backendWake.isWaking() ? 'true' : null"
+          [attr.tabindex]="backendWake.isWaking() ? -1 : null"
+        >
           <svg class="brand-logo" viewBox="104 98 302 312" fill="none" aria-hidden="true">
             <circle cx="134" cy="382" r="19" stroke="#C4924C" stroke-width="12" />
             <path
@@ -21,11 +27,25 @@
         </a>
 
         <nav class="desktop-nav" aria-label="Primary navigation">
-          <a routerLink="/trips" routerLinkActive="active" class="nav-tab">
+          <a
+            routerLink="/trips"
+            routerLinkActive="active"
+            class="nav-tab"
+            [class.nav-locked]="backendWake.isWaking()"
+            [attr.aria-disabled]="backendWake.isWaking() ? 'true' : null"
+            [attr.tabindex]="backendWake.isWaking() ? -1 : null"
+          >
             <span class="ms-icon sm" aria-hidden="true">luggage</span>
             <span>{{ 'nav.trips' | t }}</span>
           </a>
-          <a routerLink="/stats" routerLinkActive="active" class="nav-tab">
+          <a
+            routerLink="/stats"
+            routerLinkActive="active"
+            class="nav-tab"
+            [class.nav-locked]="backendWake.isWaking()"
+            [attr.aria-disabled]="backendWake.isWaking() ? 'true' : null"
+            [attr.tabindex]="backendWake.isWaking() ? -1 : null"
+          >
             <span class="ms-icon sm" aria-hidden="true">bar_chart</span>
             <span>{{ 'nav.stats' | t }}</span>
           </a>
@@ -77,6 +97,9 @@
               <a
                 routerLink="/profile"
                 class="menu-item"
+                [class.disabled]="backendWake.isWaking()"
+                [attr.aria-disabled]="backendWake.isWaking() ? 'true' : null"
+                [attr.tabindex]="backendWake.isWaking() ? -1 : null"
                 role="menuitem"
                 (click)="closeAccountMenu()"
               >
@@ -88,6 +111,9 @@
                 <a
                   routerLink="/admin"
                   class="menu-item"
+                  [class.disabled]="backendWake.isWaking()"
+                  [attr.aria-disabled]="backendWake.isWaking() ? 'true' : null"
+                  [attr.tabindex]="backendWake.isWaking() ? -1 : null"
                   role="menuitem"
                   (click)="closeAccountMenu()"
                 >
@@ -159,6 +185,13 @@
   @if (!hideAppChrome()) {
     <app-mobile-bottom-nav [currentUrl]="currentUrl()" />
   }
+
+  <app-backend-wake-overlay
+    [active]="backendWake.isWaking()"
+    [hasTopbar]="!hideAppChrome()"
+    [previewMode]="backendWake.isPreviewMode()"
+    (previewDismissed)="backendWake.dismissPreview()"
+  />
 
   <app-release-notes-modal
     [open]="releaseNotesOpen()"

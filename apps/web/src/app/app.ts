@@ -22,7 +22,9 @@ import { SessionCleanupService } from './core/auth/session-cleanup.service';
 import { APP_VERSION, IS_BETA } from './core/config/app-version';
 import { I18nService } from './core/i18n/i18n.service';
 import { TranslatePipe } from './core/i18n/translate.pipe';
+import { BackendWakeService } from './core/network/backend-wake.service';
 import { NetworkStatusService } from './core/network/network-status.service';
+import { AppBackendWakeOverlayComponent } from './shared/backend-wake-overlay.component';
 import { AppReleaseNotesModalComponent } from './shared/release-notes-modal.component';
 import { MobileBottomNavComponent } from './shared/mobile-bottom-nav.component';
 import { AuthStore } from './state/auth.store';
@@ -52,6 +54,7 @@ function writeLastSeenVersion(version: string): void {
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    AppBackendWakeOverlayComponent,
     AppReleaseNotesModalComponent,
     MobileBottomNavComponent,
     RouterLink,
@@ -71,6 +74,7 @@ export class App {
   protected readonly i18n = inject(I18nService);
   protected readonly auth = inject(AuthSessionService);
   protected readonly authStore = inject(AuthStore);
+  protected readonly backendWake = inject(BackendWakeService);
   protected readonly network = inject(NetworkStatusService);
   private readonly sessionCleanup = inject(SessionCleanupService);
   private readonly router = inject(Router);
