@@ -2,6 +2,12 @@
 
 <!-- Auto-generated from releases.json. Run `node scripts/sync-releases.mjs` after editing releases.json. -->
 
+## v0.9.15-beta (2026-11-28) — 介面元件一致性與系統架構精進
+*Form Consistency & Architecture Polish*
+
+- 統一全站下拉選單與色彩系統設定，各頁面表單操作與視覺表現更一致
+- 重整行程管理與 AI 助理後端模組結構，提升系統維護性與長期穩定度
+
 ## v0.9.14-beta (2026-11-28) — 離線瀏覽強化與載入體驗優化
 *Offline Access & Faster Page Loads*
 
