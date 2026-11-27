@@ -193,8 +193,10 @@
     (previewDismissed)="backendWake.dismissPreview()"
   />
 
-  <app-release-notes-modal
-    [open]="releaseNotesOpen()"
-    (closed)="closeReleaseNotes()"
-  />
+  @defer (when releaseNotesOpen()) {
+    <app-release-notes-modal
+      [open]="releaseNotesOpen()"
+      (closed)="closeReleaseNotes()"
+    />
+  }
 </div>

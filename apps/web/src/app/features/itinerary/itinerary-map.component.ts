@@ -3,8 +3,10 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DOCUMENT,
   effect,
   ElementRef,
+  inject,
   input,
   model,
   OnDestroy,
@@ -282,6 +284,7 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
     this.effectiveMode() === 'road' ? this.roadRoutes() : this.schematicRoutes(),
   );
 
+  private readonly doc = inject(DOCUMENT);
   private readonly mapContainer = viewChild<ElementRef<HTMLDivElement>>('mapContainer');
   private map: maplibregl.Map | null = null;
   private markers: maplibregl.Marker[] = [];
@@ -330,6 +333,7 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit(): void {
+    this.ensureMaplibreStyles();
     const container = this.mapContainer()?.nativeElement;
     if (!container) {
       return;
@@ -702,6 +706,26 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
     } else {
       const center = untracked(() => this.fallbackCenter());
       this.map.jumpTo?.({ center: [center[0], center[1]], zoom: 10 });
+    }
+  }
+
+  private ensureMaplibreStyles(): void {
+    let link = this.doc.querySelector<HTMLLinkElement>('link[data-maplibre-css]');
+    if (!link) {
+      link = this.doc.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = '/maplibre-gl.css';
+      link.setAttribute('data-maplibre-css', '');
+      this.doc.head.appendChild(link);
+    }
+    if (!link.sheet) {
+      link.addEventListener(
+        'load',
+        () => {
+          this.map?.resize();
+        },
+        { once: true },
+      );
     }
   }
 }

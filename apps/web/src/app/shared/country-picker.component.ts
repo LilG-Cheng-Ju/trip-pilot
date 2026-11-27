@@ -47,7 +47,7 @@ import { readInputValue } from '../core/utils/form-events.utils';
           <span class="single-value">{{ labelFor(selectedCodes()[0]) }}</span>
         } @else {
           <div class="chips">
-            @for (code of selectedCodes(); track code) {
+            @for (code of selectedCodes(); track $index) {
               <span class="chip">
                 <span>{{ labelFor(code) }}</span>
                 <button

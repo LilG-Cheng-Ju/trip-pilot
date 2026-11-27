@@ -130,4 +130,26 @@ describe('ItineraryMapComponent', () => {
     expect(contains).toHaveBeenCalledWith([139.7967, 35.7148]);
     expect(easeTo).toHaveBeenCalledTimes(1);
   });
+
+  it('injects /maplibre-gl.css once and resizes the map on stylesheet load', async () => {
+    document.querySelectorAll('link[data-maplibre-css]').forEach((el) => el.remove());
+
+    const fixture = TestBed.createComponent(ItineraryMapComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const links = document.querySelectorAll<HTMLLinkElement>('link[data-maplibre-css]');
+    expect(links.length).toBe(1);
+    expect(links[0].getAttribute('href')).toBe('/maplibre-gl.css');
+
+    const resize = vi.fn();
+    (fixture.componentInstance as unknown as { map: unknown }).map = {
+      resize,
+      remove: vi.fn(),
+    };
+    links[0].dispatchEvent(new Event('load'));
+    expect(resize).toHaveBeenCalledTimes(1);
+
+    document.querySelectorAll('link[data-maplibre-css]').forEach((el) => el.remove());
+  });
 });
