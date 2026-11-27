@@ -15,7 +15,7 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
-import maplibregl from 'maplibre-gl';
+import type * as maplibregl from 'maplibre-gl';
 
 import { COORDINATE_EPSILON } from '../../core/constants/app-limits';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -24,21 +24,16 @@ import {
   EMPTY_DAY_MAP_ROUTES,
   MapRouteMode,
 } from '../../core/utils/travel-format.utils';
+import { MapPin, StayMapPin } from './itinerary-map.types';
 
-export interface MapPin {
-  id: string;
-  order: number;
-  title: string;
-  lat: number;
-  lng: number;
-  type?: string;
-}
+export type { MapPin, StayMapPin } from './itinerary-map.types';
 
-export interface StayMapPin {
-  id: string;
-  title: string;
-  lat: number;
-  lng: number;
+type MapLibreModule = typeof import('maplibre-gl');
+
+async function loadMaplibre(): Promise<MapLibreModule> {
+  const mod = await import('maplibre-gl');
+  const resolved = (mod as unknown as { default?: MapLibreModule }).default ?? mod;
+  return resolved.Map ? resolved : mod;
 }
 
 interface TrackedMarker {
@@ -266,6 +261,7 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
   readonly selectedPinId = input<string | null>(null);
   readonly fallbackCenter = input<readonly [number, number]>([121.5654, 25.033]);
   readonly emptyText = input('');
+  readonly active = input(true);
 
   readonly pinSelected = output<string>();
 
@@ -286,10 +282,16 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
 
   private readonly doc = inject(DOCUMENT);
   private readonly mapContainer = viewChild<ElementRef<HTMLDivElement>>('mapContainer');
+  private maplibregl: MapLibreModule | null = null;
+  private mapInitPromise: Promise<void> | null = null;
   private map: maplibregl.Map | null = null;
   private markers: maplibregl.Marker[] = [];
   private readonly markerEls = new Map<string, TrackedMarker>();
   private styleLoaded = false;
+  private destroyed = false;
+  private needsSyncOnActivate = false;
+  private needsRouteSyncOnActivate = false;
+  private needsSelectionSyncOnActivate = false;
 
   constructor() {
     // Rebuild markers and fit bounds only when structural pins or stay geometry change.
@@ -299,62 +301,154 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
       const stay = this.stayPin();
       this.fallbackCenter();
       this.schematicRoutes();
-      if (this.map && this.styleLoaded) {
-        this.renderPinsAndRoute(
-          currentPins,
-          untracked(() => this.activeRoutes()),
-          depStay,
-          stay,
-          untracked(() => this.effectiveMode()),
-        );
-        this.updateMarkerSelection(untracked(() => this.selectedPinId()));
+      if (!this.map || !this.styleLoaded) {
+        return;
       }
+      if (!untracked(() => this.active())) {
+        this.needsSyncOnActivate = true;
+        return;
+      }
+      this.renderPinsAndRoute(
+        currentPins,
+        untracked(() => this.activeRoutes()),
+        depStay,
+        stay,
+        untracked(() => this.effectiveMode()),
+      );
+      this.updateMarkerSelection(untracked(() => this.selectedPinId()));
     });
 
     // Update route GeoJSON sources in-place when toggling Overview/Driving mode.
     effect(() => {
       const routes = this.activeRoutes();
       const mode = this.effectiveMode();
-      if (this.map && this.styleLoaded) {
-        this.updateRouteLayers(routes, mode);
+      if (!this.map || !this.styleLoaded) {
+        return;
       }
+      if (!untracked(() => this.active())) {
+        this.needsRouteSyncOnActivate = true;
+        return;
+      }
+      this.updateRouteLayers(routes, mode);
     });
 
     // Update marker highlight styles in-place and pan if selection sits outside viewport.
     effect(() => {
       const selected = this.selectedPinId();
-      if (this.map && this.styleLoaded) {
+      if (!this.map) {
+        return;
+      }
+      if (!untracked(() => this.active())) {
+        this.needsSelectionSyncOnActivate = true;
+        return;
+      }
+      if (this.styleLoaded) {
         this.updateMarkerSelection(selected);
       }
-      if (selected && this.map) {
+      if (selected) {
         this.panToSelectedIfOutOfBounds(selected);
+      }
+    });
+
+    // Resize WebGL canvas and flush deferred updates when a kept-alive sheet re-opens.
+    effect(() => {
+      const isActive = this.active();
+      if (!isActive || !this.map) {
+        return;
+      }
+      const flush = (): void => {
+        if (this.destroyed || !this.map || !untracked(() => this.active())) {
+          return;
+        }
+        this.map.resize?.();
+        const selected = untracked(() => this.selectedPinId());
+        if (this.styleLoaded && this.needsSyncOnActivate) {
+          this.needsSyncOnActivate = false;
+          this.needsRouteSyncOnActivate = false;
+          this.needsSelectionSyncOnActivate = false;
+          this.renderPinsAndRoute(
+            untracked(() => this.pins()),
+            untracked(() => this.activeRoutes()),
+            untracked(() => this.departureStayPin()),
+            untracked(() => this.stayPin()),
+            untracked(() => this.effectiveMode()),
+          );
+          this.updateMarkerSelection(selected);
+          return;
+        }
+        if (this.styleLoaded && this.needsRouteSyncOnActivate) {
+          this.needsRouteSyncOnActivate = false;
+          this.updateRouteLayers(
+            untracked(() => this.activeRoutes()),
+            untracked(() => this.effectiveMode()),
+          );
+        }
+        if (this.needsSelectionSyncOnActivate) {
+          this.needsSelectionSyncOnActivate = false;
+          if (this.styleLoaded) {
+            this.updateMarkerSelection(selected);
+          }
+          if (selected) {
+            this.panToSelectedIfOutOfBounds(selected);
+          }
+        }
+      };
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(flush);
+      } else {
+        flush();
       }
     });
   }
 
   ngAfterViewInit(): void {
     this.ensureMaplibreStyles();
+    this.mapInitPromise = this.initMap();
+  }
+
+  protected toggleAttribution(): void {
+    this.attributionOpen.update((open) => !open);
+  }
+
+  ngOnDestroy(): void {
+    this.destroyed = true;
+    this.clearMarkers();
+    this.map?.remove();
+    this.map = null;
+    this.maplibregl = null;
+  }
+
+  private async initMap(): Promise<void> {
     const container = this.mapContainer()?.nativeElement;
     if (!container) {
       return;
     }
 
     try {
+      const lib = await loadMaplibre();
+      if (this.destroyed) {
+        return;
+      }
+      this.maplibregl = lib;
       const initialCenter = this.fallbackCenter();
-      this.map = new maplibregl.Map({
+      const map = new lib.Map({
         container,
         style: POSITRON_STYLE_URL,
         center: [initialCenter[0], initialCenter[1]],
         zoom: 10,
         attributionControl: false,
       });
-      this.map.addControl(
-        new maplibregl.NavigationControl({ showCompass: false }),
+      map.addControl(
+        new lib.NavigationControl({ showCompass: false }),
         'top-right',
       );
-      this.map.on('movestart', () => this.attributionOpen.set(false));
-      this.map.on('load', () => {
+      map.on('movestart', () => this.attributionOpen.set(false));
+      map.on('load', () => {
         this.styleLoaded = true;
+        if (!untracked(() => this.active())) {
+          this.needsSyncOnActivate = true;
+          return;
+        }
         this.map?.resize();
         this.renderPinsAndRoute(
           this.pins(),
@@ -365,20 +459,10 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
         );
         this.updateMarkerSelection(this.selectedPinId());
       });
+      this.map = map;
     } catch {
       // Gracefully degrade in headless/WebGL-less test environments.
-      this.map = null;
     }
-  }
-
-  protected toggleAttribution(): void {
-    this.attributionOpen.update((open) => !open);
-  }
-
-  ngOnDestroy(): void {
-    this.clearMarkers();
-    this.map?.remove();
-    this.map = null;
   }
 
   private resolveCssToken(name: string, fallback: string): string {
@@ -593,7 +677,8 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
     stay: StayMapPin | null,
     mode: MapRouteMode,
   ): void {
-    if (!this.map) {
+    const lib = this.maplibregl;
+    if (!this.map || !lib) {
       return;
     }
     this.clearMarkers();
@@ -623,7 +708,7 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
       this.applyMarkerStyle(tracked, targetStay.id === activeSelectedId);
       this.markerEls.set(targetStay.id, tracked);
 
-      const stayMarker = new maplibregl.Marker({ element: stayEl })
+      const stayMarker = new lib.Marker({ element: stayEl })
         .setLngLat([targetStay.lng, targetStay.lat])
         .addTo(this.map!);
       this.markers.push(stayMarker);
@@ -681,7 +766,7 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
 
       el.addEventListener('click', () => this.pinSelected.emit(pin.id));
 
-      const marker = new maplibregl.Marker({ element: el })
+      const marker = new lib.Marker({ element: el })
         .setLngLat([pin.lng, pin.lat])
         .addTo(this.map);
       this.markers.push(marker);
@@ -698,7 +783,7 @@ export class ItineraryMapComponent implements AfterViewInit, OnDestroy {
     if (allPoints.length === 1) {
       this.map.flyTo({ center: allPoints[0], zoom: 13, duration: 500 });
     } else if (allPoints.length > 1) {
-      const bounds = new maplibregl.LngLatBounds();
+      const bounds = new lib.LngLatBounds();
       for (const pt of allPoints) {
         bounds.extend(pt);
       }

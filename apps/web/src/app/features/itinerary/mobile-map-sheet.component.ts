@@ -10,7 +10,8 @@ import {
   getItemDetailString,
   MapRouteMode,
 } from '../../core/utils/travel-format.utils';
-import { ItineraryMapComponent, MapPin, StayMapPin } from './itinerary-map.component';
+import { ItineraryMapComponent } from './itinerary-map.component';
+import { MapPin, StayMapPin } from './itinerary-map.types';
 
 const SWIPE_CLOSE_THRESHOLD_PX = 84;
 
@@ -20,14 +21,17 @@ const SWIPE_CLOSE_THRESHOLD_PX = 84;
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TranslatePipe, ItineraryMapComponent],
   host: {
-    '(document:keydown.escape)': 'closed.emit()',
+    '(document:keydown.escape)': 'onEscape()',
   },
   template: `
     <div
       class="mobile-map-sheet"
       [class.no-bottom-nav]="!hasBottomNav()"
       [class.dragging]="isDragging()"
-      [style.transform]="dragOffsetY() > 0 ? 'translateY(' + dragOffsetY() + 'px)' : null"
+      [class.is-closed]="!open()"
+      [style.transform]="open() && dragOffsetY() > 0 ? 'translateY(' + dragOffsetY() + 'px)' : null"
+      [attr.aria-hidden]="open() ? null : 'true'"
+      [attr.inert]="open() ? null : ''"
       role="dialog"
       [attr.aria-label]="'map.openSheet' | t"
     >
@@ -56,6 +60,7 @@ const SWIPE_CLOSE_THRESHOLD_PX = 84;
 
       <div class="sheet-map-body">
         <app-itinerary-map
+          [active]="open()"
           [pins]="pins()"
           [schematicRoutes]="schematicRoutes()"
           [roadRoutes]="roadRoutes()"
@@ -163,11 +168,20 @@ const SWIPE_CLOSE_THRESHOLD_PX = 84;
       border-radius: 16px 16px 0 0;
       box-shadow: 0 -10px 30px rgba(15, 23, 42, 0.22);
       overflow: hidden;
-      transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+      transition:
+        transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1),
+        opacity 180ms ease,
+        visibility 180ms ease;
       will-change: transform;
     }
     .mobile-map-sheet.dragging {
       transition: none;
+    }
+    .mobile-map-sheet.is-closed {
+      transform: translateY(calc(100% + 120px));
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
     }
     .mobile-map-sheet.no-bottom-nav {
       bottom: 0;
@@ -353,6 +367,7 @@ const SWIPE_CLOSE_THRESHOLD_PX = 84;
   `,
 })
 export class MobileMapSheetComponent {
+  readonly open = input(true);
   readonly dayLabel = input('');
   readonly readOnly = input(false);
   readonly hasBottomNav = input(true);
@@ -380,6 +395,12 @@ export class MobileMapSheetComponent {
 
   private activePointerId: number | null = null;
   private dragStartY = 0;
+
+  protected onEscape(): void {
+    if (this.open()) {
+      this.closed.emit();
+    }
+  }
 
   protected onBarPointerDown(event: PointerEvent): void {
     if (event.pointerType === 'mouse' && event.button !== 0) {

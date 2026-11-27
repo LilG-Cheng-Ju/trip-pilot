@@ -39,4 +39,33 @@ describe('MobileMapSheetComponent', () => {
     fixture.detectChanges();
     expect(closeCount).toBe(1);
   });
+
+  it('hides non-destructively when open=false and ignores Escape while closed', async () => {
+    const fixture = TestBed.createComponent(MobileMapSheetComponent);
+    fixture.componentRef.setInput('open', false);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    let closeCount = 0;
+    fixture.componentInstance.closed.subscribe(() => {
+      closeCount += 1;
+    });
+
+    const host = fixture.nativeElement as HTMLElement;
+    const sheet = host.querySelector('.mobile-map-sheet') as HTMLElement;
+    expect(sheet.classList.contains('is-closed')).toBe(true);
+    expect(sheet.getAttribute('aria-hidden')).toBe('true');
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(closeCount).toBe(0);
+
+    fixture.componentRef.setInput('open', true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(sheet.classList.contains('is-closed')).toBe(false);
+    expect(sheet.getAttribute('aria-hidden')).toBeNull();
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(closeCount).toBe(1);
+  });
 });

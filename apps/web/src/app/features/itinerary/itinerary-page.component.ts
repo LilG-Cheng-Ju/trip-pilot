@@ -52,11 +52,8 @@ import {
   ItemFormSubmitEvent,
 } from './item-form-modal.component';
 import { ItineraryCardComponent } from './itinerary-card.component';
-import {
-  ItineraryMapComponent,
-  MapPin,
-  StayMapPin,
-} from './itinerary-map.component';
+import { ItineraryMapComponent } from './itinerary-map.component';
+import { MapPin, StayMapPin } from './itinerary-map.types';
 import { MobileMapSheetComponent } from './mobile-map-sheet.component';
 import { TripShareModalComponent } from './trip-share-modal.component';
 

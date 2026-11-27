@@ -28,11 +28,8 @@ import {
   toStayMapPin,
 } from '../../core/utils/travel-format.utils';
 import { ItineraryCardComponent } from '../itinerary/itinerary-card.component';
-import {
-  ItineraryMapComponent,
-  MapPin,
-  StayMapPin,
-} from '../itinerary/itinerary-map.component';
+import { ItineraryMapComponent } from '../itinerary/itinerary-map.component';
+import { MapPin, StayMapPin } from '../itinerary/itinerary-map.types';
 import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component';
 
 /** Standalone read-only public itinerary view (/s/:shareToken) matching live app UI. */
@@ -201,15 +198,17 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
 
         @if (viewport.isDesktop()) {
           <aside class="desktop-map-pane">
-            <app-itinerary-map
-              [pins]="mapPins()"
-              [schematicRoutes]="schematicMapRoutes()"
-              [departureStayPin]="departureStayMapPin()"
-              [stayPin]="stayMapPin()"
-              [selectedPinId]="selectedItemId()"
-              [fallbackCenter]="tripMapCenter()"
-              (pinSelected)="onMapPinSelected($event)"
-            />
+            @defer (when viewport.isDesktop()) {
+              <app-itinerary-map
+                [pins]="mapPins()"
+                [schematicRoutes]="schematicMapRoutes()"
+                [departureStayPin]="departureStayMapPin()"
+                [stayPin]="stayMapPin()"
+                [selectedPinId]="selectedItemId()"
+                [fallbackCenter]="tripMapCenter()"
+                (pinSelected)="onMapPinSelected($event)"
+              />
+            }
           </aside>
         }
       </div>
@@ -225,23 +224,26 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
         </button>
       }
 
-      @if (mobileMapOpen()) {
-        <app-mobile-map-sheet
-          [dayLabel]="selectedDayLabel()"
-          [readOnly]="true"
-          [hasBottomNav]="false"
-          [fallbackCenter]="tripMapCenter()"
-          [pins]="mapPins()"
-          [schematicRoutes]="schematicMapRoutes()"
-          [departureStayPin]="departureStayMapPin()"
-          [stayPin]="stayMapPin()"
-          [selectedPinId]="selectedItemId()"
-          [selectedItem]="selectedMapItem()"
-          [selectedPinOrder]="selectedMapItem() ? (pinOrderById().get(selectedMapItem()!.id) ?? null) : null"
-          (pinSelected)="onMapPinSelected($event)"
-          (clearSelection)="selectedItemId.set(null)"
-          (closed)="mobileMapOpen.set(false)"
-        />
+      @if (!viewport.isDesktop()) {
+        @defer (when mobileMapOpen()) {
+          <app-mobile-map-sheet
+            [open]="mobileMapOpen()"
+            [dayLabel]="selectedDayLabel()"
+            [readOnly]="true"
+            [hasBottomNav]="false"
+            [fallbackCenter]="tripMapCenter()"
+            [pins]="mapPins()"
+            [schematicRoutes]="schematicMapRoutes()"
+            [departureStayPin]="departureStayMapPin()"
+            [stayPin]="stayMapPin()"
+            [selectedPinId]="selectedItemId()"
+            [selectedItem]="selectedMapItem()"
+            [selectedPinOrder]="selectedMapItem() ? (pinOrderById().get(selectedMapItem()!.id) ?? null) : null"
+            (pinSelected)="onMapPinSelected($event)"
+            (clearSelection)="selectedItemId.set(null)"
+            (closed)="mobileMapOpen.set(false)"
+          />
+        }
       }
     } @else if (errorKey(); as errKey) {
       <div class="state-wrap">

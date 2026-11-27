@@ -103,6 +103,8 @@ describe('ItineraryMapComponent', () => {
     fixture.componentRef.setInput('pins', pins);
     fixture.detectChanges();
     await fixture.whenStable();
+    await (fixture.componentInstance as unknown as { mapInitPromise: Promise<void> | null })
+      .mapInitPromise;
 
     let inBounds = false;
     const easeTo = vi.fn();
@@ -151,5 +153,40 @@ describe('ItineraryMapComponent', () => {
     expect(resize).toHaveBeenCalledTimes(1);
 
     document.querySelectorAll('link[data-maplibre-css]').forEach((el) => el.remove());
+  });
+
+  it('defers panning until active becomes true and resizes the map on activation', async () => {
+    const fixture = TestBed.createComponent(ItineraryMapComponent);
+    const pins = [
+      { id: 'spot-1', order: 1, title: 'Senso-ji', lat: 35.7148, lng: 139.7967, type: 'SPOT' },
+    ];
+    fixture.componentRef.setInput('pins', pins);
+    fixture.componentRef.setInput('active', false);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await (fixture.componentInstance as unknown as { mapInitPromise: Promise<void> | null })
+      .mapInitPromise;
+
+    const easeTo = vi.fn();
+    const resize = vi.fn();
+    (fixture.componentInstance as unknown as { map: unknown }).map = {
+      getBounds: () => ({ contains: () => false }),
+      easeTo,
+      resize,
+      remove: vi.fn(),
+    };
+
+    fixture.componentRef.setInput('selectedPinId', 'spot-1');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(easeTo).not.toHaveBeenCalled();
+
+    fixture.componentRef.setInput('active', true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    expect(resize).toHaveBeenCalledTimes(1);
+    expect(easeTo).toHaveBeenCalledTimes(1);
+    expect(easeTo).toHaveBeenCalledWith({ center: [139.7967, 35.7148], duration: 450 });
   });
 });
