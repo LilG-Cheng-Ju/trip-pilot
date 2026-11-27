@@ -174,19 +174,14 @@
                       <span class="active-dot" aria-hidden="true"></span>
                     }
                     <span>{{ opt.label }}</span>
-                    @if (opt.cached_ground_distance_km > 0) {
-                      <span class="opt-km tabular-nums">
-                        {{ opt.cached_distance_is_approx ? '~' : '' }}{{ opt.cached_ground_distance_km }} km
-                      </span>
-                    }
                   </button>
                 }
               </div>
-              <div class="plan-actions">
-                @if (store.selectedOption(); as currentOpt) {
+              @if (store.selectedOption(); as currentOpt) {
+                <div class="plan-actions">
                   <button
                     type="button"
-                    class="icon-btn"
+                    class="icon-btn plan-icon-btn"
                     [disabled]="isOfflineReadOnly()"
                     [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ('itinerary.plan.rename' | t)"
                     [attr.aria-label]="'itinerary.plan.rename' | t"
@@ -196,7 +191,7 @@
                   </button>
                   <button
                     type="button"
-                    class="icon-btn icon-btn--danger"
+                    class="icon-btn icon-btn--danger plan-icon-btn"
                     [disabled]="isOfflineReadOnly()"
                     [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ('itinerary.plan.delete' | t)"
                     [attr.aria-label]="'itinerary.plan.delete' | t"
@@ -204,54 +199,42 @@
                   >
                     <span class="ms-icon sm" aria-hidden="true">delete</span>
                   </button>
-                }
-                <button
-                  type="button"
-                  class="clone-btn"
-                  [disabled]="isOfflineReadOnly()"
-                  [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ''"
-                  (click)="optionModals()?.openClone()"
-                >
-                  {{ 'itinerary.plan.addOption' | t }}
-                </button>
-              </div>
+                </div>
+              }
             </div>
           }
 
           @if (store.selectedOption(); as option) {
-            @if (!store.isPreviewingActiveOption()) {
-              <div class="activate-banner">
-                <span>{{ option.label }}</span>
-                <button
-                  type="button"
-                  class="btn-accent"
-                  [disabled]="isOfflineReadOnly()"
-                  [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ''"
-                  (click)="store.setActiveOption(day.id, option.id)"
-                >
-                  {{ 'itinerary.plan.setActive' | t }}
-                </button>
-              </div>
-            }
-
             <div class="summary-bar">
-              <span class="summary-text tabular-nums">
-                {{ 'itinerary.summary.stops' | t: { count: store.stopCount() } }}
-                · {{ option.cached_distance_is_approx ? '~' : '' }}{{ option.cached_ground_distance_km }} km
-              </span>
-
-              <div class="summary-actions">
-                @if (day.options.length === 1) {
+              <div class="summary-meta">
+                <span class="summary-text tabular-nums">
+                  {{ 'itinerary.summary.stops' | t: { count: store.stopCount() } }}
+                  · {{ option.cached_distance_is_approx ? '~' : '' }}{{ option.cached_ground_distance_km }} km
+                </span>
+                @if (day.options.length > 1 && !store.isPreviewingActiveOption()) {
                   <button
                     type="button"
-                    class="clone-btn"
+                    class="set-active-pill"
                     [disabled]="isOfflineReadOnly()"
                     [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ''"
-                    (click)="optionModals()?.openClone()"
+                    (click)="store.setActiveOption(day.id, option.id)"
                   >
-                    {{ 'itinerary.plan.addOption' | t }}
+                    {{ 'itinerary.plan.setActive' | t }}
                   </button>
                 }
+              </div>
+
+              <div class="split-cta">
+                <button
+                  type="button"
+                  class="add-plan-btn"
+                  [disabled]="isOfflineReadOnly()"
+                  [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ''"
+                  (click)="optionModals()?.openClone()"
+                >
+                  <span class="ms-icon sm" aria-hidden="true">add</span>
+                  <span>{{ 'itinerary.plan.addOption' | t }}</span>
+                </button>
                 <button
                   type="button"
                   class="add-item-btn"

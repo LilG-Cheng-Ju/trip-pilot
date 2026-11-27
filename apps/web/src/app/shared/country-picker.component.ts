@@ -43,23 +43,23 @@ import { readInputValue } from '../core/utils/form-events.utils';
       >
         @if (selectedCodes().length === 0) {
           <span class="placeholder">{{ placeholder() }}</span>
+        } @else if (!multiple()) {
+          <span class="single-value">{{ labelFor(selectedCodes()[0]) }}</span>
         } @else {
           <div class="chips">
             @for (code of selectedCodes(); track code) {
               <span class="chip">
                 <span>{{ labelFor(code) }}</span>
-                @if (multiple()) {
-                  <button
-                    type="button"
-                    class="chip-x"
-                    (click)="$event.stopPropagation(); removeCode(code)"
-                    (keydown.enter)="$event.stopPropagation()"
-                    (keydown.space)="$event.stopPropagation()"
-                    aria-label="Remove"
-                  >
-                    <span class="ms-icon sm" aria-hidden="true">close</span>
-                  </button>
-                }
+                <button
+                  type="button"
+                  class="chip-x"
+                  (click)="$event.stopPropagation(); removeCode(code)"
+                  (keydown.enter)="$event.stopPropagation()"
+                  (keydown.space)="$event.stopPropagation()"
+                  aria-label="Remove"
+                >
+                  <span class="ms-icon sm" aria-hidden="true">close</span>
+                </button>
               </span>
             }
           </div>
@@ -122,7 +122,7 @@ import { readInputValue } from '../core/utils/form-events.utils';
       align-items: center;
       justify-content: space-between;
       gap: 8px;
-      padding: 6px 10px;
+      padding: 6px 10px 6px 12px;
       border: 1px solid var(--color-border);
       border-radius: var(--radius-sm);
       background: var(--color-surface);
@@ -142,6 +142,12 @@ import { readInputValue } from '../core/utils/form-events.utils';
       font-size: 0.875rem;
       font-weight: 400;
     }
+    .single-value {
+      font-size: 0.875rem;
+      font-weight: 400;
+      line-height: 1.4;
+      color: var(--color-text-primary);
+    }
     .chips {
       display: flex;
       flex-wrap: wrap;
@@ -157,9 +163,12 @@ import { readInputValue } from '../core/utils/form-events.utils';
       color: var(--color-text-on-primary);
       font-size: 0.78rem;
       font-weight: 600;
+      line-height: 1.25;
     }
     .chip-x {
       display: inline-flex;
+      align-items: center;
+      justify-content: center;
       border: none;
       background: transparent;
       color: rgba(255, 255, 255, 0.8);

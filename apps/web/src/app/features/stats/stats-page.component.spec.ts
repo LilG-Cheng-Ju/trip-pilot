@@ -149,6 +149,15 @@ describe('StatsPageComponent', () => {
       el.textContent?.replace(/\s+/g, ' ').trim(),
     );
     expect(kpiValues).toEqual(['4,860 km', '4', '18', '2', 'TWD 68,500']);
+
+    const firstTrip = host.querySelector('.trip-row');
+    expect(firstTrip?.querySelector('.scope-tag')?.textContent?.trim()).toBe('International');
+    expect(firstTrip?.querySelector('.trip-loc')?.textContent?.trim()).toBe('Japan');
+    expect(firstTrip?.querySelector('.trip-dates')?.textContent?.trim()).toBe('2026.03.20 – 03.26');
+    expect(firstTrip?.querySelector('.trip-spend')?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+      'TWD 42,000',
+    );
+    expect(firstTrip?.querySelector('.chevron')).toBeNull();
   });
 
   it('adapts Domestic scope to ground-first total distance, longest trip, and 12-month cadence', async () => {
@@ -177,5 +186,9 @@ describe('StatsPageComponent', () => {
     expect(host.querySelector('.countries-panel')).toBeNull();
     expect(host.querySelector('.footprint-panel')).not.toBeNull();
     expect(host.querySelectorAll('.month-col.active').length).toBe(2);
+
+    const domTrip = host.querySelector('.trip-row');
+    expect(domTrip?.querySelector('.scope-tag')).toBeNull();
+    expect(domTrip?.querySelector('.trip-loc')?.textContent?.trim()).toBe('Taiwan');
   });
 });

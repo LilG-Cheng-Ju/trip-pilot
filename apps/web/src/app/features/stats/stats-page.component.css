@@ -167,10 +167,12 @@
   height: 100%;
   min-width: 6px;
 }
-.distance-seg.air {
+.distance-seg.air,
+.mode-dot.air {
   background: #93b4ec;
 }
-.distance-seg.ground {
+.distance-seg.ground,
+.mode-dot.ground {
   background: var(--color-accent);
 }
 .mode-split {
@@ -201,12 +203,6 @@
   height: 7px;
   border-radius: 50%;
   flex-shrink: 0;
-}
-.mode-dot.air {
-  background: #93b4ec;
-}
-.mode-dot.ground {
-  background: var(--color-accent);
 }
 .mode-val-line {
   display: flex;
@@ -317,21 +313,50 @@
   height: 100%;
   min-width: 4px;
 }
-.spend-list {
+.spend-list,
+.country-rank-list,
+.month-col {
   display: flex;
   flex-direction: column;
-  gap: 10px;
 }
-.spend-row {
+.spend-row,
+.country-row-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+.spend-left,
+.spend-right,
+.country-label-group {
+  display: inline-flex;
+  align-items: center;
+}
+.cat-name,
+.country-name {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.cat-amt,
+.country-count,
+.trip-spend {
+  font-weight: 600;
+  color: var(--color-primary);
+}
+.country-code,
+.scope-tag {
+  border-radius: var(--radius-xs);
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+.spend-list {
+  gap: 10px;
+}
+.spend-row {
   gap: 10px;
   font-size: 0.84rem;
 }
 .spend-left {
-  display: inline-flex;
-  align-items: center;
   gap: 8px;
 }
 .cat-dot {
@@ -340,13 +365,7 @@
   border-radius: 2px;
   flex-shrink: 0;
 }
-.cat-name {
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
 .spend-right {
-  display: inline-flex;
-  align-items: center;
   gap: 10px;
 }
 .cat-pct {
@@ -356,45 +375,24 @@
   min-width: 34px;
   text-align: right;
 }
-.cat-amt {
-  font-weight: 600;
-  color: var(--color-primary);
-}
 .country-rank-list {
-  display: flex;
-  flex-direction: column;
   gap: 12px;
 }
 .country-row-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: 8px;
   font-size: 0.84rem;
   margin-bottom: 5px;
 }
 .country-label-group {
-  display: inline-flex;
-  align-items: center;
   gap: 7px;
   min-width: 0;
 }
 .country-code {
   padding: 1px 5px;
-  border-radius: var(--radius-xs);
-  background: var(--color-surface-muted);
-  color: var(--color-text-secondary);
   font-size: 0.7rem;
-  font-weight: 600;
-}
-.country-name {
-  font-weight: 600;
-  color: var(--color-text-primary);
 }
 .country-count {
   font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--color-primary);
 }
 .bar-track {
   height: 6px;
@@ -402,10 +400,13 @@
   background: var(--color-surface-muted);
   overflow: hidden;
 }
-.bar-fill {
-  height: 100%;
+.bar-fill,
+.month-fill {
   background: var(--color-accent);
   border-radius: var(--radius-xs);
+}
+.bar-fill {
+  height: 100%;
 }
 
 /* 12-Month Domestic Cadence Chart */
@@ -416,8 +417,6 @@
   padding-top: 4px;
 }
 .month-col {
-  display: flex;
-  flex-direction: column;
   align-items: center;
   gap: 5px;
 }
@@ -440,8 +439,6 @@
 .month-fill {
   width: 100%;
   min-height: 6px;
-  background: var(--color-accent);
-  border-radius: var(--radius-xs);
 }
 .month-num {
   font-size: 0.7rem;
@@ -459,6 +456,9 @@
 }
 
 /* Period Trips List */
+.trips-panel .panel-head {
+  margin-bottom: 0;
+}
 .trip-rows {
   display: flex;
   flex-direction: column;
@@ -467,11 +467,12 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas:
-    'title chevron'
-    'meta spend';
-  align-items: center;
-  gap: 4px 8px;
-  padding: 10px 4px;
+    'title title'
+    'meta meta'
+    'dates spend';
+  column-gap: 12px;
+  min-width: 0;
+  padding: 12px 4px;
   border-bottom: 1px solid var(--color-border-soft);
   color: inherit;
   text-decoration: none;
@@ -483,55 +484,54 @@
 .trip-row:hover {
   background: var(--color-surface-alt);
 }
-.trip-title-line {
-  grid-area: title;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  min-width: 0;
-}
 .trip-row-title {
-  font-size: 0.88rem;
+  grid-area: title;
+  font-size: 0.94rem;
   font-weight: 600;
-  line-height: 1.3;
+  line-height: 1.36;
   color: var(--color-primary);
-}
-.scope-tag {
-  padding: 1px 6px;
-  border-radius: var(--radius-xs);
-  background: var(--color-surface-muted);
-  color: var(--color-text-secondary);
-  font-size: 0.68rem;
-  font-weight: 600;
-  flex-shrink: 0;
-}
-.scope-tag.intl {
-  background: var(--color-accent-soft);
-  color: var(--color-accent-ink);
+  overflow-wrap: anywhere;
 }
 .trip-row-meta {
   grid-area: meta;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 4px 5px;
-  min-width: 0;
-  font-size: 0.74rem;
+  gap: 4px 6px;
+  margin-top: 4px;
+  font-size: 0.78rem;
+  line-height: 1.35;
   color: var(--color-text-muted);
+}
+.scope-tag {
+  padding: 1px 6px;
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+.scope-tag.intl {
+  background: var(--color-accent-soft);
+  color: var(--color-accent-ink);
+}
+.trip-loc {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+.trip-dates {
+  grid-area: dates;
+  align-self: baseline;
+  margin-top: 7px;
+  font-size: 0.77rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  white-space: nowrap;
 }
 .trip-spend {
   grid-area: spend;
   justify-self: end;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--color-primary);
+  align-self: baseline;
+  margin-top: 7px;
+  font-size: 0.87rem;
   white-space: nowrap;
-}
-.chevron {
-  grid-area: chevron;
-  justify-self: end;
-  color: var(--color-text-muted);
 }
 .muted,
 .empty-box {
@@ -545,18 +545,13 @@
     padding: var(--space-5) var(--space-4) calc(var(--nav-bottom-height) + var(--space-6));
   }
   .trip-row {
-    grid-template-columns: minmax(0, 1fr) auto auto;
-    grid-template-areas:
-      'title spend chevron'
-      'meta spend chevron';
-    gap: 3px 10px;
-    padding: 12px 6px;
+    padding: 13px 8px;
   }
   .trip-row-title {
-    font-size: 0.92rem;
+    font-size: 0.96rem;
   }
   .trip-spend {
-    font-size: 0.85rem;
+    font-size: 0.9rem;
   }
   .page-head {
     grid-template-columns: minmax(0, 1fr) auto auto;
@@ -613,6 +608,30 @@
   }
   .logbook-metric-row {
     padding: 20px 24px;
+  }
+  .trip-row {
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) 166px 124px;
+    grid-template-areas: 'title meta dates spend';
+    align-items: center;
+    column-gap: 18px;
+    padding: 15px 10px;
+  }
+  .trip-row-title {
+    font-size: 0.98rem;
+  }
+  .trip-row-meta {
+    margin-top: 0;
+    font-size: 0.82rem;
+  }
+  .trip-dates {
+    align-self: center;
+    margin-top: 0;
+    font-size: 0.81rem;
+  }
+  .trip-spend {
+    align-self: center;
+    margin-top: 0;
+    font-size: 0.94rem;
   }
 }
 @media (min-width: 900px) {

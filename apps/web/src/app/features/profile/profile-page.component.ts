@@ -13,10 +13,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { AuthSessionService } from '../../core/auth/auth-session.service';
 import { SessionCleanupService } from '../../core/auth/session-cleanup.service';
 import { getApiBaseUrl } from '../../core/config/runtime-config';
-import {
-  SAVE_NOTICE_DURATION_MS,
-  SHARE_COPY_FEEDBACK_DURATION_MS,
-} from '../../core/constants/app-limits';
+import { SHARE_COPY_FEEDBACK_DURATION_MS } from '../../core/constants/app-limits';
 import { SUPPORTED_CURRENCIES } from '../../core/constants/travel-options';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -69,13 +66,13 @@ import { AuthStore } from '../../state/auth.store';
           </button>
         </div>
 
-        <form class="pref-form" (submit)="$event.preventDefault(); savePreferences()">
+        <div class="pref-form">
           <div class="field">
             <span>{{ 'profile.homeCountry' | t }}</span>
             <app-country-picker
               [selectedCodes]="[homeCountry()]"
               [multiple]="false"
-              (selectionChange)="homeCountry.set($event[0] || homeCountry())"
+              (selectionChange)="onHomeCountryChange($event[0])"
             />
             <small class="field-hint">{{ 'profile.homeCountryHint' | t }}</small>
           </div>
@@ -85,7 +82,7 @@ import { AuthStore } from '../../state/auth.store';
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
               <mat-select
                 [value]="homeCurrency()"
-                (selectionChange)="homeCurrency.set($event.value)"
+                (selectionChange)="onHomeCurrencyChange($event.value)"
                 name="homeCurrency"
                 [aria-label]="'profile.homeCurrency' | t"
               >
@@ -97,14 +94,7 @@ import { AuthStore } from '../../state/auth.store';
               </mat-select>
             </mat-form-field>
           </div>
-
-          <div class="pref-actions">
-            <button type="submit" class="btn-primary">{{ 'common.save' | t }}</button>
-            @if (savedNotice()) {
-              <span class="saved-badge">{{ 'profile.saved' | t }}</span>
-            }
-          </div>
-        </form>
+        </div>
       </section>
 
       <section class="panel">
@@ -347,29 +337,10 @@ import { AuthStore } from '../../state/auth.store';
       font-weight: 600;
       color: var(--color-text-secondary);
     }
-    .token-form input {
-      height: 40px;
-      padding: 9px 12px;
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-sm);
-      background-color: var(--color-surface);
-      color: var(--color-text-primary);
-      font: inherit;
-    }
     .field-hint {
       font-size: 0.75rem;
       font-weight: 400;
       color: var(--color-text-muted);
-    }
-    .pref-actions {
-      display: flex;
-      align-items: center;
-      gap: var(--space-3);
-    }
-    .saved-badge {
-      font-size: 0.8125rem;
-      font-weight: 600;
-      color: var(--item-spot);
     }
     .pill-btn {
       padding: 7px 12px;
@@ -404,13 +375,29 @@ import { AuthStore } from '../../state/auth.store';
     }
     .token-form {
       display: flex;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
+      align-items: stretch;
       gap: 8px;
       margin-bottom: var(--space-4);
     }
     .token-form input {
-      flex: 1 1 180px;
+      flex: 1 1 0;
       min-width: 0;
+      height: 40px;
+      padding: 9px 11px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      background-color: var(--color-surface);
+      color: var(--color-text-primary);
+      font: inherit;
+      font-size: 0.875rem;
+    }
+    .token-form .btn-primary {
+      flex-shrink: 0;
+      height: 40px;
+      padding: 0 14px;
+      border-radius: var(--radius-sm);
+      white-space: nowrap;
     }
     .created-box {
       padding: var(--space-3);
@@ -485,8 +472,9 @@ import { AuthStore } from '../../state/auth.store';
     .token-count {
       padding: 1px 7px;
       border-radius: var(--radius-pill);
-      background: var(--color-primary-tint);
-      color: var(--color-primary);
+      background: var(--color-accent-soft);
+      border: 1px solid var(--color-accent-border);
+      color: var(--color-accent-ink);
       font-size: 0.72rem;
       font-weight: 600;
     }
@@ -536,7 +524,7 @@ import { AuthStore } from '../../state/auth.store';
     }
     .ai-tab.active {
       color: var(--color-primary);
-      border-bottom-color: var(--color-primary);
+      border-bottom-color: var(--color-accent);
     }
     .ai-support-line {
       margin: 0;
@@ -619,11 +607,13 @@ import { AuthStore } from '../../state/auth.store';
       background: var(--color-surface-alt);
     }
     .ai-action-btn.primary {
-      border-color: var(--color-primary);
-      background: var(--color-primary-tint);
+      border-color: var(--color-accent-border);
+      background: var(--color-accent-soft);
+      color: var(--color-accent-ink);
     }
     .ai-action-btn.primary:hover {
-      background: var(--color-primary);
+      border-color: var(--color-accent);
+      background: var(--color-accent);
       color: var(--color-text-on-primary);
     }
     .ai-footnote {
@@ -682,7 +672,6 @@ export class ProfilePageComponent implements OnInit {
     () => this.authStore.profile()?.home_currency ?? 'TWD',
   );
   protected readonly newTokenName = signal('');
-  protected readonly savedNotice = signal(false);
   protected readonly copied = signal(false);
   protected readonly copiedKey = signal<string | null>(null);
   protected readonly pendingRevokeToken = signal<{ id: string; name: string } | null>(null);
@@ -723,16 +712,31 @@ export class ProfilePageComponent implements OnInit {
     }
   }
 
-  protected async savePreferences(): Promise<void> {
+  protected async onHomeCountryChange(code: string | undefined): Promise<void> {
+    if (!code || code === this.homeCountry()) {
+      return;
+    }
+    const previous = this.homeCountry();
+    this.homeCountry.set(code);
     try {
-      await this.authStore.updateProfile({
-        home_country_code: this.homeCountry(),
-        home_currency: this.homeCurrency(),
-      });
-      this.savedNotice.set(true);
-      setTimeout(() => this.savedNotice.set(false), SAVE_NOTICE_DURATION_MS);
+      await this.authStore.updateProfile({ home_country_code: code });
     } catch {
       // Error state is recorded on AuthStore and shown in the error banner.
+      this.homeCountry.set(this.authStore.profile()?.home_country_code ?? previous);
+    }
+  }
+
+  protected async onHomeCurrencyChange(currency: string): Promise<void> {
+    if (!currency || currency === this.homeCurrency()) {
+      return;
+    }
+    const previous = this.homeCurrency();
+    this.homeCurrency.set(currency);
+    try {
+      await this.authStore.updateProfile({ home_currency: currency });
+    } catch {
+      // Error state is recorded on AuthStore and shown in the error banner.
+      this.homeCurrency.set(this.authStore.profile()?.home_currency ?? previous);
     }
   }
 

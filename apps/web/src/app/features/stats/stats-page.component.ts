@@ -294,10 +294,30 @@ export class StatsPageComponent implements OnInit {
     return this.i18n.locale() === 'zh-TW' ? match.nameZh : match.nameEn;
   }
 
-  protected tripCountriesLabel(trip: TripStatSummary): string {
+  protected tripLocationLabel(trip: TripStatSummary): string {
     const home = this.store.stats()?.home_country_code;
-    const codes = trip.country_codes.filter((c) => c !== home);
-    const displayCodes = codes.length > 0 ? codes : trip.country_codes;
-    return displayCodes.map((c) => this.countryLabel(c)).join(' · ');
+    const intlCodes = trip.country_codes.filter((c) => c !== home);
+    const codes = trip.is_international && intlCodes.length > 0 ? intlCodes : trip.country_codes;
+    if (codes.length === 0) {
+      return '';
+    }
+    const labels = codes.map((c) => this.countryLabel(c));
+    const sep = this.i18n.locale() === 'zh-TW' ? '、' : ', ';
+    if (labels.length <= 3) {
+      return labels.join(sep);
+    }
+    return `${labels.slice(0, 3).join(sep)} +${labels.length - 3}`;
+  }
+
+  protected formatTripDateRange(start: string, end: string): string {
+    const startDot = start.replace(/-/g, '.');
+    if (!end || start === end) {
+      return startDot;
+    }
+    const endDot = end.replace(/-/g, '.');
+    if (start.slice(0, 4) === end.slice(0, 4)) {
+      return `${startDot} – ${endDot.slice(5)}`;
+    }
+    return `${startDot} – ${endDot}`;
   }
 }

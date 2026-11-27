@@ -34,10 +34,17 @@ describe('ProfilePageComponent', () => {
 
   let writeTextMock: ReturnType<typeof vi.fn>;
   let tokensResponse: ApiTokenItem[];
+  let updateMeSpy: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     tokensResponse = [activeToken];
     writeTextMock = vi.fn(async () => undefined);
+    updateMeSpy = vi.fn(
+      async (payload: Partial<Pick<UserProfile, 'home_country_code' | 'home_currency'>>) => ({
+        ...profile,
+        ...payload,
+      }),
+    );
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
       value: { writeText: writeTextMock },
@@ -51,6 +58,7 @@ describe('ProfilePageComponent', () => {
           provide: TripilotApiService,
           useValue: {
             getMe: async () => profile,
+            updateMe: updateMeSpy,
             listTokens: async () => tokensResponse,
           },
         },
@@ -122,5 +130,42 @@ describe('ProfilePageComponent', () => {
     const meta = host.querySelector('.token-meta')?.textContent?.trim() ?? '';
     expect(meta).toContain('tp_pat_abc… · 2026-11-20');
     expect(meta).not.toContain('trips:read');
+  });
+
+  it('auto-saves travel preferences silently and rolls back with error banner on failure', async () => {
+    const fixture = TestBed.createComponent(ProfilePageComponent);
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('.pref-actions')).toBeNull();
+    expect(host.querySelector('.saved-badge')).toBeNull();
+    expect(host.querySelector('app-country-picker .single-value')?.textContent?.trim()).toBe(
+      'Taiwan (TW)',
+    );
+    expect(host.querySelector('app-country-picker .chip')).toBeNull();
+
+    const component = fixture.componentInstance as unknown as {
+      homeCurrency: () => string;
+      homeCountry: () => string;
+      onHomeCurrencyChange: (currency: string) => Promise<void>;
+      onHomeCountryChange: (code: string | undefined) => Promise<void>;
+    };
+
+    await component.onHomeCurrencyChange('JPY');
+    fixture.detectChanges();
+
+    expect(updateMeSpy).toHaveBeenCalledWith({ home_currency: 'JPY' });
+    expect(component.homeCurrency()).toBe('JPY');
+    expect(host.querySelector('.saved-badge')).toBeNull();
+
+    updateMeSpy.mockRejectedValueOnce(new Error('Network offline'));
+    await component.onHomeCountryChange('JP');
+    fixture.detectChanges();
+
+    expect(component.homeCountry()).toBe('TW');
+    expect(host.querySelector('.error-banner')?.textContent).toContain('Network offline');
   });
 });
