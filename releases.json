@@ -1,5 +1,23 @@
 [
   {
+    "version": "0.9.12-beta",
+    "date": "2026-11-28",
+    "title": {
+      "zh-TW": "載入速度與系統優化",
+      "en": "Faster Loads & System Polish"
+    },
+    "changes": {
+      "zh-TW": [
+        "大幅縮減網頁初次載入體積，開啟與切換頁面更輕快",
+        "補齊行程頁自動化測試並清理底層警告，提升系統穩定度"
+      ],
+      "en": [
+        "Trimmed initial web bundle size by over 40% for faster page loads",
+        "Added itinerary page automated tests and resolved internal framework warnings"
+      ]
+    }
+  },
+  {
     "version": "0.9.11-beta",
     "date": "2026-11-28",
     "title": {

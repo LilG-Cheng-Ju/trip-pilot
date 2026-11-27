@@ -2304,7 +2304,7 @@ wheels = [
 
 [[package]]
 name = "tripilot-api"
-version = "0.9.11"
+version = "0.9.12"
 source = { editable = "." }
 dependencies = [
     { name = "aiosqlite" },

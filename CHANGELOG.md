@@ -2,6 +2,12 @@
 
 <!-- Auto-generated from releases.json. Run `node scripts/sync-releases.mjs` after editing releases.json. -->
 
+## v0.9.12-beta (2026-11-28) — 載入速度與系統優化
+*Faster Loads & System Polish*
+
+- 大幅縮減網頁初次載入體積，開啟與切換頁面更輕快
+- 補齊行程頁自動化測試並清理底層警告，提升系統穩定度
+
 ## v0.9.11-beta (2026-11-28) — 行程操作列、足跡清單與設定體驗優化
 *Itinerary Actions, Logbook & Settings Polish*
 
