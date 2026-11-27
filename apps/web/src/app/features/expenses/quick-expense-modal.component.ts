@@ -9,8 +9,6 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatSelectModule } from '@angular/material/select';
 
 import { ISO_CURRENCY_CODE_LENGTH } from '../../core/constants/app-limits';
 import {
@@ -32,13 +30,14 @@ import {
   roundFxRate,
 } from '../../core/utils/travel-format.utils';
 import { AppModalComponent } from '../../shared/modal.component';
+import { AppSelectComponent, SelectOption } from '../../shared/select-input.component';
 import { ExpenseStore } from '../../state/expense.store';
 
 /** Low-friction modal for logging an expense directly from an itinerary card. */
 @Component({
   selector: 'app-quick-expense-modal',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AppModalComponent, MatFormFieldModule, MatSelectModule, TranslatePipe],
+  imports: [AppModalComponent, AppSelectComponent, TranslatePipe],
   template: `
     <app-modal
       [open]="open()"
@@ -91,21 +90,14 @@ import { ExpenseStore } from '../../state/expense.store';
             <span class="field-label">
               {{ 'expenses.field.currency' | t }} <em class="req">*</em>
             </span>
-            <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-select
-                [value]="currency()"
-                [panelWidth]="null"
-                name="currency"
-                [aria-label]="'expenses.field.currency' | t"
-                (selectionChange)="onCurrencyChange($event.value)"
-              >
-                @for (opt of currencyOptions(); track opt.code) {
-                  <mat-option [value]="opt.code">
-                    {{ i18n.locale() === 'zh-TW' ? opt.labelZh : opt.labelEn }}
-                  </mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+            <app-select
+              name="currency"
+              [ariaLabel]="'expenses.field.currency' | t"
+              [panelWidth]="null"
+              [options]="currencySelectOptions()"
+              [value]="currency()"
+              (valueChange)="onCurrencyChange($event)"
+            />
           </div>
         </div>
 
@@ -427,6 +419,14 @@ export class QuickExpenseModalComponent {
       }
     }
     return list;
+  });
+
+  protected readonly currencySelectOptions = computed<readonly SelectOption[]>(() => {
+    const isZh = this.i18n.locale() === 'zh-TW';
+    return this.currencyOptions().map((opt) => ({
+      value: opt.code,
+      label: isZh ? opt.labelZh : opt.labelEn,
+    }));
   });
 
   protected readonly title = signal('');

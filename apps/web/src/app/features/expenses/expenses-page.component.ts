@@ -7,8 +7,6 @@ import {
   OnInit,
   signal,
 } from '@angular/core';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatSelectModule } from '@angular/material/select';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import { ISO_CURRENCY_CODE_LENGTH } from '../../core/constants/app-limits';
@@ -39,6 +37,7 @@ import {
   resolveInitialMobileExpenseTab,
 } from '../../core/utils/trip-context.utils';
 import { AppConfirmModalComponent } from '../../shared/confirm-modal.component';
+import { AppSelectComponent, SelectOption } from '../../shared/select-input.component';
 import { TripSubnavComponent } from '../../shared/trip-subnav.component';
 import { AuthStore } from '../../state/auth.store';
 import { ExpenseStore } from '../../state/expense.store';
@@ -51,9 +50,8 @@ import { ExpenseEditModalComponent } from './expense-edit-modal.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TranslatePipe,
-    MatFormFieldModule,
-    MatSelectModule,
     AppConfirmModalComponent,
+    AppSelectComponent,
     ExpenseEditModalComponent,
     TripSubnavComponent,
   ],
@@ -156,6 +154,25 @@ export class ExpensesPageComponent implements OnInit, OnDestroy {
       this.currency(),
     ]),
   );
+
+  protected readonly currencySelectOptions = computed<readonly SelectOption[]>(() => {
+    const isZh = this.i18n.locale() === 'zh-TW';
+    return this.currencyOptions().map((opt) => ({
+      value: opt.code,
+      label: isZh ? opt.labelZh : opt.labelEn,
+    }));
+  });
+
+  protected readonly daySelectOptions = computed<readonly SelectOption[]>(() => [
+    { value: '', label: this.i18n.t('expenses.unassignedDay') },
+    ...this.tripDays().map((day) => ({
+      value: day.id,
+      label: this.i18n.t('expenses.dayOption', {
+        day: day.day_index,
+        date: day.date.slice(5),
+      }),
+    })),
+  ]);
 
   protected readonly originalCurrencyTotals = computed(() => {
     const summary = this.expenseStore.summary();

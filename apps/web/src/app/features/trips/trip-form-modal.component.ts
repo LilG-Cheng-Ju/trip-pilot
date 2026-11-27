@@ -9,8 +9,6 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatSelectModule } from '@angular/material/select';
 
 import { TripUpdatePayload } from '../../core/api/tripilot-api.service';
 import {
@@ -33,6 +31,7 @@ import {
 import { AppCountryPickerComponent } from '../../shared/country-picker.component';
 import { AppDateInputComponent } from '../../shared/date-input.component';
 import { AppModalComponent } from '../../shared/modal.component';
+import { AppSelectComponent, SelectOption } from '../../shared/select-input.component';
 
 type DateEndMode = 'end' | 'duration' | 'open';
 
@@ -61,11 +60,10 @@ export type TripFormSubmitEvent =
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TranslatePipe,
-    MatFormFieldModule,
-    MatSelectModule,
     AppModalComponent,
     AppCountryPickerComponent,
     AppDateInputComponent,
+    AppSelectComponent,
   ],
   template: `
     <app-modal
@@ -147,20 +145,13 @@ export type TripFormSubmitEvent =
         @if (scope() === 'international' || editingTrip() !== null) {
           <div class="field">
             <span>{{ 'trips.form.currency' | t }}</span>
-            <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-select
-                [value]="defaultCurrency()"
-                (selectionChange)="defaultCurrency.set($event.value)"
-                name="currency"
-                [aria-label]="'trips.form.currency' | t"
-              >
-                @for (cur of currencies; track cur.code) {
-                  <mat-option [value]="cur.code">
-                    {{ i18n.locale() === 'zh-TW' ? cur.labelZh : cur.labelEn }}
-                  </mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+            <app-select
+              name="currency"
+              [ariaLabel]="'trips.form.currency' | t"
+              [options]="currencySelectOptions()"
+              [value]="defaultCurrency()"
+              (valueChange)="defaultCurrency.set($event)"
+            />
           </div>
         }
 
@@ -249,20 +240,13 @@ export type TripFormSubmitEvent =
         } @else {
           <div class="field">
             <span>{{ 'trips.form.status' | t }}</span>
-            <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-select
-                [value]="status()"
-                (selectionChange)="status.set($event.value)"
-                name="status"
-                [aria-label]="'trips.form.status' | t"
-              >
-                @for (st of statuses; track st) {
-                  <mat-option [value]="st">
-                    {{ statusKey(st) | t }}
-                  </mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+            <app-select
+              name="status"
+              [ariaLabel]="'trips.form.status' | t"
+              [options]="statusSelectOptions()"
+              [value]="status()"
+              (valueChange)="status.set($event)"
+            />
           </div>
         }
 
@@ -361,6 +345,19 @@ export class TripFormModalComponent {
     'COMPLETED',
     'ARCHIVED',
   ];
+  protected readonly currencySelectOptions = computed<readonly SelectOption[]>(() => {
+    const isZh = this.i18n.locale() === 'zh-TW';
+    return this.currencies.map((cur) => ({
+      value: cur.code,
+      label: isZh ? cur.labelZh : cur.labelEn,
+    }));
+  });
+  protected readonly statusSelectOptions = computed<readonly SelectOption<TripStatus>[]>(() =>
+    this.statuses.map((st) => ({
+      value: st,
+      label: this.i18n.t(this.statusKey(st)),
+    })),
+  );
   protected readonly minTripDurationDays = MIN_TRIP_DURATION_DAYS;
   protected readonly maxTripDurationDays = MAX_TRIP_DURATION_DAYS;
 

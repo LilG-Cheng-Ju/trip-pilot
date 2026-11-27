@@ -6,8 +6,6 @@ import {
   OnInit,
   signal,
 } from '@angular/core';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatSelectModule } from '@angular/material/select';
 
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -18,6 +16,7 @@ import {
 } from '../../core/models/tripilot.models';
 import { readInputValue } from '../../core/utils/form-events.utils';
 import { AppConfirmModalComponent } from '../../shared/confirm-modal.component';
+import { AppSelectComponent, SelectOption } from '../../shared/select-input.component';
 import { AdminStore, AdminUserSortField, InviteFilterValue } from '../../state/admin.store';
 import { AuthStore } from '../../state/auth.store';
 
@@ -35,7 +34,7 @@ interface PendingAdminAction {
   selector: 'app-admin-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [AdminStore],
-  imports: [TranslatePipe, AppConfirmModalComponent, MatFormFieldModule, MatSelectModule],
+  imports: [TranslatePipe, AppConfirmModalComponent, AppSelectComponent],
   template: `
     <div class="page">
       <div class="page-header">
@@ -113,31 +112,21 @@ interface PendingAdminAction {
               (input)="onSearchInput($event)"
             />
 
-            <mat-form-field class="filter-field" appearance="outline" subscriptSizing="dynamic">
-              <mat-select
-                [aria-label]="'admin.filterAllRoles' | t"
-                [value]="adminStore.roleFilter()"
-                (selectionChange)="onRoleFilterChange($event.value)"
-              >
-                <mat-option value="">{{ 'admin.filterAllRoles' | t }}</mat-option>
-                <mat-option value="OWNER">OWNER</mat-option>
-                <mat-option value="ADMIN">ADMIN</mat-option>
-                <mat-option value="FRIEND">FRIEND</mat-option>
-                <mat-option value="USER">USER</mat-option>
-              </mat-select>
-            </mat-form-field>
+            <app-select
+              class="filter-field"
+              [ariaLabel]="'admin.filterAllRoles' | t"
+              [options]="roleFilterOptions()"
+              [value]="adminStore.roleFilter()"
+              (valueChange)="onRoleFilterChange($event)"
+            />
 
-            <mat-form-field class="filter-field" appearance="outline" subscriptSizing="dynamic">
-              <mat-select
-                [aria-label]="'admin.sortCreated' | t"
-                [value]="adminStore.sortBy()"
-                (selectionChange)="onSortChange($event.value)"
-              >
-                <mat-option value="created_at">{{ 'admin.sortCreated' | t }}</mat-option>
-                <mat-option value="last_login_at">{{ 'admin.sortLastLogin' | t }}</mat-option>
-                <mat-option value="role">{{ 'admin.sortRole' | t }}</mat-option>
-              </mat-select>
-            </mat-form-field>
+            <app-select
+              class="filter-field"
+              [ariaLabel]="'admin.sortCreated' | t"
+              [options]="sortByOptions()"
+              [value]="adminStore.sortBy()"
+              (valueChange)="onSortChange($event)"
+            />
           </div>
 
           <div class="record-list">
@@ -178,19 +167,17 @@ interface PendingAdminAction {
 
                 @if (canManageUser(u)) {
                   <div class="record-actions">
-                    <mat-form-field class="role-field" appearance="outline" subscriptSizing="dynamic">
-                      <mat-select
-                        class="role-select"
-                        [aria-label]="u.email || u.id"
-                        [disabled]="adminStore.mutating()"
-                        [value]="u.role"
-                        (selectionChange)="onUserRoleChange(u, $event.value)"
-                      >
-                        @for (r of assignableRoles(); track r) {
-                          <mat-option [value]="r">{{ r }}</mat-option>
-                        }
-                      </mat-select>
-                    </mat-form-field>
+                    <app-select
+                      class="role-field"
+                      selectClass="role-select"
+                      [compact]="true"
+                      [bold]="true"
+                      [ariaLabel]="u.email || u.id"
+                      [disabled]="adminStore.mutating()"
+                      [options]="assignableRoleOptions()"
+                      [value]="u.role"
+                      (valueChange)="onUserRoleChange(u, $event)"
+                    />
 
                     @if (u.is_active) {
                       <button
@@ -249,21 +236,13 @@ interface PendingAdminAction {
           >
             <div class="field compact-field">
               <span>{{ 'admin.inviteCount' | t }}</span>
-              <mat-form-field
+              <app-select
                 class="compact-select-field"
-                appearance="outline"
-                subscriptSizing="dynamic"
-              >
-                <mat-select
-                  [aria-label]="'admin.inviteCount' | t"
-                  [value]="inviteCount()"
-                  (selectionChange)="inviteCount.set($event.value)"
-                >
-                  @for (n of [1, 3, 5, 10]; track n) {
-                    <mat-option [value]="n">{{ n }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
+                [ariaLabel]="'admin.inviteCount' | t"
+                [options]="inviteCountOptions"
+                [value]="inviteCount()"
+                (valueChange)="inviteCount.set($event)"
+              />
             </div>
 
             <label class="field note-field">
@@ -278,22 +257,13 @@ interface PendingAdminAction {
 
             <div class="field compact-field">
               <span>{{ 'admin.inviteExpiry' | t }}</span>
-              <mat-form-field
+              <app-select
                 class="expiry-select-field"
-                appearance="outline"
-                subscriptSizing="dynamic"
-              >
-                <mat-select
-                  [aria-label]="'admin.inviteExpiry' | t"
-                  [value]="inviteExpiryDays()"
-                  (selectionChange)="inviteExpiryDays.set($event.value)"
-                >
-                  <mat-option value="">{{ 'admin.expiryNever' | t }}</mat-option>
-                  <mat-option value="7">{{ 'admin.expiryDays' | t:{ days: 7 } }}</mat-option>
-                  <mat-option value="30">{{ 'admin.expiryDays' | t:{ days: 30 } }}</mat-option>
-                  <mat-option value="90">{{ 'admin.expiryDays' | t:{ days: 90 } }}</mat-option>
-                </mat-select>
-              </mat-form-field>
+                [ariaLabel]="'admin.inviteExpiry' | t"
+                [options]="inviteExpiryOptions()"
+                [value]="inviteExpiryDays()"
+                (valueChange)="inviteExpiryDays.set($event)"
+              />
             </div>
 
             <button
@@ -481,6 +451,7 @@ interface PendingAdminAction {
     }
 
     .filter-field {
+      width: auto;
       min-width: 136px;
     }
 
@@ -611,13 +582,6 @@ interface PendingAdminAction {
 
     .role-field {
       width: 108px;
-      --mat-form-field-container-height: 32px;
-      --mat-form-field-container-vertical-padding: 5px;
-      --mat-select-trigger-text-size: 0.78rem;
-    }
-
-    .role-select {
-      font-weight: 600;
     }
 
     .badge {
@@ -682,6 +646,38 @@ export class AdminPageComponent implements OnInit {
   protected readonly assignableRoles = computed<readonly UserRole[]>(() =>
     this.authStore.isOwner() ? ['USER', 'FRIEND', 'ADMIN'] : ['USER', 'FRIEND'],
   );
+
+  protected readonly assignableRoleOptions = computed<readonly SelectOption<UserRole>[]>(() =>
+    this.assignableRoles().map((role) => ({ value: role, label: role })),
+  );
+
+  protected readonly roleFilterOptions = computed<readonly SelectOption<UserRole | ''>[]>(() => [
+    { value: '', label: this.i18n.t('admin.filterAllRoles') },
+    { value: 'OWNER', label: 'OWNER' },
+    { value: 'ADMIN', label: 'ADMIN' },
+    { value: 'FRIEND', label: 'FRIEND' },
+    { value: 'USER', label: 'USER' },
+  ]);
+
+  protected readonly sortByOptions = computed<readonly SelectOption<AdminUserSortField>[]>(() => [
+    { value: 'created_at', label: this.i18n.t('admin.sortCreated') },
+    { value: 'last_login_at', label: this.i18n.t('admin.sortLastLogin') },
+    { value: 'role', label: this.i18n.t('admin.sortRole') },
+  ]);
+
+  protected readonly inviteCountOptions: readonly SelectOption<number>[] = [
+    { value: 1, label: '1' },
+    { value: 3, label: '3' },
+    { value: 5, label: '5' },
+    { value: 10, label: '10' },
+  ];
+
+  protected readonly inviteExpiryOptions = computed<readonly SelectOption[]>(() => [
+    { value: '', label: this.i18n.t('admin.expiryNever') },
+    { value: '7', label: this.i18n.t('admin.expiryDays', { days: 7 }) },
+    { value: '30', label: this.i18n.t('admin.expiryDays', { days: 30 }) },
+    { value: '90', label: this.i18n.t('admin.expiryDays', { days: 90 }) },
+  ]);
 
   protected readonly inviteFilters: readonly {
     value: InviteFilterValue;

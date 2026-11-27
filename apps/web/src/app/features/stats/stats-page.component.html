@@ -17,24 +17,15 @@
       }
     </div>
 
-    <mat-form-field
-      appearance="outline"
-      subscriptSizing="dynamic"
+    <app-select
       class="year-select-field"
-    >
-      <mat-select
-        class="tabular-nums"
-        [value]="selectedYearValue()"
-        [panelWidth]="null"
-        [aria-label]="'stats.yearAria' | t"
-        (selectionChange)="onYearChange($event.value)"
-      >
-        <mat-option value="all">{{ 'stats.allTime' | t }}</mat-option>
-        @for (yr of sortedYears(); track yr) {
-          <mat-option class="tabular-nums" [value]="yr">{{ yr }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
+      selectClass="tabular-nums"
+      [ariaLabel]="'stats.yearAria' | t"
+      [panelWidth]="null"
+      [options]="yearOptions()"
+      [value]="selectedYearValue()"
+      (valueChange)="onYearChange($event)"
+    />
   </header>
 
   @if (store.loading() && !store.stats()) {

@@ -9,8 +9,6 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatSelectModule } from '@angular/material/select';
 
 import { ISO_CURRENCY_CODE_LENGTH } from '../../core/constants/app-limits';
 import {
@@ -34,6 +32,7 @@ import {
 } from '../../core/utils/travel-format.utils';
 import { AppDateInputComponent } from '../../shared/date-input.component';
 import { AppModalComponent } from '../../shared/modal.component';
+import { AppSelectComponent, SelectOption } from '../../shared/select-input.component';
 import { ExpenseStore } from '../../state/expense.store';
 
 /** Modal dialog for editing an existing expense, including live FX conversion and day link. */
@@ -42,10 +41,9 @@ import { ExpenseStore } from '../../state/expense.store';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TranslatePipe,
-    MatFormFieldModule,
-    MatSelectModule,
     AppDateInputComponent,
     AppModalComponent,
+    AppSelectComponent,
   ],
   templateUrl: './expense-edit-modal.component.html',
   styleUrl: './expense-edit-modal.component.css',
@@ -110,6 +108,25 @@ export class ExpenseEditModalComponent {
   protected readonly currencyOptions = computed<QuickCurrencyOption[]>(() =>
     buildQuickCurrencyOptions([this.defaultCurrency(), this.homeCurrency(), this.currency()]),
   );
+
+  protected readonly currencySelectOptions = computed<readonly SelectOption[]>(() => {
+    const isZh = this.i18n.locale() === 'zh-TW';
+    return this.currencyOptions().map((opt) => ({
+      value: opt.code,
+      label: isZh ? opt.labelZh : opt.labelEn,
+    }));
+  });
+
+  protected readonly daySelectOptions = computed<readonly SelectOption[]>(() => [
+    { value: '', label: this.i18n.t('expenses.unassignedDay') },
+    ...this.tripDays().map((day) => ({
+      value: day.id,
+      label: this.i18n.t('expenses.dayOption', {
+        day: day.day_index,
+        date: day.date.slice(5),
+      }),
+    })),
+  ]);
 
   constructor() {
     effect(() => {

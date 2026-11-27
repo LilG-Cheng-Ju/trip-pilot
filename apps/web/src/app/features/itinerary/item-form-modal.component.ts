@@ -9,8 +9,6 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatSelectModule } from '@angular/material/select';
 
 import {
   CreateItemPayload,
@@ -28,6 +26,7 @@ import { readInputValue, readNumberValue } from '../../core/utils/form-events.ut
 import { extractItemAttachments } from '../../core/utils/travel-format.utils';
 import { AppAirportPickerComponent } from '../../shared/airport-picker.component';
 import { AppModalComponent } from '../../shared/modal.component';
+import { AppSelectComponent, SelectOption } from '../../shared/select-input.component';
 import { AppTimeInputComponent } from '../../shared/time-input.component';
 
 export interface ItemFormSubmitEvent {
@@ -41,10 +40,9 @@ export interface ItemFormSubmitEvent {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TranslatePipe,
-    MatFormFieldModule,
-    MatSelectModule,
     AppAirportPickerComponent,
     AppModalComponent,
+    AppSelectComponent,
     AppTimeInputComponent,
   ],
   template: `
@@ -52,25 +50,13 @@ export interface ItemFormSubmitEvent {
       <form class="modal-form" (submit)="$event.preventDefault(); submit()" novalidate>
         <div class="field">
           <span>{{ 'itinerary.form.type' | t }}</span>
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-select
-              [value]="itemType()"
-              (selectionChange)="onItemTypeChange($event.value)"
-              name="itemType"
-              [aria-label]="'itinerary.form.type' | t"
-            >
-              <mat-option value="SPOT">{{ 'item.type.spot' | t }}</mat-option>
-              <mat-option value="FOOD">{{ 'item.type.food' | t }}</mat-option>
-              <mat-option value="STAY">{{ 'item.type.stay' | t }}</mat-option>
-              <mat-option value="FLIGHT">{{ 'item.type.flight' | t }}</mat-option>
-              <mat-option value="RESERVED_TRANSIT">
-                {{ 'item.type.reservedTransit' | t }}
-              </mat-option>
-              <mat-option value="LOCAL_TRANSIT">
-                {{ 'item.type.localTransit' | t }}
-              </mat-option>
-            </mat-select>
-          </mat-form-field>
+          <app-select
+            name="itemType"
+            [ariaLabel]="'itinerary.form.type' | t"
+            [options]="itemTypeOptions()"
+            [value]="itemType()"
+            (valueChange)="onItemTypeChange($event)"
+          />
         </div>
 
         @if (itemType() !== 'FLIGHT' && itemType() !== 'LOCAL_TRANSIT') {
@@ -670,6 +656,14 @@ export class ItemFormModalComponent {
   protected readonly readNumberValue = readNumberValue;
 
   protected readonly itemType = signal<ItemType>('SPOT');
+  protected readonly itemTypeOptions = computed<readonly SelectOption<ItemType>[]>(() => [
+    { value: 'SPOT', label: this.i18n.t('item.type.spot') },
+    { value: 'FOOD', label: this.i18n.t('item.type.food') },
+    { value: 'STAY', label: this.i18n.t('item.type.stay') },
+    { value: 'FLIGHT', label: this.i18n.t('item.type.flight') },
+    { value: 'RESERVED_TRANSIT', label: this.i18n.t('item.type.reservedTransit') },
+    { value: 'LOCAL_TRANSIT', label: this.i18n.t('item.type.localTransit') },
+  ]);
   protected readonly itemTitle = signal('');
   protected readonly address = signal('');
   protected readonly startTime = signal('');

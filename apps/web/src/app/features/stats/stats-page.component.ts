@@ -1,6 +1,4 @@
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit } from '@angular/core';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatSelectModule } from '@angular/material/select';
 import { RouterLink } from '@angular/router';
 
 import { MS_PER_DAY } from '../../core/constants/app-limits';
@@ -14,6 +12,7 @@ import {
   expenseCategoryKey,
   formatMoney,
 } from '../../core/utils/travel-format.utils';
+import { AppSelectComponent, SelectOption } from '../../shared/select-input.component';
 import { StatsStore } from '../../state/stats.store';
 
 type YearSelectValue = 'all' | number;
@@ -48,7 +47,7 @@ function parseUtcDateMs(isoDate: string): number {
 @Component({
   selector: 'app-stats-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, TranslatePipe, MatFormFieldModule, MatSelectModule],
+  imports: [RouterLink, TranslatePipe, AppSelectComponent],
   templateUrl: './stats-page.component.html',
   styleUrl: './stats-page.component.css',
 })
@@ -95,6 +94,15 @@ export class StatsPageComponent implements OnInit {
   protected readonly selectedYearValue = computed<YearSelectValue>(
     () => this.store.selectedYear() ?? 'all',
   );
+
+  protected readonly yearOptions = computed<readonly SelectOption<YearSelectValue>[]>(() => [
+    { value: 'all', label: this.i18n.t('stats.allTime') },
+    ...this.sortedYears().map((yr) => ({
+      value: yr,
+      label: String(yr),
+      optionClass: 'tabular-nums',
+    })),
+  ]);
 
   protected readonly periodStamp = computed(() => {
     const s = this.store.stats();

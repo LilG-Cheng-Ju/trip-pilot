@@ -7,8 +7,6 @@ import {
   OnInit,
   signal,
 } from '@angular/core';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatSelectModule } from '@angular/material/select';
 
 import { AuthSessionService } from '../../core/auth/auth-session.service';
 import { SessionCleanupService } from '../../core/auth/session-cleanup.service';
@@ -20,6 +18,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { readInputValue } from '../../core/utils/form-events.utils';
 import { AppConfirmModalComponent } from '../../shared/confirm-modal.component';
 import { AppCountryPickerComponent } from '../../shared/country-picker.component';
+import { AppSelectComponent, SelectOption } from '../../shared/select-input.component';
 import { AuthStore } from '../../state/auth.store';
 
 /** User travel preferences (searchable country & currency dropdowns) and PAT manager. */
@@ -28,8 +27,7 @@ import { AuthStore } from '../../state/auth.store';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TranslatePipe,
-    MatFormFieldModule,
-    MatSelectModule,
+    AppSelectComponent,
     AppCountryPickerComponent,
     AppConfirmModalComponent,
   ],
@@ -79,20 +77,13 @@ import { AuthStore } from '../../state/auth.store';
 
           <div class="field">
             <span>{{ 'profile.homeCurrency' | t }}</span>
-            <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-select
-                [value]="homeCurrency()"
-                (selectionChange)="onHomeCurrencyChange($event.value)"
-                name="homeCurrency"
-                [aria-label]="'profile.homeCurrency' | t"
-              >
-                @for (cur of currencies; track cur.code) {
-                  <mat-option [value]="cur.code">
-                    {{ i18n.locale() === 'zh-TW' ? cur.labelZh : cur.labelEn }}
-                  </mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+            <app-select
+              name="homeCurrency"
+              [ariaLabel]="'profile.homeCurrency' | t"
+              [options]="currencySelectOptions()"
+              [value]="homeCurrency()"
+              (valueChange)="onHomeCurrencyChange($event)"
+            />
           </div>
         </div>
       </section>
@@ -663,6 +654,13 @@ export class ProfilePageComponent implements OnInit {
   protected readonly i18n = inject(I18nService);
   private readonly sessionCleanup = inject(SessionCleanupService);
   protected readonly currencies = SUPPORTED_CURRENCIES;
+  protected readonly currencySelectOptions = computed<readonly SelectOption[]>(() => {
+    const isZh = this.i18n.locale() === 'zh-TW';
+    return this.currencies.map((cur) => ({
+      value: cur.code,
+      label: isZh ? cur.labelZh : cur.labelEn,
+    }));
+  });
   protected readonly readInputValue = readInputValue;
 
   protected readonly homeCountry = linkedSignal(
