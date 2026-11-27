@@ -1,6 +1,6 @@
 {
   "name": "tripilot-web",
-  "version": "0.9.13-beta",
+  "version": "0.9.14-beta",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",

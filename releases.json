@@ -1,5 +1,25 @@
 [
   {
+    "version": "0.9.14-beta",
+    "date": "2026-11-28",
+    "title": {
+      "zh-TW": "離線瀏覽強化與載入體驗優化",
+      "en": "Offline Access & Faster Page Loads"
+    },
+    "changes": {
+      "zh-TW": [
+        "修正斷網重開網頁時被導向登入頁的問題，離線也能直接檢視已快取行程",
+        "大幅縮減網頁首屏檔案大小，開啟應用程式反應更迅速",
+        "地圖載入時顯示進度提示與離線錯誤恢復按鈕，慢網速操作更安心"
+      ],
+      "en": [
+        "Kept signed-in sessions available offline so cached trips open without returning to login",
+        "Trimmed initial page size for noticeably faster startup across mobile and desktop",
+        "Added loading and recovery states when opening maps on slow or offline connections"
+      ]
+    }
+  },
+  {
     "version": "0.9.13-beta",
     "date": "2026-11-28",
     "title": {

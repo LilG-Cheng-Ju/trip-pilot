@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tripilot-api"
-version = "0.9.13"
+version = "0.9.14"
 description = "Tripilot FastAPI backend service"
 requires-python = ">=3.11"
 dependencies = [

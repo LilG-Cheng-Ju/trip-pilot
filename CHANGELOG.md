@@ -2,6 +2,13 @@
 
 <!-- Auto-generated from releases.json. Run `node scripts/sync-releases.mjs` after editing releases.json. -->
 
+## v0.9.14-beta (2026-11-28) — 離線瀏覽強化與載入體驗優化
+*Offline Access & Faster Page Loads*
+
+- 修正斷網重開網頁時被導向登入頁的問題，離線也能直接檢視已快取行程
+- 大幅縮減網頁首屏檔案大小，開啟應用程式反應更迅速
+- 地圖載入時顯示進度提示與離線錯誤恢復按鈕，慢網速操作更安心
+
 ## v0.9.13-beta (2026-11-28) — 手機地圖按需載入與快取優化
 *On-Demand Mobile Maps & Caching*
 
