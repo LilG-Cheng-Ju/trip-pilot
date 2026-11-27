@@ -20,6 +20,26 @@ export interface ReleaseNoteEntry {
 
 export const RELEASE_NOTES: readonly ReleaseNoteEntry[] = [
   {
+    "version": "0.9.10-beta",
+    "date": "2026-11-27",
+    "title": {
+      "zh-TW": "後端冷啟動喚醒畫面與趣味提示",
+      "en": "Server Wake Screen & Travel Tips"
+    },
+    "changes": {
+      "zh-TW": [
+        "後端冷啟動期間自動鎖定操作並顯示航線進度，快速回應時不干擾",
+        "喚醒等待時隨機輪播中英文功能小撇步與作者冷笑話，支援手動切換",
+        "等待期間仍可透過右上角頭像切換語言、查閱更新日誌或登出"
+      ],
+      "en": [
+        "Locked actions behind an aviation wake overlay during slow cold starts while skipping fast responses",
+        "Added rotating bilingual travel tips and dev jokes with manual skip while waiting",
+        "Kept the account menu available to switch languages, read release notes, or sign out"
+      ]
+    }
+  },
+  {
     "version": "0.9.9-beta",
     "date": "2026-11-27",
     "title": {

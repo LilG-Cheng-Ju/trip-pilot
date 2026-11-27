@@ -2,6 +2,13 @@
 
 <!-- Auto-generated from releases.json. Run `node scripts/sync-releases.mjs` after editing releases.json. -->
 
+## v0.9.10-beta (2026-11-27) — 後端冷啟動喚醒畫面與趣味提示
+*Server Wake Screen & Travel Tips*
+
+- 後端冷啟動期間自動鎖定操作並顯示航線進度，快速回應時不干擾
+- 喚醒等待時隨機輪播中英文功能小撇步與作者冷笑話，支援手動切換
+- 等待期間仍可透過右上角頭像切換語言、查閱更新日誌或登出
+
 ## v0.9.9-beta (2026-11-27) — 卡片底部降噪、導覽與表單文案精簡
 *Cleaner Card Footers & Form Copy*
 
