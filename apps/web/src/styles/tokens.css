@@ -23,6 +23,7 @@
   --color-alert: #c84b3b;
   --color-alert-light: #fecaca;
   --color-alert-soft: #fdf2f0;
+  --color-alert-ink: #8a2c20;
 
   /* Surfaces & Hairline Borders */
   --color-bg: #f8f7f4;
@@ -32,7 +33,9 @@
   --color-surface-glass: rgba(248, 247, 244, 0.94);
   --color-border-soft: rgba(20, 24, 31, 0.06);
   --color-border: rgba(20, 24, 31, 0.09);
+  --color-input-border: rgba(20, 24, 31, 0.12);
   --color-border-strong: rgba(20, 24, 31, 0.18);
+  --color-input-border-hover: rgba(20, 24, 31, 0.24);
 
   /* Typography Hierarchy */
   --color-text-primary: #14181f;

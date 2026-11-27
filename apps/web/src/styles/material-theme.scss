@@ -18,41 +18,41 @@ html {
 
 // Align M3 system tokens with Tripilot's design tokens so Material controls share the exact surface and ink language.
 :root {
-  --mat-sys-primary: #162136;
-  --mat-sys-on-primary: #ffffff;
-  --mat-sys-primary-container: #eef3fa;
-  --mat-sys-on-primary-container: #162136;
-  --mat-sys-secondary: #253552;
-  --mat-sys-on-secondary: #ffffff;
-  --mat-sys-secondary-container: #eef3fa;
-  --mat-sys-on-secondary-container: #162136;
-  --mat-sys-tertiary: #c4924c;
-  --mat-sys-on-tertiary: #ffffff;
-  --mat-sys-tertiary-container: #faf3e8;
-  --mat-sys-on-tertiary-container: #8b652d;
+  --mat-sys-primary: var(--color-primary);
+  --mat-sys-on-primary: var(--color-text-on-primary);
+  --mat-sys-primary-container: var(--color-primary-tint);
+  --mat-sys-on-primary-container: var(--color-primary);
+  --mat-sys-secondary: var(--color-primary-soft);
+  --mat-sys-on-secondary: var(--color-text-on-primary);
+  --mat-sys-secondary-container: var(--color-primary-tint);
+  --mat-sys-on-secondary-container: var(--color-primary);
+  --mat-sys-tertiary: var(--color-accent);
+  --mat-sys-on-tertiary: var(--color-text-on-primary);
+  --mat-sys-tertiary-container: var(--color-accent-soft);
+  --mat-sys-on-tertiary-container: var(--color-accent-ink);
 
-  --mat-sys-background: #f8f7f4;
-  --mat-sys-on-background: #14181f;
-  --mat-sys-surface: #ffffff;
-  --mat-sys-surface-container-lowest: #ffffff;
-  --mat-sys-surface-container-low: #f8f7f4;
-  --mat-sys-surface-container: #ffffff;
-  --mat-sys-surface-container-high: #f3f1ec;
-  --mat-sys-surface-container-highest: #eeece6;
-  --mat-sys-on-surface: #14181f;
-  --mat-sys-on-surface-variant: #525b6b;
+  --mat-sys-background: var(--color-bg);
+  --mat-sys-on-background: var(--color-text-primary);
+  --mat-sys-surface: var(--color-surface);
+  --mat-sys-surface-container-lowest: var(--color-surface);
+  --mat-sys-surface-container-low: var(--color-bg);
+  --mat-sys-surface-container: var(--color-surface);
+  --mat-sys-surface-container-high: var(--color-surface-alt);
+  --mat-sys-surface-container-highest: var(--color-surface-muted);
+  --mat-sys-on-surface: var(--color-text-primary);
+  --mat-sys-on-surface-variant: var(--color-text-secondary);
 
-  --mat-sys-outline: rgba(20, 24, 31, 0.18);
-  --mat-sys-outline-variant: rgba(20, 24, 31, 0.09);
-  --mat-sys-error: #c84b3b;
-  --mat-sys-on-error: #ffffff;
-  --mat-sys-error-container: #fdf2f0;
-  --mat-sys-on-error-container: #8a2c20;
+  --mat-sys-outline: var(--color-border-strong);
+  --mat-sys-outline-variant: var(--color-border);
+  --mat-sys-error: var(--color-alert);
+  --mat-sys-on-error: var(--color-text-on-primary);
+  --mat-sys-error-container: var(--color-alert-soft);
+  --mat-sys-on-error-container: var(--color-alert-ink);
 
-  --mat-sys-corner-extra-small: 7px;
-  --mat-sys-corner-small: 7px;
-  --mat-sys-corner-medium: 12px;
-  --mat-sys-corner-large: 16px;
+  --mat-sys-corner-extra-small: var(--radius-sm);
+  --mat-sys-corner-small: var(--radius-sm);
+  --mat-sys-corner-medium: var(--radius-md);
+  --mat-sys-corner-large: var(--radius-lg);
 }
 
 // Compact outlined field and overlay panel styling matching existing form primitives.
@@ -60,53 +60,53 @@ html {
   @include mat.form-field-overrides((
     container-height: 40px,
     container-vertical-padding: 8px,
-    outlined-container-shape: 7px,
+    outlined-container-shape: var(--radius-sm),
     outlined-outline-width: 1px,
     outlined-focus-outline-width: 1.5px,
-    outlined-outline-color: rgba(20, 24, 31, 0.12),
-    outlined-hover-outline-color: rgba(20, 24, 31, 0.24),
-    outlined-focus-outline-color: #162136,
-    outlined-input-text-color: #14181f,
-    outlined-input-text-placeholder-color: #8b93a1,
-    trailing-icon-color: #525b6b,
+    outlined-outline-color: var(--color-input-border),
+    outlined-hover-outline-color: var(--color-input-border-hover),
+    outlined-focus-outline-color: var(--color-primary),
+    outlined-input-text-color: var(--color-text-primary),
+    outlined-input-text-placeholder-color: var(--color-text-muted),
+    trailing-icon-color: var(--color-text-secondary),
     container-text-size: 0.875rem,
     container-text-line-height: 1.35,
   ));
 
   @include mat.timepicker-overrides((
-    container-shape: 12px,
-    container-background-color: #ffffff,
+    container-shape: var(--radius-md),
+    container-background-color: var(--color-surface),
     container-elevation-shadow: var(--shadow-float),
   ));
 
   @include mat.datepicker-overrides((
     calendar-container-shape: 14px,
-    calendar-container-background-color: #ffffff,
+    calendar-container-background-color: var(--color-surface),
     calendar-container-elevation-shadow: var(--shadow-float),
-    calendar-date-selected-state-background-color: #162136,
-    calendar-date-selected-state-text-color: #ffffff,
-    calendar-date-today-outline-color: #162136,
-    calendar-date-in-range-state-background-color: #eef3fa,
-    calendar-date-preview-state-outline-color: #162136,
-    calendar-header-text-color: #525b6b,
-    calendar-period-button-text-color: #162136,
-    calendar-period-button-icon-color: #162136,
-    calendar-navigation-button-icon-color: #162136,
-    toggle-icon-color: #525b6b,
-    toggle-active-state-icon-color: #162136,
+    calendar-date-selected-state-background-color: var(--color-primary),
+    calendar-date-selected-state-text-color: var(--color-text-on-primary),
+    calendar-date-today-outline-color: var(--color-primary),
+    calendar-date-in-range-state-background-color: var(--color-primary-tint),
+    calendar-date-preview-state-outline-color: var(--color-primary),
+    calendar-header-text-color: var(--color-text-secondary),
+    calendar-period-button-text-color: var(--color-primary),
+    calendar-period-button-icon-color: var(--color-primary),
+    calendar-navigation-button-icon-color: var(--color-primary),
+    toggle-icon-color: var(--color-text-secondary),
+    toggle-active-state-icon-color: var(--color-primary),
   ));
 
   @include mat.select-overrides((
-    panel-background-color: #ffffff,
+    panel-background-color: var(--color-surface),
     container-elevation-shadow: var(--shadow-float),
     trigger-text-size: 0.875rem,
   ));
 
   @include mat.option-overrides((
-    label-text-color: #14181f,
+    label-text-color: var(--color-text-primary),
     label-text-size: 0.875rem,
-    selected-state-layer-color: #eef3fa,
-    selected-state-label-text-color: #162136,
+    selected-state-layer-color: var(--color-primary-tint),
+    selected-state-label-text-color: var(--color-primary),
   ));
 }
 
