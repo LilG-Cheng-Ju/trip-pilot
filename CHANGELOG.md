@@ -2,6 +2,13 @@
 
 <!-- Auto-generated from releases.json. Run `node scripts/sync-releases.mjs` after editing releases.json. -->
 
+## v0.9.17-beta (2026-11-28) — 快速新增行程與選單體驗優化
+*Faster Item Entry & Menu Polish*
+
+- 點新增項目可直接選擇類別開啟表單，並支援儲存後連續新增下一筆
+- 貼上 Google Maps 連結會自動解析定位，不用再多點一次解析
+- 行動版滑動頁面時會自動收起已展開的浮動選單，瀏覽行程更俐落
+
 ## v0.9.16-beta (2026-11-28) — 支援跨天與跨方案移動行程項目
 *Move Stops Across Days & Plans*
 
