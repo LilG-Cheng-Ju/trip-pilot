@@ -11,6 +11,7 @@ import {
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import {
+  injectMenuCloseScrollStrategy,
   isClickInsideElement,
   MENU_OVERLAY_POSITIONS,
 } from '../../core/utils/overlay-positions';
@@ -47,6 +48,7 @@ export type CardMenuVariant = 'standard' | 'dark' | 'connector';
         [cdkConnectedOverlayOrigin]="menuOrigin"
         [cdkConnectedOverlayOpen]="menuOpen()"
         [cdkConnectedOverlayPositions]="overlayPositions"
+        [cdkConnectedOverlayScrollStrategy]="overlayScrollStrategy"
         [cdkConnectedOverlayPush]="true"
         [cdkConnectedOverlayViewportMargin]="12"
         (overlayOutsideClick)="onOutsideClick($event)"
@@ -197,6 +199,7 @@ export class ItineraryCardMenuComponent {
   private readonly triggerBtn = viewChild<ElementRef<HTMLButtonElement>>('triggerBtn');
 
   protected readonly overlayPositions = MENU_OVERLAY_POSITIONS;
+  protected readonly overlayScrollStrategy = injectMenuCloseScrollStrategy();
 
   readonly variant = input<CardMenuVariant>('standard');
   readonly showOrderActions = input(false);

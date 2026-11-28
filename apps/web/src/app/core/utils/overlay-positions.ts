@@ -1,4 +1,5 @@
-import { ConnectedPosition } from '@angular/cdk/overlay';
+import { ConnectedPosition, Overlay, ScrollStrategy } from '@angular/cdk/overlay';
+import { inject } from '@angular/core';
 
 /** Preferred positions for compact overflow and account action menus. */
 export const MENU_OVERLAY_POSITIONS: ConnectedPosition[] = [
@@ -13,6 +14,11 @@ export const DROPDOWN_OVERLAY_POSITIONS: ConnectedPosition[] = [
   { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 6 },
   { originX: 'start', originY: 'top', overlayX: 'start', overlayY: 'bottom', offsetY: -6 },
 ];
+
+/** Create a per-overlay close-on-scroll strategy so floating action menus dismiss on swipe/scroll. */
+export function injectMenuCloseScrollStrategy(threshold = 10): ScrollStrategy {
+  return inject(Overlay).scrollStrategies.close({ threshold });
+}
 
 /** Return true when a click originated inside the given origin element. */
 export function isClickInsideElement(

@@ -245,4 +245,35 @@ describe('ItineraryPageComponent', () => {
       host.querySelector('app-day-option-modals [role="dialog"]')?.getAttribute('aria-label'),
     ).toBe('Add Day Plan');
   });
+
+  it('closes the Add Item type menu when scrolling past the close threshold', async () => {
+    const fixture = TestBed.createComponent(ItineraryPageComponent);
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const addItemBtn = host.querySelector('.split-cta .add-item-btn') as HTMLButtonElement;
+    addItemBtn.click();
+    fixture.detectChanges();
+
+    expect(document.querySelector('.add-type-menu')).not.toBeNull();
+
+    const origScrollY = Object.getOwnPropertyDescriptor(window, 'scrollY');
+    try {
+      Object.defineProperty(window, 'scrollY', { value: 40, configurable: true });
+      document.dispatchEvent(new Event('scroll'));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      fixture.detectChanges();
+    } finally {
+      if (origScrollY) {
+        Object.defineProperty(window, 'scrollY', origScrollY);
+      } else {
+        Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
+      }
+    }
+
+    expect(document.querySelector('.add-type-menu')).toBeNull();
+  });
 });

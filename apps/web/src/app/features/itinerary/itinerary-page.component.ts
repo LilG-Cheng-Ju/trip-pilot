@@ -30,6 +30,7 @@ import { ItemType, ItineraryItem, TripDay } from '../../core/models/tripilot.mod
 import { NetworkStatusService } from '../../core/network/network-status.service';
 import { readInputValue } from '../../core/utils/form-events.utils';
 import {
+  injectMenuCloseScrollStrategy,
   isClickInsideElement,
   MENU_OVERLAY_POSITIONS,
 } from '../../core/utils/overlay-positions';
@@ -118,6 +119,7 @@ export class ItineraryPageComponent implements OnInit {
   protected readonly savingItem = signal(false);
   protected readonly addItemTypeOptions = ITEM_TYPE_OPTIONS;
   protected readonly addMenuPositions = MENU_OVERLAY_POSITIONS;
+  protected readonly addMenuScrollStrategy = injectMenuCloseScrollStrategy();
 
   protected readonly showQuickExpenseModal = signal(false);
   protected readonly quickExpenseItem = signal<ItineraryItem | null>(null);

@@ -27,6 +27,7 @@ import { TranslatePipe } from './core/i18n/translate.pipe';
 import { BackendWakeService } from './core/network/backend-wake.service';
 import { NetworkStatusService } from './core/network/network-status.service';
 import {
+  injectMenuCloseScrollStrategy,
   isClickInsideElement,
   MENU_OVERLAY_POSITIONS,
 } from './core/utils/overlay-positions';
@@ -85,6 +86,7 @@ export class App {
   private readonly avatarBtn = viewChild<ElementRef<HTMLButtonElement>>('avatarBtn');
 
   protected readonly accountOverlayPositions = MENU_OVERLAY_POSITIONS;
+  protected readonly accountScrollStrategy = injectMenuCloseScrollStrategy();
 
   protected readonly appVersion = APP_VERSION;
   protected readonly isBeta = IS_BETA;
