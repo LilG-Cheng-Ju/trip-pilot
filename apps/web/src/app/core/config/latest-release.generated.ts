@@ -5,22 +5,22 @@
 import { ReleaseNoteEntry } from './release-notes.generated';
 
 export const LATEST_RELEASE_NOTE: ReleaseNoteEntry = {
-  "version": "0.9.17-beta",
+  "version": "0.9.18-beta",
   "date": "2026-11-28",
   "title": {
-    "zh-TW": "快速新增行程與選單體驗優化",
-    "en": "Faster Item Entry & Menu Polish"
+    "zh-TW": "介面視覺與字型載入優化",
+    "en": "Visual Polish & Faster Font Loads"
   },
   "changes": {
     "zh-TW": [
-      "點新增項目可直接選擇類別開啟表單，並支援儲存後連續新增下一筆",
-      "貼上 Google Maps 連結會自動解析定位，不用再多點一次解析",
-      "行動版滑動頁面時會自動收起已展開的浮動選單，瀏覽行程更俐落"
+      "更新登入頁航圖視覺與品牌文案，新手空狀態改為精簡引導",
+      "足跡主視覺航線改依真實飛行與旅程資料呈現，並統一卡片標籤樣式",
+      "精簡中文字型下載並縮小首屏檔案，行動漫遊開啟更省流量"
     ],
     "en": [
-      "Added a category dropdown to Add Item and Save & Add Another for rapid planning",
-      "Auto-resolved pasted Google Maps links into map pins without clicking a separate button",
-      "Dismissed open action menus automatically when scrolling so mobile browsing stays unobstructed"
+      "Refined the login artwork, brand copy, and empty-state onboarding across the app",
+      "Updated the Logbook route graphic to reflect real travel records and unified card chips",
+      "Reduced font downloads and initial bundle size for quicker loading on mobile roaming"
     ]
   }
 };

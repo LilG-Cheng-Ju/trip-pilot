@@ -2,6 +2,13 @@
 
 <!-- Auto-generated from releases.json. Run `node scripts/sync-releases.mjs` after editing releases.json. -->
 
+## v0.9.18-beta (2026-11-28) — 介面視覺與字型載入優化
+*Visual Polish & Faster Font Loads*
+
+- 更新登入頁航圖視覺與品牌文案，新手空狀態改為精簡引導
+- 足跡主視覺航線改依真實飛行與旅程資料呈現，並統一卡片標籤樣式
+- 精簡中文字型下載並縮小首屏檔案，行動漫遊開啟更省流量
+
 ## v0.9.17-beta (2026-11-28) — 快速新增行程與選單體驗優化
 *Faster Item Entry & Menu Polish*
 
