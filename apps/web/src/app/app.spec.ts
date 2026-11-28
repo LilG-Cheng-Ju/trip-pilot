@@ -78,7 +78,7 @@ describe('App', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    const dropdown = compiled.querySelector('.account-dropdown');
+    const dropdown = document.querySelector('.account-dropdown');
     expect(dropdown?.textContent).toContain('Settings');
     expect(dropdown?.textContent).toContain('Admin Console');
     expect(dropdown?.textContent).toContain(`v${APP_VERSION}`);
@@ -127,7 +127,7 @@ describe('App', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    const versionBtn = compiled.querySelector('.version-pill-btn') as HTMLButtonElement;
+    const versionBtn = document.querySelector('.version-pill-btn') as HTMLButtonElement;
     versionBtn.click();
     fixture.detectChanges();
     await fixture.whenStable();
@@ -162,7 +162,7 @@ describe('App', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    const dropdown = compiled.querySelector('.account-dropdown');
+    const dropdown = document.querySelector('.account-dropdown');
     expect(dropdown).toBeTruthy();
     expect(dropdown?.querySelector('a[routerLink="/profile"]')?.classList.contains('disabled')).toBe(
       true,

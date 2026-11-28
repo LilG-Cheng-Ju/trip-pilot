@@ -104,7 +104,7 @@ describe('ItineraryCardComponent', () => {
 
     expect(menuBtn.getAttribute('aria-expanded')).toBe('true');
     const menuItems = Array.from(
-      host.querySelectorAll('.action-menu-item[role="menuitem"]'),
+      document.querySelectorAll('.action-menu-item[role="menuitem"]'),
     ) as HTMLButtonElement[];
     expect(menuItems.length).toBe(4);
     expect(menuItems[0].disabled).toBe(true);
@@ -116,7 +116,7 @@ describe('ItineraryCardComponent', () => {
     fixture.detectChanges();
 
     expect(movedDown).toEqual([transit]);
-    expect(host.querySelector('.action-menu')).toBeNull();
+    expect(document.querySelector('.action-menu')).toBeNull();
     // Ordering controls stay inside the overflow menu so the transit title is not compressed.
     expect(host.querySelector('.connector-order')).toBeNull();
   });
@@ -180,5 +180,38 @@ describe('ItineraryCardComponent', () => {
     );
     expect(host.querySelector('a.attachment-chip')?.textContent).toContain('Ticket.pdf');
     expect(host.querySelector('a.head-expense-pill')?.textContent).toContain('TWD 3,200');
+  });
+
+  it('closes an open card action menu when another card action menu is opened', async () => {
+    const fixtureA = TestBed.createComponent(ItineraryCardComponent);
+    const fixtureB = TestBed.createComponent(ItineraryCardComponent);
+    fixtureA.componentRef.setInput('item', makeItem({ id: 'card-a', title: 'Stop A' }));
+    fixtureB.componentRef.setInput('item', makeItem({ id: 'card-b', title: 'Stop B' }));
+    fixtureA.detectChanges();
+    fixtureB.detectChanges();
+    await fixtureA.whenStable();
+    await fixtureB.whenStable();
+
+    const btnA = (fixtureA.nativeElement as HTMLElement).querySelector(
+      '.head-menu-btn',
+    ) as HTMLButtonElement;
+    const btnB = (fixtureB.nativeElement as HTMLElement).querySelector(
+      '.head-menu-btn',
+    ) as HTMLButtonElement;
+
+    btnA.click();
+    fixtureA.detectChanges();
+    await fixtureA.whenStable();
+    expect(document.querySelectorAll('.action-menu')).toHaveLength(1);
+    expect(btnA.getAttribute('aria-expanded')).toBe('true');
+
+    btnB.click();
+    fixtureA.detectChanges();
+    fixtureB.detectChanges();
+    await fixtureB.whenStable();
+
+    expect(document.querySelectorAll('.action-menu')).toHaveLength(1);
+    expect(btnA.getAttribute('aria-expanded')).toBe('false');
+    expect(btnB.getAttribute('aria-expanded')).toBe('true');
   });
 });

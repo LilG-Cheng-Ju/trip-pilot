@@ -264,7 +264,9 @@ describe('TripsPageComponent', () => {
     fixture.detectChanges();
     expect(combobox.getAttribute('aria-expanded')).toBe('true');
 
-    const searchInput = host.querySelector('app-country-picker .search-box input') as HTMLInputElement;
+    const searchInput = document.querySelector('.options-list')
+      ? (document.querySelector('.search-box input') as HTMLInputElement)
+      : (host.querySelector('app-country-picker .search-box input') as HTMLInputElement);
     searchInput.value = 'KR';
     searchInput.dispatchEvent(new Event('input'));
     fixture.detectChanges();

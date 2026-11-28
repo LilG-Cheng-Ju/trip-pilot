@@ -1,3 +1,4 @@
+import { CdkConnectedOverlay, CdkOverlayOrigin } from '@angular/cdk/overlay';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -6,6 +7,7 @@ import {
   ElementRef,
   inject,
   signal,
+  viewChild,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import {
@@ -24,6 +26,10 @@ import { I18nService } from './core/i18n/i18n.service';
 import { TranslatePipe } from './core/i18n/translate.pipe';
 import { BackendWakeService } from './core/network/backend-wake.service';
 import { NetworkStatusService } from './core/network/network-status.service';
+import {
+  isClickInsideElement,
+  MENU_OVERLAY_POSITIONS,
+} from './core/utils/overlay-positions';
 import { AppBackendWakeOverlayComponent } from './shared/backend-wake-overlay.component';
 import { AppReleaseNotesModalComponent } from './shared/release-notes-modal.component';
 import { MobileBottomNavComponent } from './shared/mobile-bottom-nav.component';
@@ -56,6 +62,8 @@ function writeLastSeenVersion(version: string): void {
   imports: [
     AppBackendWakeOverlayComponent,
     AppReleaseNotesModalComponent,
+    CdkConnectedOverlay,
+    CdkOverlayOrigin,
     MobileBottomNavComponent,
     RouterLink,
     RouterLinkActive,
@@ -65,10 +73,6 @@ function writeLastSeenVersion(version: string): void {
   selector: 'app-root',
   styleUrl: './app.css',
   templateUrl: './app.html',
-  host: {
-    '(document:click)': 'onDocumentClick($event)',
-    '(document:keydown.escape)': 'onEscape()',
-  },
 })
 export class App {
   protected readonly i18n = inject(I18nService);
@@ -78,7 +82,9 @@ export class App {
   protected readonly network = inject(NetworkStatusService);
   private readonly sessionCleanup = inject(SessionCleanupService);
   private readonly router = inject(Router);
-  private readonly hostRef = inject(ElementRef<HTMLElement>);
+  private readonly avatarBtn = viewChild<ElementRef<HTMLButtonElement>>('avatarBtn');
+
+  protected readonly accountOverlayPositions = MENU_OVERLAY_POSITIONS;
 
   protected readonly appVersion = APP_VERSION;
   protected readonly isBeta = IS_BETA;
@@ -149,19 +155,15 @@ export class App {
     await this.sessionCleanup.signOutAndRedirect();
   }
 
-  protected onDocumentClick(event: MouseEvent): void {
-    if (!this.accountMenuOpen()) {
-      return;
-    }
-    const target = event.target as HTMLElement | null;
-    const menuRoot = this.hostRef.nativeElement.querySelector('.account-menu-anchor');
-    if (menuRoot && target && !menuRoot.contains(target)) {
+  protected onAccountOutsideClick(event: MouseEvent): void {
+    if (!isClickInsideElement(event, this.avatarBtn()?.nativeElement)) {
       this.accountMenuOpen.set(false);
     }
   }
 
-  protected onEscape(): void {
-    if (this.accountMenuOpen()) {
+  protected onAccountOverlayKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
       this.accountMenuOpen.set(false);
     }
   }

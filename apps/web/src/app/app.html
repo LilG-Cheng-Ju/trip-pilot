@@ -55,6 +55,9 @@
       <div class="topbar-right">
         <div class="account-menu-anchor">
           <button
+            #avatarBtn
+            cdkOverlayOrigin
+            #accountOrigin="cdkOverlayOrigin"
             type="button"
             class="avatar-btn"
             [class.open]="accountMenuOpen()"
@@ -72,7 +75,17 @@
             <span class="avatar-unread-dot" aria-hidden="true"></span>
           }
 
-          @if (accountMenuOpen()) {
+          <ng-template
+            cdkConnectedOverlay
+            [cdkConnectedOverlayOrigin]="accountOrigin"
+            [cdkConnectedOverlayOpen]="accountMenuOpen()"
+            [cdkConnectedOverlayPositions]="accountOverlayPositions"
+            [cdkConnectedOverlayPush]="true"
+            [cdkConnectedOverlayViewportMargin]="12"
+            (overlayOutsideClick)="onAccountOutsideClick($event)"
+            (overlayKeydown)="onAccountOverlayKeydown($event)"
+            (detach)="closeAccountMenu()"
+          >
             <div class="account-dropdown" role="menu">
               <div class="account-header">
                 <div class="account-avatar-lg">
@@ -165,7 +178,7 @@
                 </button>
               </div>
             </div>
-          }
+          </ng-template>
         </div>
       </div>
     </header>

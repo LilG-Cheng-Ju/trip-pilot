@@ -1,3 +1,4 @@
+import { CdkConnectedOverlay, CdkOverlayOrigin } from '@angular/cdk/overlay';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -10,12 +11,17 @@ import {
   output,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 
 import { TripilotApiService } from '../core/api/tripilot-api.service';
 import { TranslatePipe } from '../core/i18n/translate.pipe';
 import { AirportEntry } from '../core/models/tripilot.models';
 import { readInputValue } from '../core/utils/form-events.utils';
+import {
+  DROPDOWN_OVERLAY_POSITIONS,
+  isClickInsideElement,
+} from '../core/utils/overlay-positions';
 
 const AIRPORT_SEARCH_DEBOUNCE_MS = 220;
 const AIRPORT_SEARCH_LIMIT = 8;
@@ -27,16 +33,13 @@ let nextPickerInstanceId = 0;
 @Component({
   selector: 'app-airport-picker',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslatePipe],
-  host: {
-    '(document:click)': 'onDocumentClick($event)',
-  },
+  imports: [CdkOverlayOrigin, CdkConnectedOverlay, TranslatePipe],
   template: `
     <div class="airport-picker">
       @if (label()) {
         <label class="picker-label" [attr.for]="resolvedId()">{{ label() }}</label>
       }
-      <div class="input-wrap">
+      <div #inputWrap cdkOverlayOrigin #airportOrigin="cdkOverlayOrigin" class="input-wrap">
         <input
           type="text"
           role="combobox"
@@ -67,7 +70,18 @@ let nextPickerInstanceId = 0;
         }
       </div>
 
-      @if (open()) {
+      <ng-template
+        cdkConnectedOverlay
+        [cdkConnectedOverlayOrigin]="airportOrigin"
+        [cdkConnectedOverlayOpen]="open()"
+        [cdkConnectedOverlayPositions]="overlayPositions"
+        [cdkConnectedOverlayWidth]="dropdownWidth()"
+        [cdkConnectedOverlayPush]="true"
+        [cdkConnectedOverlayViewportMargin]="12"
+        (overlayOutsideClick)="onOutsideClick($event)"
+        (overlayKeydown)="onOverlayKeydown($event)"
+        (detach)="closeDropdown(false)"
+      >
         <div
           class="dropdown"
           role="listbox"
@@ -93,7 +107,7 @@ let nextPickerInstanceId = 0;
             }
           }
         </div>
-      }
+      </ng-template>
     </div>
   `,
   styles: `
@@ -140,11 +154,7 @@ let nextPickerInstanceId = 0;
       pointer-events: none;
     }
     .dropdown {
-      position: absolute;
-      top: calc(100% + 4px);
-      left: 0;
-      right: 0;
-      z-index: 30;
+      width: 100%;
       max-height: 210px;
       overflow-y: auto;
       display: flex;
@@ -194,6 +204,10 @@ export class AppAirportPickerComponent {
   private readonly api = inject(TripilotApiService);
   private readonly hostRef = inject(ElementRef<HTMLElement>);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly inputWrap = viewChild<ElementRef<HTMLElement>>('inputWrap');
+
+  protected readonly overlayPositions = DROPDOWN_OVERLAY_POSITIONS;
+  protected readonly dropdownWidth = signal<number | string>('auto');
 
   readonly label = input('');
   readonly placeholder = input('');
@@ -285,8 +299,7 @@ export class AppAirportPickerComponent {
         if (list.length === 0) return;
         event.preventDefault();
         if (!this.open()) {
-          this.open.set(true);
-          this.highlightedIndex.set(0);
+          this.openDropdown(0);
           return;
         }
         this.highlightedIndex.update((i) => (i + 1) % list.length);
@@ -296,8 +309,7 @@ export class AppAirportPickerComponent {
         if (list.length === 0) return;
         event.preventDefault();
         if (!this.open()) {
-          this.open.set(true);
-          this.highlightedIndex.set(list.length - 1);
+          this.openDropdown(list.length - 1);
           return;
         }
         this.highlightedIndex.update((i) => (i <= 0 ? list.length - 1 : i - 1));
@@ -339,8 +351,16 @@ export class AppAirportPickerComponent {
     }
   }
 
-  protected onDocumentClick(event: MouseEvent): void {
-    if (this.open() && !this.hostRef.nativeElement.contains(event.target as Node)) {
+  protected onOutsideClick(event: MouseEvent): void {
+    if (!isClickInsideElement(event, this.inputWrap()?.nativeElement)) {
+      this.dismissed = true;
+      this.closeDropdown(false);
+    }
+  }
+
+  protected onOverlayKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
       this.dismissed = true;
       this.closeDropdown(false);
     }
@@ -366,9 +386,8 @@ export class AppAirportPickerComponent {
         return;
       }
       this.suggestions.set(results);
-      this.highlightedIndex.set(results.length > 0 ? 0 : -1);
       this.notFound.set(results.length === 0);
-      this.open.set(true);
+      this.openDropdown(results.length > 0 ? 0 : -1);
     } catch {
       if (seq !== this.searchSeq) {
         return;
@@ -394,6 +413,13 @@ export class AppAirportPickerComponent {
       clearTimeout(this.debounceTimer);
       this.debounceTimer = null;
     }
+  }
+
+  private openDropdown(initialHighlight: number): void {
+    const width = this.inputWrap()?.nativeElement.getBoundingClientRect().width ?? 0;
+    this.dropdownWidth.set(width > 0 ? width : 'auto');
+    this.highlightedIndex.set(initialHighlight);
+    this.open.set(true);
   }
 
   private closeDropdown(clearResults: boolean): void {

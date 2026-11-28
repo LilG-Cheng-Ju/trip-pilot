@@ -87,7 +87,7 @@ describe('AppAirportPickerComponent', () => {
     expect(searchAirportsMock).toHaveBeenCalledTimes(1);
     expect(searchAirportsMock).toHaveBeenCalledWith('tokyo', 8);
 
-    const options = Array.from(host.querySelectorAll('[role="option"]')) as HTMLButtonElement[];
+    const options = Array.from(document.querySelectorAll('[role="option"]')) as HTMLButtonElement[];
     expect(options).toHaveLength(2);
     expect(options[0].textContent?.replace(/\s+/g, ' ').trim()).toBe(
       'NRT — Narita International Airport · Tokyo',
@@ -97,7 +97,7 @@ describe('AppAirportPickerComponent', () => {
     fixture.detectChanges();
 
     expect(input.value).toBe('NRT');
-    expect(host.querySelector('[role="listbox"]')).toBeNull();
+    expect(document.querySelector('[role="listbox"]')).toBeNull();
     expect(emitted[emitted.length - 1]).toBe('NRT');
   });
 
@@ -123,19 +123,19 @@ describe('AppAirportPickerComponent', () => {
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
     fixture.detectChanges();
 
-    const options = Array.from(host.querySelectorAll('[role="option"]'));
+    const options = Array.from(document.querySelectorAll('[role="option"]'));
     expect(options[1].classList.contains('active')).toBe(true);
 
     // Escape closes without selecting
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     fixture.detectChanges();
-    expect(host.querySelector('[role="listbox"]')).toBeNull();
+    expect(document.querySelector('[role="listbox"]')).toBeNull();
 
     // ArrowDown reopens at index 0, second ArrowDown highlights index 1 (HND), Enter commits
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
     fixture.detectChanges();
-    expect(host.querySelector('[role="listbox"]')).toBeTruthy();
+    expect(document.querySelector('[role="listbox"]')).toBeTruthy();
 
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
     fixture.detectChanges();
@@ -148,11 +148,11 @@ describe('AppAirportPickerComponent', () => {
     await vi.advanceTimersByTimeAsync(220);
     fixture.detectChanges();
     await fixture.whenStable();
-    expect(host.querySelector('[role="listbox"]')).toBeTruthy();
+    expect(document.querySelector('[role="listbox"]')).toBeTruthy();
 
     document.body.click();
     fixture.detectChanges();
-    expect(host.querySelector('[role="listbox"]')).toBeNull();
+    expect(document.querySelector('[role="listbox"]')).toBeNull();
   });
 
   it('preserves manual 3-letter uppercase IATA fallback offline or when unfound and closes on blur', async () => {
@@ -176,7 +176,7 @@ describe('AppAirportPickerComponent', () => {
     await fixture.whenStable();
 
     expect(emitted).toContain('KIX');
-    expect(host.querySelector('[role="listbox"]')).toBeNull();
+    expect(document.querySelector('[role="listbox"]')).toBeNull();
 
     // Unfound empty list shows helpful hint, preserves manual 3-letter code, and closes on blur
     searchAirportsMock.mockResolvedValueOnce([]);
@@ -186,11 +186,11 @@ describe('AppAirportPickerComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(host.querySelector('.empty-opt')).toBeTruthy();
+    expect(document.querySelector('.empty-opt')).toBeTruthy();
     input.dispatchEvent(new FocusEvent('blur', { relatedTarget: null }));
     fixture.detectChanges();
 
-    expect(host.querySelector('[role="listbox"]')).toBeNull();
+    expect(document.querySelector('[role="listbox"]')).toBeNull();
     expect(input.value).toBe('XYZ');
     expect(emitted[emitted.length - 1]).toBe('XYZ');
   });

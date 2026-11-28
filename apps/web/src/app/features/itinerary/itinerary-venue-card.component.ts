@@ -36,18 +36,20 @@ import { ItineraryCardMenuComponent } from './itinerary-card-menu.component';
               {{ pinOrder() }}
             </span>
           }
-          <span class="type-label">
-            @if (pinOrder() === null) {
-              <span class="type-dot" [attr.data-type]="item().type" aria-hidden="true"></span>
-            }
-            <span>{{ typeLabel() | t }}</span>
-          </span>
-          @if (item().start_time) {
-            <span class="meta-sep" aria-hidden="true">·</span>
-            <span class="time-text tabular-nums">
-              {{ item().start_time }}@if (item().end_time) { – {{ item().end_time }} }
+          <div class="meta-text">
+            <span class="type-label">
+              @if (pinOrder() === null) {
+                <span class="type-dot" [attr.data-type]="item().type" aria-hidden="true"></span>
+              }
+              <span>{{ typeLabel() | t }}</span>
             </span>
-          }
+            @if (item().start_time) {
+              <span class="meta-sep" aria-hidden="true">·</span>
+              <span class="time-text tabular-nums">
+                {{ item().start_time }}@if (item().end_time) { – {{ item().end_time }} }
+              </span>
+            }
+          </div>
         </div>
 
         <div class="head-actions" (click)="$event.stopPropagation()">
@@ -169,17 +171,24 @@ import { ItineraryCardMenuComponent } from './itinerary-card-menu.component';
     }
     .card-head {
       display: flex;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       align-items: center;
       justify-content: space-between;
       gap: var(--space-2);
       margin-bottom: 6px;
     }
     .card-meta {
+      flex: 1 1 auto;
       display: flex;
       align-items: center;
       gap: 6px;
+      min-width: 0;
+    }
+    .meta-text {
+      display: flex;
+      align-items: center;
       flex-wrap: wrap;
+      gap: 2px 6px;
       min-width: 0;
     }
     .pin-badge {
@@ -301,6 +310,27 @@ import { ItineraryCardMenuComponent } from './itinerary-card-menu.component';
       line-height: 1.55;
       color: var(--color-text-secondary);
       white-space: pre-line;
+    }
+    @media (max-width: 380px) {
+      .card {
+        padding: var(--space-3);
+      }
+      .card-head {
+        align-items: flex-start;
+        gap: 6px;
+      }
+      .meta-text {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1px;
+      }
+      .meta-sep {
+        display: none;
+      }
+      .head-actions .icon-btn {
+        min-width: 28px;
+        min-height: 28px;
+      }
     }
   `,
 })

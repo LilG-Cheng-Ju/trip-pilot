@@ -1,29 +1,33 @@
+import { CdkConnectedOverlay, CdkOverlayOrigin } from '@angular/cdk/overlay';
 import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
-  inject,
   input,
   output,
   signal,
+  viewChild,
 } from '@angular/core';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import {
+  isClickInsideElement,
+  MENU_OVERLAY_POSITIONS,
+} from '../../core/utils/overlay-positions';
 
 export type CardMenuVariant = 'standard' | 'dark' | 'connector';
 
-/** Shared overflow action menu trigger and dropdown for itinerary cards. */
+/** Shared overflow action menu trigger and CDK Overlay dropdown for itinerary cards. */
 @Component({
   selector: 'app-itinerary-card-menu',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslatePipe],
-  host: {
-    '(document:click)': 'onDocumentClick($event)',
-    '(document:keydown.escape)': 'onEscape()',
-  },
+  imports: [CdkOverlayOrigin, CdkConnectedOverlay, TranslatePipe],
   template: `
     <div class="overflow-anchor">
       <button
+        #triggerBtn
+        cdkOverlayOrigin
+        #menuOrigin="cdkOverlayOrigin"
         type="button"
         class="icon-btn"
         [class.connector-icon-btn]="variant() === 'connector'"
@@ -37,7 +41,18 @@ export type CardMenuVariant = 'standard' | 'dark' | 'connector';
       >
         <span class="ms-icon sm" aria-hidden="true">more_vert</span>
       </button>
-      @if (menuOpen()) {
+
+      <ng-template
+        cdkConnectedOverlay
+        [cdkConnectedOverlayOrigin]="menuOrigin"
+        [cdkConnectedOverlayOpen]="menuOpen()"
+        [cdkConnectedOverlayPositions]="overlayPositions"
+        [cdkConnectedOverlayPush]="true"
+        [cdkConnectedOverlayViewportMargin]="12"
+        (overlayOutsideClick)="onOutsideClick($event)"
+        (overlayKeydown)="onOverlayKeydown($event)"
+        (detach)="menuOpen.set(false)"
+      >
         <div class="action-menu" role="menu">
           @if (showOrderActions()) {
             <button
@@ -99,7 +114,7 @@ export type CardMenuVariant = 'standard' | 'dark' | 'connector';
             <span>{{ 'common.delete' | t }}</span>
           </button>
         </div>
-      }
+      </ng-template>
     </div>
   `,
   styles: `
@@ -128,9 +143,6 @@ export type CardMenuVariant = 'standard' | 'dark' | 'connector';
       color: var(--color-text-on-primary);
     }
     .action-menu {
-      position: absolute;
-      top: calc(100% + 6px);
-      right: 0;
       min-width: 158px;
       max-width: calc(100vw - 24px);
       padding: 6px;
@@ -139,7 +151,6 @@ export type CardMenuVariant = 'standard' | 'dark' | 'connector';
       color: var(--color-text-primary);
       border: 1px solid var(--color-border);
       box-shadow: var(--shadow-float);
-      z-index: 40;
       display: flex;
       flex-direction: column;
       gap: 2px;
@@ -182,7 +193,9 @@ export type CardMenuVariant = 'standard' | 'dark' | 'connector';
   `,
 })
 export class ItineraryCardMenuComponent {
-  private readonly hostRef = inject(ElementRef<HTMLElement>);
+  private readonly triggerBtn = viewChild<ElementRef<HTMLButtonElement>>('triggerBtn');
+
+  protected readonly overlayPositions = MENU_OVERLAY_POSITIONS;
 
   readonly variant = input<CardMenuVariant>('standard');
   readonly showOrderActions = input(false);
@@ -247,19 +260,15 @@ export class ItineraryCardMenuComponent {
     this.deleted.emit();
   }
 
-  protected onDocumentClick(event: MouseEvent): void {
-    if (!this.menuOpen()) {
-      return;
-    }
-    const target = event.target as HTMLElement | null;
-    const anchor = this.hostRef.nativeElement.querySelector('.overflow-anchor');
-    if (anchor && target && !anchor.contains(target)) {
+  protected onOutsideClick(event: MouseEvent): void {
+    if (!isClickInsideElement(event, this.triggerBtn()?.nativeElement)) {
       this.menuOpen.set(false);
     }
   }
 
-  protected onEscape(): void {
-    if (this.menuOpen()) {
+  protected onOverlayKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
       this.menuOpen.set(false);
     }
   }

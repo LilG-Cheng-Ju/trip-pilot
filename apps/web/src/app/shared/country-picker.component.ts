@@ -1,3 +1,4 @@
+import { CdkConnectedOverlay, CdkOverlayOrigin } from '@angular/cdk/overlay';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -18,20 +19,22 @@ import {
 import { I18nService } from '../core/i18n/i18n.service';
 import { TranslatePipe } from '../core/i18n/translate.pipe';
 import { readInputValue } from '../core/utils/form-events.utils';
+import {
+  DROPDOWN_OVERLAY_POSITIONS,
+  isClickInsideElement,
+} from '../core/utils/overlay-positions';
 
 /** Reusable searchable country picker supporting single and multi-select modes with full keyboard navigation. */
 @Component({
   selector: 'app-country-picker',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslatePipe],
-  host: {
-    '(document:click)': 'onDocumentClick($event)',
-    '(document:keydown.escape)': 'onEscape()',
-  },
+  imports: [CdkOverlayOrigin, CdkConnectedOverlay, TranslatePipe],
   template: `
     <div class="picker">
       <div
         #triggerEl
+        cdkOverlayOrigin
+        #pickerOrigin="cdkOverlayOrigin"
         class="selected-row"
         tabindex="0"
         role="combobox"
@@ -69,7 +72,18 @@ import { readInputValue } from '../core/utils/form-events.utils';
         </span>
       </div>
 
-      @if (open()) {
+      <ng-template
+        cdkConnectedOverlay
+        [cdkConnectedOverlayOrigin]="pickerOrigin"
+        [cdkConnectedOverlayOpen]="open()"
+        [cdkConnectedOverlayPositions]="overlayPositions"
+        [cdkConnectedOverlayWidth]="dropdownWidth()"
+        [cdkConnectedOverlayPush]="true"
+        [cdkConnectedOverlayViewportMargin]="12"
+        (overlayOutsideClick)="onOutsideClick($event)"
+        (overlayKeydown)="onOverlayKeydown($event)"
+        (detach)="open.set(false)"
+      >
         <div class="dropdown">
           <div class="search-box">
             <span class="ms-icon sm search-icon" aria-hidden="true">search</span>
@@ -109,7 +123,7 @@ import { readInputValue } from '../core/utils/form-events.utils';
             }
           </div>
         </div>
-      }
+      </ng-template>
     </div>
   `,
   styles: `
@@ -180,11 +194,7 @@ import { readInputValue } from '../core/utils/form-events.utils';
       flex-shrink: 0;
     }
     .dropdown {
-      position: absolute;
-      top: calc(100% + 6px);
-      left: 0;
-      right: 0;
-      z-index: 40;
+      width: 100%;
       border: 1px solid var(--color-border);
       border-radius: var(--radius-md);
       background: var(--color-surface);
@@ -262,9 +272,11 @@ import { readInputValue } from '../core/utils/form-events.utils';
 })
 export class AppCountryPickerComponent {
   protected readonly i18n = inject(I18nService);
-  private readonly hostRef = inject(ElementRef<HTMLElement>);
   private readonly triggerEl = viewChild<ElementRef<HTMLElement>>('triggerEl');
   private readonly searchInput = viewChild<ElementRef<HTMLInputElement>>('searchInput');
+
+  protected readonly overlayPositions = DROPDOWN_OVERLAY_POSITIONS;
+  protected readonly dropdownWidth = signal<number | string>('auto');
 
   readonly selectedCodes = input<string[]>([]);
   readonly multiple = input(false);
@@ -276,35 +288,45 @@ export class AppCountryPickerComponent {
   protected readonly query = signal('');
   protected readonly activeIndex = signal(0);
 
-  onDocumentClick(event: MouseEvent): void {
-    if (this.open() && !this.hostRef.nativeElement.contains(event.target as Node)) {
+  protected onOutsideClick(event: MouseEvent): void {
+    if (!isClickInsideElement(event, this.triggerEl()?.nativeElement)) {
       this.open.set(false);
     }
   }
 
-  onEscape(): void {
-    if (this.open()) {
+  protected onOverlayKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
       this.open.set(false);
+      this.triggerEl()?.nativeElement.focus();
     }
   }
 
   protected toggleOpen(): void {
     const next = !this.open();
-    this.open.set(next);
     if (next) {
-      this.activeIndex.set(0);
-      queueMicrotask(() => this.searchInput()?.nativeElement.focus());
+      this.openDropdown();
+    } else {
+      this.open.set(false);
     }
+  }
+
+  private openDropdown(): void {
+    const width = this.triggerEl()?.nativeElement.getBoundingClientRect().width ?? 0;
+    this.dropdownWidth.set(width > 0 ? width : 'auto');
+    this.open.set(true);
+    this.activeIndex.set(0);
+    queueMicrotask(() => this.searchInput()?.nativeElement.focus());
   }
 
   protected onTriggerKeydown(event: KeyboardEvent): void {
     if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowDown') {
       event.preventDefault();
       if (!this.open()) {
-        this.open.set(true);
-        this.activeIndex.set(0);
+        this.openDropdown();
+      } else {
+        queueMicrotask(() => this.searchInput()?.nativeElement.focus());
       }
-      queueMicrotask(() => this.searchInput()?.nativeElement.focus());
     } else if (event.key === 'Escape' && this.open()) {
       event.preventDefault();
       event.stopPropagation();
