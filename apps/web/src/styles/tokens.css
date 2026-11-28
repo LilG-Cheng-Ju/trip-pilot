@@ -73,8 +73,8 @@
   --topbar-height: 48px;
   --nav-bottom-height: 54px;
 
-  /* Centralized Typography Roles (system CJK fonts keep roaming payloads lean) */
-  --font-display: 'Newsreader', 'Songti TC', 'Noto Serif CJK TC', Georgia, serif;
+  /* Centralized Typography Roles (single CJK serif weight keeps display headings cohesive; sans falls back to system CJK) */
+  --font-display: 'Newsreader', 'Noto Serif TC', 'Songti TC', Georgia, serif;
   --font-sans: 'Inter', 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans CJK TC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 

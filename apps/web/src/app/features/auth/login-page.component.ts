@@ -69,6 +69,49 @@ import { readInputValue } from '../../core/utils/form-events.utils';
             }
           </div>
 
+          <div class="preview-stage">
+            <div class="preview-flight-strip">
+              <div class="flight-leg">
+                <span class="leg-iata font-display">TPE</span>
+                <span class="leg-arc">
+                  <span class="leg-line"></span>
+                  <span class="ms-icon sm leg-plane">flight</span>
+                  <span class="leg-line"></span>
+                </span>
+                <span class="leg-iata font-display">NRT</span>
+              </div>
+              <div class="flight-meta font-mono tabular-nums">
+                <span>NH852 · 09:20</span>
+                <span class="leg-km">2,130 km</span>
+              </div>
+            </div>
+
+            <div class="preview-day-card">
+              <div class="preview-day-head">
+                <span class="preview-day-title font-display">{{ 'login.previewDay' | t }}</span>
+                <span class="preview-day-km font-mono tabular-nums">14.2 km</span>
+              </div>
+              <div class="preview-stops">
+                <div class="preview-stop">
+                  <span class="stop-pin spot tabular-nums">1</span>
+                  <span class="stop-name">{{ 'login.previewStop1' | t }}</span>
+                  <span class="stop-time font-mono tabular-nums">09:30</span>
+                </div>
+                <div class="preview-stop">
+                  <span class="stop-pin food tabular-nums">2</span>
+                  <span class="stop-name">{{ 'login.previewStop2' | t }}</span>
+                  <span class="stop-chip font-mono tabular-nums">¥1,380</span>
+                  <span class="stop-time font-mono tabular-nums">12:00</span>
+                </div>
+                <div class="preview-stop">
+                  <span class="stop-pin stay tabular-nums">3</span>
+                  <span class="stop-name">{{ 'login.previewStop3' | t }}</span>
+                  <span class="stop-time font-mono tabular-nums">15:00</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="visual-copy">
             <h2 class="hero-headline font-display">{{ 'login.heroHeadline' | t }}</h2>
             <p class="hero-tagline">{{ 'app.tagline' | t }}</p>
@@ -315,6 +358,149 @@ import { readInputValue } from '../../core/utils/form-events.utils';
       color: var(--color-accent);
       flex-shrink: 0;
     }
+    .preview-stage {
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      max-width: 390px;
+      margin: var(--space-3) 0;
+    }
+    .preview-flight-strip {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 12px 15px;
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(196, 146, 76, 0.34);
+      backdrop-filter: blur(8px);
+    }
+    .flight-leg {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 12px;
+    }
+    .leg-iata {
+      font-size: 1.25rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: var(--color-text-on-primary);
+    }
+    .leg-arc {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .leg-line {
+      flex: 1;
+      height: 1px;
+      background: rgba(196, 146, 76, 0.5);
+    }
+    .leg-plane {
+      color: var(--color-accent);
+      transform: rotate(90deg);
+    }
+    .flight-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.72rem;
+      color: rgba(248, 247, 244, 0.72);
+    }
+    .leg-km {
+      color: var(--color-accent-light);
+    }
+    .preview-day-card {
+      padding: 13px 15px;
+      border-radius: var(--radius-md);
+      background: var(--color-bg);
+      color: var(--color-text-primary);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 16px 36px rgba(10, 16, 28, 0.34);
+    }
+    .preview-day-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 8px;
+      margin-bottom: 9px;
+      border-bottom: 1px solid var(--color-border);
+    }
+    .preview-day-title {
+      font-size: 0.96rem;
+      font-weight: 600;
+      color: var(--color-primary);
+    }
+    .preview-day-km {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--color-text-secondary);
+    }
+    .preview-stops {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+    .preview-stops::before {
+      content: '';
+      position: absolute;
+      left: 9px;
+      top: 10px;
+      bottom: 10px;
+      width: 1.5px;
+      background: var(--color-border);
+    }
+    .preview-stop {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--color-primary);
+    }
+    .stop-pin {
+      display: inline-grid;
+      place-items: center;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--color-text-on-primary);
+      flex-shrink: 0;
+    }
+    .stop-pin.spot {
+      background: var(--item-spot);
+    }
+    .stop-pin.food {
+      background: var(--item-food);
+    }
+    .stop-pin.stay {
+      background: var(--item-stay);
+    }
+    .stop-name {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .stop-chip {
+      padding: 1px 6px;
+      border-radius: var(--radius-xs);
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: var(--color-accent-ink);
+    }
+    .stop-time {
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: var(--color-text-muted);
+    }
     .form-pane {
       display: flex;
       flex-direction: column;
@@ -524,7 +710,10 @@ import { readInputValue } from '../../core/utils/form-events.utils';
         padding: var(--space-6) 44px;
       }
       .hero-headline {
-        font-size: 2.15rem;
+        font-size: 2rem;
+      }
+      .preview-stage {
+        display: flex;
       }
       .editorial-features {
         display: flex;
