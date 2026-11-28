@@ -404,7 +404,7 @@
   transition: background-color 140ms ease, color 140ms ease;
 }
 .add-plan-btn {
-  flex: 0 0 calc(50% + 4px);
+  flex: 0 0 calc(44% + 4px);
   padding: 0 12px 0 6px;
   background: transparent;
   color: var(--color-primary);

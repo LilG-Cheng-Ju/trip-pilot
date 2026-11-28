@@ -22,7 +22,8 @@ import { filter, map } from 'rxjs';
 import { AuthSessionService } from './core/auth/auth-session.service';
 import { SessionCleanupService } from './core/auth/session-cleanup.service';
 import { APP_VERSION, IS_BETA } from './core/config/app-version';
-import { RELEASE_NOTES, ReleaseNoteEntry } from './core/config/release-notes.generated';
+import { LATEST_RELEASE_NOTE } from './core/config/latest-release.generated';
+import { ReleaseNoteEntry } from './core/config/release-notes.generated';
 import { I18nService } from './core/i18n/i18n.service';
 import { TranslatePipe } from './core/i18n/translate.pipe';
 import { BackendWakeService } from './core/network/backend-wake.service';
@@ -117,11 +118,7 @@ export class App {
     }
     const seen = this.lastSeenVersion();
     if (seen !== null && seen !== this.appVersion && !this.whatsNewDismissed()) {
-      const currentNote =
-        RELEASE_NOTES.find((entry) => entry.version === this.appVersion) ??
-        RELEASE_NOTES[0] ??
-        null;
-      return { mode: 'whats-new', note: currentNote };
+      return { mode: 'whats-new', note: LATEST_RELEASE_NOTE };
     }
     return null;
   });

@@ -73,15 +73,15 @@
   --topbar-height: 48px;
   --nav-bottom-height: 54px;
 
-  /* Centralized Typography Roles */
-  --font-display: 'Newsreader', 'Noto Serif TC', Georgia, serif;
-  --font-sans: 'Inter', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* Centralized Typography Roles (system CJK fonts keep roaming payloads lean) */
+  --font-display: 'Newsreader', 'Songti TC', 'Noto Serif CJK TC', Georgia, serif;
+  --font-sans: 'Inter', 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans CJK TC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* Centralized Card Type Scale */
   --text-card-hero: 1.3rem;
   --text-card-title: 0.98rem;
-  --text-card-body: 0.79rem;
+  --text-card-body: 0.84rem;
   --text-card-meta: 0.78rem;
   --text-badge: 0.71rem;
 }

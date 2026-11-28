@@ -19,6 +19,10 @@ const WEB_GENERATED_PATH = path.join(
   ROOT,
   'apps/web/src/app/core/config/release-notes.generated.ts',
 );
+const WEB_LATEST_GENERATED_PATH = path.join(
+  ROOT,
+  'apps/web/src/app/core/config/latest-release.generated.ts',
+);
 
 const checkMode = process.argv.includes('--check');
 
@@ -84,6 +88,20 @@ function renderWebTs(releases) {
     '}',
     '',
     `export const RELEASE_NOTES: readonly ReleaseNoteEntry[] = ${jsonPayload};`,
+    '',
+  ].join('\n');
+}
+
+function renderWebLatestTs(latestRelease) {
+  const jsonPayload = JSON.stringify(latestRelease, null, 2);
+  return [
+    '// Auto-generated from root releases.json via `node scripts/sync-releases.mjs`.',
+    '// Keeps the initial bundle lean by importing only the newest release entry.',
+    '// Do not edit manually.',
+    '',
+    "import { ReleaseNoteEntry } from './release-notes.generated';",
+    '',
+    `export const LATEST_RELEASE_NOTE: ReleaseNoteEntry = ${jsonPayload};`,
     '',
   ].join('\n');
 }
@@ -163,11 +181,12 @@ function checkVersionConsistency(latestVersion) {
 const releases = loadReleases();
 const changelogOk = writeOrCheck(CHANGELOG_PATH, renderChangelog(releases));
 const webTsOk = writeOrCheck(WEB_GENERATED_PATH, renderWebTs(releases));
+const webLatestTsOk = writeOrCheck(WEB_LATEST_GENERATED_PATH, renderWebLatestTs(releases[0]));
 const ngswOk = writeOrCheck(NGSW_CONFIG_PATH, renderNgswConfig(releases[0]));
 
 if (checkMode) {
   const versionsOk = checkVersionConsistency(releases[0].version);
-  if (!changelogOk || !webTsOk || !ngswOk || !versionsOk) {
+  if (!changelogOk || !webTsOk || !webLatestTsOk || !ngswOk || !versionsOk) {
     console.error('Release notes or version strings are out of sync. Run: node scripts/sync-releases.mjs');
     process.exit(1);
   }

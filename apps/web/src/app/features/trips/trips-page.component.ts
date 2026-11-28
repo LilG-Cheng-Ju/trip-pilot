@@ -82,20 +82,6 @@ import { TripFormModalComponent, TripFormSubmitEvent } from './trip-form-modal.c
           <section class="onboarding-card">
             <h3 class="onboarding-title font-display">{{ 'trips.onboarding.title' | t }}</h3>
             <p class="onboarding-sub">{{ 'trips.onboarding.subtitle' | t }}</p>
-            <ol class="onboarding-steps">
-              <li>
-                <span class="step-idx font-mono tabular-nums">01</span>
-                <span>{{ 'trips.onboarding.step1' | t }}</span>
-              </li>
-              <li>
-                <span class="step-idx font-mono tabular-nums">02</span>
-                <span>{{ 'trips.onboarding.step2' | t }}</span>
-              </li>
-              <li>
-                <span class="step-idx font-mono tabular-nums">03</span>
-                <span>{{ 'trips.onboarding.step3' | t }}</span>
-              </li>
-            </ol>
             <div class="onboarding-actions">
               <button
                 type="button"
@@ -298,28 +284,8 @@ import { TripFormModalComponent, TripFormSubmitEvent } from './trip-form-modal.c
     .onboarding-sub {
       margin: 0 0 var(--space-4);
       font-size: 0.875rem;
+      line-height: 1.55;
       color: var(--color-text-secondary);
-    }
-    .onboarding-steps {
-      list-style: none;
-      margin: 0 0 var(--space-5);
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .onboarding-steps li {
-      display: flex;
-      align-items: baseline;
-      gap: 10px;
-      font-size: 0.86rem;
-      line-height: 1.5;
-      color: var(--color-text-primary);
-    }
-    .step-idx {
-      font-size: 0.76rem;
-      font-weight: 700;
-      color: var(--color-accent-ink);
     }
     .onboarding-actions {
       display: flex;

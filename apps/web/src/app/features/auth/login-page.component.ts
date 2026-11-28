@@ -27,48 +27,27 @@ import { readInputValue } from '../../core/utils/form-events.utils';
           preserveAspectRatio="xMidYMid slice"
           fill="none"
         >
-          <!-- Fine meridian and latitude map grid -->
-          <g stroke="rgba(248, 247, 244, 0.05)" stroke-width="1">
-            <line x1="140" y1="0" x2="140" y2="900" />
-            <line x1="320" y1="0" x2="320" y2="900" />
-            <line x1="500" y1="0" x2="500" y2="900" />
-            <line x1="680" y1="0" x2="680" y2="900" />
-            <line x1="0" y1="180" x2="800" y2="180" />
-            <line x1="0" y1="380" x2="800" y2="380" />
-            <line x1="0" y1="580" x2="800" y2="580" />
-            <line x1="0" y1="780" x2="800" y2="780" />
+          <!-- Subtle meridian grid -->
+          <g stroke="rgba(248, 247, 244, 0.04)" stroke-width="1">
+            <line x1="160" y1="0" x2="160" y2="900" />
+            <line x1="400" y1="0" x2="400" y2="900" />
+            <line x1="640" y1="0" x2="640" y2="900" />
+            <line x1="0" y1="220" x2="800" y2="220" />
+            <line x1="0" y1="520" x2="800" y2="520" />
           </g>
 
-          <!-- Organic topographic contours -->
-          <g stroke="rgba(196, 146, 76, 0.14)" stroke-width="1.15">
-            <path d="M -80 280 C 120 210, 260 320, 440 240 C 600 170, 710 250, 880 180" />
-            <path d="M -60 340 C 140 270, 290 385, 470 305 C 625 235, 730 315, 890 250" />
-            <path d="M -40 410 C 160 345, 330 455, 515 375 C 660 310, 755 385, 900 325" />
-            <circle cx="585" cy="285" r="145" stroke-opacity="0.55" />
-            <circle cx="585" cy="285" r="220" stroke-opacity="0.35" />
-          </g>
-
-          <!-- Signature Tripilot Bezier route legs (solid flight + schematic transit arc) -->
+          <!-- Clean single route arc -->
           <path
-            d="M 118 690 C 210 530, 345 480, 470 430"
-            stroke="#C4924C"
-            stroke-width="2"
-            stroke-opacity="0.72"
-            stroke-linecap="round"
-          />
-          <path
-            d="M 470 430 C 555 395, 615 310, 678 196"
+            d="M 118 690 C 245 485, 445 365, 678 196"
             stroke="#C4924C"
             stroke-width="1.8"
-            stroke-dasharray="5 7"
-            stroke-opacity="0.62"
+            stroke-opacity="0.52"
             stroke-linecap="round"
           />
 
           <!-- Route waypoints -->
-          <circle cx="118" cy="690" r="8" fill="#162136" stroke="#C4924C" stroke-width="2.5" />
-          <circle cx="470" cy="430" r="5.5" fill="#C4924C" />
-          <circle cx="678" cy="196" r="6" fill="#F8F7F4" stroke="#C4924C" stroke-width="2.5" />
+          <circle cx="118" cy="690" r="6" fill="#162136" stroke="#C4924C" stroke-width="2" />
+          <circle cx="678" cy="196" r="5" fill="#F8F7F4" stroke="#C4924C" stroke-width="2" />
         </svg>
 
         <div class="visual-overlay">
@@ -94,20 +73,20 @@ import { readInputValue } from '../../core/utils/form-events.utils';
             <h2 class="hero-headline font-display">{{ 'login.heroHeadline' | t }}</h2>
             <p class="hero-tagline">{{ 'app.tagline' | t }}</p>
 
-            <ol class="editorial-features">
+            <ul class="editorial-features">
               <li>
-                <span class="feat-idx font-mono tabular-nums">01</span>
+                <span class="ms-icon sm feat-ico" aria-hidden="true">route</span>
                 <span>{{ 'login.featureMap' | t }}</span>
               </li>
               <li>
-                <span class="feat-idx font-mono tabular-nums">02</span>
+                <span class="ms-icon sm feat-ico" aria-hidden="true">confirmation_number</span>
                 <span>{{ 'login.featureBrief' | t }}</span>
               </li>
               <li>
-                <span class="feat-idx font-mono tabular-nums">03</span>
+                <span class="ms-icon sm feat-ico" aria-hidden="true">offline_pin</span>
                 <span>{{ 'login.featureOffline' | t }}</span>
               </li>
-            </ol>
+            </ul>
           </div>
         </div>
       </section>
@@ -324,18 +303,17 @@ import { readInputValue } from '../../core/utils/form-events.utils';
     }
     .editorial-features li {
       display: flex;
-      align-items: baseline;
-      gap: 12px;
+      align-items: center;
+      gap: 10px;
       padding: 10px 0;
       border-bottom: 1px solid rgba(248, 247, 244, 0.14);
-      font-size: 0.82rem;
+      font-size: 0.84rem;
       font-weight: 500;
       color: rgba(248, 247, 244, 0.88);
     }
-    .feat-idx {
-      font-size: 0.72rem;
-      font-weight: 600;
+    .feat-ico {
       color: var(--color-accent);
+      flex-shrink: 0;
     }
     .form-pane {
       display: flex;

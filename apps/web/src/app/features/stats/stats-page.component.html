@@ -35,7 +35,7 @@
       <!-- Unified Editorial Logbook Spread -->
       <section class="logbook-ledger">
         <article class="logbook-hero">
-          <!-- Subtle cartographic route watermark echoing login & aviation identity -->
+          <!-- Subtle data-driven route arc echoing aviation logbook telemetry -->
           <svg
             class="hero-carto"
             viewBox="0 0 420 220"
@@ -43,30 +43,37 @@
             fill="none"
             aria-hidden="true"
           >
-            <g stroke="rgba(196, 146, 76, 0.14)" stroke-width="1">
-              <path d="M 150 185 C 225 145, 295 175, 435 110" />
-              <path d="M 185 215 C 255 178, 325 202, 445 145" />
-              <circle cx="348" cy="78" r="56" stroke-opacity="0.55" />
-              <circle cx="348" cy="78" r="92" stroke-opacity="0.3" />
-            </g>
-            <path
-              d="M 212 152 C 258 106, 304 88, 348 78"
-              stroke="#C4924C"
-              stroke-width="1.6"
-              stroke-dasharray="4 5"
-              stroke-opacity="0.42"
-              stroke-linecap="round"
-            />
-            <circle cx="212" cy="152" r="3.5" fill="#C4924C" fill-opacity="0.55" />
-            <circle
-              cx="348"
-              cy="78"
-              r="4.5"
-              fill="#162136"
-              stroke="#C4924C"
-              stroke-width="1.8"
-              stroke-opacity="0.7"
-            />
+            @if (heroRoute().hasRoute) {
+              <path
+                d="M 175 162 C 235 112, 305 88, 378 66"
+                stroke="#C4924C"
+                stroke-width="1.6"
+                stroke-dasharray="4 5"
+                stroke-opacity="0.46"
+                stroke-linecap="round"
+              />
+            }
+            @for (pt of heroRoute().waypoints; track $index) {
+              @if (pt.isEnd) {
+                <circle
+                  [attr.cx]="pt.x"
+                  [attr.cy]="pt.y"
+                  r="4.5"
+                  fill="#162136"
+                  stroke="#C4924C"
+                  stroke-width="1.8"
+                  stroke-opacity="0.78"
+                />
+              } @else {
+                <circle
+                  [attr.cx]="pt.x"
+                  [attr.cy]="pt.y"
+                  r="3.2"
+                  fill="#C4924C"
+                  [attr.fill-opacity]="heroRoute().hasRoute ? 0.65 : 0.35"
+                />
+              }
+            }
           </svg>
 
           <div class="hero-top">

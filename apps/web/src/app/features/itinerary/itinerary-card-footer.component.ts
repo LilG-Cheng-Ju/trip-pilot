@@ -72,7 +72,7 @@ import { ItemExpenseSummary } from '../../state/expense.store';
                     | t: { count: exp.count, currency: exp.currencyHome, total: formatAmount(exp.totalHome) }
                 "
               >
-                <span class="ms-icon sm" aria-hidden="true">payments</span>
+                <span class="ms-icon sm expense-ico" aria-hidden="true">payments</span>
                 <span>{{ exp.currencyHome }} {{ formatAmount(exp.totalHome) }}</span>
               </a>
             }
@@ -176,12 +176,14 @@ import { ItemExpenseSummary } from '../../state/expense.store';
     .footer-meta.dark .meta-item.alert {
       color: var(--color-alert-light);
     }
-    .attachment-chip {
+    .attachment-chip,
+    .head-expense-pill {
       display: inline-flex;
       align-items: center;
       gap: 4px;
       padding: 2px 8px;
       border-radius: var(--radius-xs);
+      border: 1px solid var(--color-border);
       background: var(--color-surface-alt);
       color: var(--color-primary);
       text-decoration: none;
@@ -189,16 +191,22 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       font-weight: 500;
       white-space: nowrap;
       flex-shrink: 0;
-      transition: background-color 140ms ease;
+      transition: border-color 140ms ease, background-color 140ms ease;
     }
-    .attachment-chip:hover {
+    .attachment-chip:hover,
+    .head-expense-pill:hover {
+      border-color: var(--color-border-strong);
       background: var(--color-primary-tint);
     }
-    .attachment-chip.dark {
+    .attachment-chip.dark,
+    .head-expense-pill.dark {
+      border-color: rgba(255, 255, 255, 0.16);
       background: rgba(255, 255, 255, 0.1);
       color: var(--color-text-on-primary);
     }
-    .attachment-chip.dark:hover {
+    .attachment-chip.dark:hover,
+    .head-expense-pill.dark:hover {
+      border-color: rgba(255, 255, 255, 0.28);
       background: rgba(255, 255, 255, 0.18);
     }
     .chip-truncate {
@@ -208,33 +216,15 @@ import { ItemExpenseSummary } from '../../state/expense.store';
       text-overflow: ellipsis;
     }
     .head-expense-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 2px 8px;
-      border-radius: var(--radius-xs);
-      border: 1px solid var(--color-accent-border);
-      background: var(--color-accent-tint);
-      color: var(--color-accent-ink);
-      text-decoration: none;
       font-family: var(--font-mono);
-      font-size: 0.7rem;
+      font-size: 0.72rem;
       font-weight: 600;
-      white-space: nowrap;
-      flex-shrink: 0;
-      transition: border-color 140ms ease, background-color 140ms ease;
     }
-    .head-expense-pill:hover {
-      border-color: var(--color-accent);
+    .expense-ico {
+      color: var(--color-accent-ink);
     }
-    .head-expense-pill.dark {
-      border-color: var(--color-accent-border);
-      background: var(--color-accent-tint);
+    .head-expense-pill.dark .expense-ico {
       color: var(--color-accent-light);
-    }
-    .head-expense-pill.dark:hover {
-      border-color: var(--color-accent);
-      background: rgba(196, 146, 76, 0.22);
     }
     .order-controls {
       display: flex;
