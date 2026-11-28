@@ -1,3 +1,4 @@
+import { CdkConnectedOverlay, CdkOverlayOrigin } from '@angular/cdk/overlay';
 import {
   CdkDrag,
   CdkDragDrop,
@@ -25,9 +26,13 @@ import { DAY_STRIP_SCROLL_STEP_PX } from '../../core/constants/app-limits';
 import { resolveCountryMapCenter } from '../../core/constants/travel-options';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { ItineraryItem, TripDay } from '../../core/models/tripilot.models';
+import { ItemType, ItineraryItem, TripDay } from '../../core/models/tripilot.models';
 import { NetworkStatusService } from '../../core/network/network-status.service';
 import { readInputValue } from '../../core/utils/form-events.utils';
+import {
+  isClickInsideElement,
+  MENU_OVERLAY_POSITIONS,
+} from '../../core/utils/overlay-positions';
 import {
   buildDayMapPins,
   buildDayMapRoutes,
@@ -51,6 +56,7 @@ import {
   ItemFormModalComponent,
   ItemFormSubmitEvent,
 } from './item-form-modal.component';
+import { ITEM_TYPE_OPTIONS } from './item-type-meta';
 import { ItineraryCardComponent } from './itinerary-card.component';
 import { ItineraryMapComponent } from './itinerary-map.component';
 import { MapPin, StayMapPin } from './itinerary-map.types';
@@ -67,6 +73,8 @@ import { TripShareModalComponent } from './trip-share-modal.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     RouterLink,
+    CdkConnectedOverlay,
+    CdkOverlayOrigin,
     CdkDropList,
     CdkDrag,
     CdkDragPlaceholder,
@@ -102,9 +110,14 @@ export class ItineraryPageComponent implements OnInit {
     () => !this.network.isOnline() || this.store.usingOfflineCache(),
   );
 
+  protected readonly addTypeMenuOpen = signal(false);
   protected readonly showItemModal = signal(false);
+  protected readonly initialItemType = signal<ItemType>('SPOT');
   protected readonly editingItem = signal<ItineraryItem | null>(null);
   protected readonly alternativeTarget = signal<ItineraryItem | null>(null);
+  protected readonly savingItem = signal(false);
+  protected readonly addItemTypeOptions = ITEM_TYPE_OPTIONS;
+  protected readonly addMenuPositions = MENU_OVERLAY_POSITIONS;
 
   protected readonly showQuickExpenseModal = signal(false);
   protected readonly quickExpenseItem = signal<ItineraryItem | null>(null);
@@ -135,6 +148,8 @@ export class ItineraryPageComponent implements OnInit {
   protected readonly editingDayThemeId = signal<string | null>(null);
   protected readonly readInputValue = readInputValue;
 
+  private readonly addItemBtn = viewChild<ElementRef<HTMLButtonElement>>('addItemBtn');
+  private readonly itemFormModal = viewChild(ItemFormModalComponent);
   private readonly dayStrip = viewChild<ElementRef<HTMLDivElement>>('dayStrip');
   private readonly dayThemeInput = viewChild<ElementRef<HTMLTextAreaElement>>('dayThemeInput');
   private readonly timelineScroll = viewChild<ElementRef<HTMLDivElement>>('timelineScroll');
@@ -363,7 +378,30 @@ export class ItineraryPageComponent implements OnInit {
     }
   }
 
-  protected openAddItemModal(): void {
+  protected toggleAddTypeMenu(event: Event): void {
+    event.stopPropagation();
+    if (this.isOfflineReadOnly()) {
+      return;
+    }
+    this.addTypeMenuOpen.update((open) => !open);
+  }
+
+  protected onAddTypeMenuOutsideClick(event: MouseEvent): void {
+    if (!isClickInsideElement(event, this.addItemBtn()?.nativeElement)) {
+      this.addTypeMenuOpen.set(false);
+    }
+  }
+
+  protected onAddTypeMenuKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      this.addTypeMenuOpen.set(false);
+    }
+  }
+
+  protected openAddItemModal(type: ItemType = 'SPOT'): void {
+    this.addTypeMenuOpen.set(false);
+    this.initialItemType.set(type);
     this.editingItem.set(null);
     this.alternativeTarget.set(null);
     this.showItemModal.set(true);
@@ -405,12 +443,30 @@ export class ItineraryPageComponent implements OnInit {
   }
 
   protected async handleItemSaved(event: ItemFormSubmitEvent): Promise<void> {
-    if (event.editingItemId) {
-      await this.store.updateItem(event.editingItemId, event.payload);
-    } else {
-      await this.store.addItem(event.payload);
+    if (this.savingItem()) {
+      return;
     }
-    this.showItemModal.set(false);
+    this.savingItem.set(true);
+    try {
+      if (event.editingItemId) {
+        await this.store.updateItem(event.editingItemId, event.payload);
+      } else {
+        await this.store.addItem(event.payload);
+      }
+      if (this.store.error()) {
+        return;
+      }
+      if (event.addAnother && !event.editingItemId) {
+        this.itemFormModal()?.resetForNext(
+          event.payload.title,
+          event.payload.end_time ?? '',
+        );
+        return;
+      }
+      this.showItemModal.set(false);
+    } finally {
+      this.savingItem.set(false);
+    }
   }
 
   protected formatChapterDate(isoDate: string): string {

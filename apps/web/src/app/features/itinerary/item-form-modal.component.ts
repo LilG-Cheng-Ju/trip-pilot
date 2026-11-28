@@ -2,18 +2,17 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   effect,
   inject,
   input,
   output,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 
-import {
-  CreateItemPayload,
-  TripilotApiService,
-} from '../../core/api/tripilot-api.service';
+import { CreateItemPayload } from '../../core/api/tripilot-api.service';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import {
@@ -28,11 +27,20 @@ import { AppAirportPickerComponent } from '../../shared/airport-picker.component
 import { AppModalComponent } from '../../shared/modal.component';
 import { AppSelectComponent, SelectOption } from '../../shared/select-input.component';
 import { AppTimeInputComponent } from '../../shared/time-input.component';
+import {
+  deriveAttachmentName,
+  ItemAttachmentsEditorComponent,
+} from './item-attachments-editor.component';
+import { ItemPlacePickerComponent } from './item-place-picker.component';
+import { getItemTypeMeta, ITEM_TYPE_OPTIONS } from './item-type-meta';
 
 export interface ItemFormSubmitEvent {
   editingItemId: string | null;
   payload: CreateItemPayload;
+  addAnother: boolean;
 }
+
+const ADDED_BANNER_DURATION_MS = 4000;
 
 /** Unified modal for adding, editing, or adding a slot-level alternative item. */
 @Component({
@@ -44,84 +52,62 @@ export interface ItemFormSubmitEvent {
     AppModalComponent,
     AppSelectComponent,
     AppTimeInputComponent,
+    ItemAttachmentsEditorComponent,
+    ItemPlacePickerComponent,
   ],
   template: `
-    <app-modal [open]="open()" [title]="modalTitle() | t" (closed)="closed.emit()">
-      <form class="modal-form" (submit)="$event.preventDefault(); submit()" novalidate>
-        <div class="field">
-          <span>{{ 'itinerary.form.type' | t }}</span>
-          <app-select
-            name="itemType"
-            [ariaLabel]="'itinerary.form.type' | t"
-            [options]="itemTypeOptions()"
-            [value]="itemType()"
-            (valueChange)="onItemTypeChange($event)"
-          />
+    <app-modal [open]="open()" [title]="modalTitle()" (closed)="closed.emit()">
+      <form class="modal-form" (submit)="$event.preventDefault(); submit(false)" novalidate>
+        @if (justAddedTitle(); as addedTitle) {
+          <div class="added-banner" role="status">
+            <span class="ms-icon sm" aria-hidden="true">check_circle</span>
+            <span>{{ 'itinerary.form.addedBanner' | t: { title: addedTitle } }}</span>
+          </div>
+        }
+
+        <div class="type-row">
+          @if (changingType()) {
+            <div class="field type-select-field">
+              <span>{{ 'itinerary.form.type' | t }}</span>
+              <app-select
+                name="itemType"
+                [ariaLabel]="'itinerary.form.type' | t"
+                [options]="itemTypeOptions()"
+                [value]="itemType()"
+                (valueChange)="onItemTypeChange($event)"
+              />
+            </div>
+          } @else {
+            <div class="type-bar">
+              <span class="type-badge">
+                <span
+                  class="ms-icon sm"
+                  [style.color]="activeTypeMeta().color"
+                  aria-hidden="true"
+                >
+                  {{ activeTypeMeta().icon }}
+                </span>
+                <span>{{ activeTypeMeta().labelKey | t }}</span>
+              </span>
+              <button
+                type="button"
+                class="type-switch-btn"
+                (click)="changingType.set(true)"
+              >
+                {{ 'itinerary.form.changeType' | t }}
+              </button>
+            </div>
+          }
         </div>
 
         @if (itemType() !== 'FLIGHT' && itemType() !== 'LOCAL_TRANSIT') {
-          <div class="place-picker">
-            <label class="field">
-              <span>{{ 'itinerary.place.label' | t }}</span>
-              <div class="place-input-row">
-                <input
-                  type="text"
-                  [value]="placeQuery()"
-                  (input)="placeQuery.set(readInputValue($event))"
-                  name="placeQuery"
-                  [placeholder]="'itinerary.place.placeholder' | t"
-                  (keydown.enter)="$event.preventDefault(); searchOrResolvePlace()"
-                />
-                <button
-                  type="button"
-                  class="pill-btn"
-                  [disabled]="searchingPlaces()"
-                  (click)="searchOrResolvePlace()"
-                >
-                  <span class="ms-icon sm" aria-hidden="true">
-                    {{ isUrlInput() ? 'link' : 'search' }}
-                  </span>
-                  <span>{{ isUrlInput() ? ('itinerary.place.resolve' | t) : ('itinerary.place.search' | t) }}</span>
-                </button>
-              </div>
-            </label>
-
-            @if (pinnedPlace(); as pinned) {
-              <div class="pinned-badge">
-                <div class="pinned-info">
-                  <span class="ms-icon sm pin-ico">location_on</span>
-                  <div>
-                    <strong>{{ 'itinerary.place.selected' | t }}: {{ pinned.name }}</strong>
-                    @if (address().trim()) {
-                      <p>{{ address().trim() }}</p>
-                    }
-                  </div>
-                </div>
-                <button type="button" class="pill-btn" (click)="pinnedPlace.set(null)">
-                  {{ 'itinerary.place.clear' | t }}
-                </button>
-              </div>
-            } @else {
-              <small class="place-hint">{{ 'itinerary.place.optionalHint' | t }}</small>
-            }
-
-            @if (placeSearchError()) {
-              <small class="err-msg">{{ 'itinerary.place.notFound' | t }}</small>
-            }
-
-            @if (placeCandidates().length > 0) {
-              <div class="candidate-list">
-                @for (cand of placeCandidates(); track cand.latitude + ',' + cand.longitude) {
-                  <button type="button" class="candidate-row" (click)="selectPlaceCandidate(cand)">
-                    <strong>{{ cand.name }}</strong>
-                    @if (cand.address) {
-                      <span>{{ cand.address }}</span>
-                    }
-                  </button>
-                }
-              </div>
-            }
-          </div>
+          <app-item-place-picker
+            [pinnedPlace]="pinnedPlace()"
+            [pinnedAddress]="address()"
+            [resetToken]="placeResetToken()"
+            (placeSelected)="onPlaceSelected($event)"
+            (pinCleared)="pinnedPlace.set(null)"
+          />
         }
 
         <label class="field" [class.has-error]="titleError()">
@@ -129,7 +115,7 @@ export interface ItemFormSubmitEvent {
           <input
             type="text"
             [value]="itemTitle()"
-            (input)="itemTitle.set(readInputValue($event)); titleError.set(false)"
+            (input)="onTitleInput($event)"
             name="itemTitle"
           />
           @if (titleError()) {
@@ -280,69 +266,10 @@ export interface ItemFormSubmitEvent {
         }
 
         @if (showAttachments()) {
-          <div class="attachments-box">
-            <div class="att-head">
-              <span class="att-title">
-                <span class="ms-icon sm" aria-hidden="true">attach_file</span>
-                {{ 'item.attachmentsTitle' | t }}
-              </span>
-              <small class="place-hint">{{ 'item.attachmentsHint' | t }}</small>
-            </div>
-
-            @if (attachments().length > 0) {
-              <div class="att-list">
-                @for (att of attachments(); track $index) {
-                  <div class="att-row">
-                    <span class="ms-icon sm att-ico" aria-hidden="true">link</span>
-                    <a
-                      [href]="att.url"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="att-link"
-                    >
-                      {{ att.name }}
-                    </a>
-                    <button
-                      type="button"
-                      class="att-remove"
-                      (click)="removeAttachment($index)"
-                      [attr.aria-label]="'item.attachmentRemove' | t"
-                    >
-                      <span class="ms-icon sm">close</span>
-                    </button>
-                  </div>
-                }
-              </div>
-            }
-
-            <div class="att-inputs">
-              <input
-                type="text"
-                [value]="attachmentName()"
-                (input)="attachmentName.set(readInputValue($event))"
-                name="attachmentName"
-                [placeholder]="'item.attachmentNamePlaceholder' | t"
-              />
-              <div class="place-input-row">
-                <input
-                  type="url"
-                  [value]="attachmentUrl()"
-                  (input)="attachmentUrl.set(readInputValue($event))"
-                  name="attachmentUrl"
-                  [placeholder]="'item.attachmentUrlPlaceholder' | t"
-                  (keydown.enter)="$event.preventDefault(); addAttachment()"
-                />
-                <button
-                  type="button"
-                  class="pill-btn"
-                  [disabled]="resolvingAttachment()"
-                  (click)="addAttachment()"
-                >
-                  {{ resolvingAttachment() ? '...' : '+ ' + ('item.attachmentAdd' | t) }}
-                </button>
-              </div>
-            </div>
-          </div>
+          <app-item-attachments-editor
+            [(attachments)]="attachments"
+            [resetToken]="attachmentResetToken()"
+          />
         }
 
         <!-- Progressive Disclosure: Optional field toggle chips -->
@@ -383,7 +310,19 @@ export interface ItemFormSubmitEvent {
           <button type="button" class="pill-btn" (click)="closed.emit()">
             {{ 'common.cancel' | t }}
           </button>
-          <button type="submit" class="btn-primary">{{ 'common.save' | t }}</button>
+          @if (!editingItem() && !alternativeFor()) {
+            <button
+              type="button"
+              class="btn-ghost add-another-btn"
+              [disabled]="saving()"
+              (click)="submit(true)"
+            >
+              {{ 'itinerary.form.saveAndAdd' | t }}
+            </button>
+          }
+          <button type="submit" class="btn-primary" [disabled]="saving()">
+            {{ saving() ? ('itinerary.form.saving' | t) : ('common.save' | t) }}
+          </button>
         </div>
       </form>
     </app-modal>
@@ -393,6 +332,58 @@ export interface ItemFormSubmitEvent {
       display: flex;
       flex-direction: column;
       gap: var(--space-3);
+    }
+    .added-banner {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      background: var(--color-success-soft, #eaf6ef);
+      color: var(--item-spot);
+      font-size: 0.8125rem;
+      font-weight: 600;
+    }
+    .type-row {
+      display: flex;
+      flex-direction: column;
+    }
+    .type-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: var(--radius-sm);
+      background: var(--color-surface-alt);
+      border: 1px solid var(--color-border-soft);
+    }
+    .type-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--color-primary);
+    }
+    .type-switch-btn {
+      padding: 3px 9px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-pill);
+      background: var(--color-surface);
+      color: var(--color-text-secondary);
+      font: inherit;
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .type-switch-btn:hover,
+    .type-switch-btn:focus-visible {
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+    }
+    .type-select-field {
+      width: 100%;
     }
     .two-col {
       display: grid;
@@ -425,83 +416,6 @@ export interface ItemFormSubmitEvent {
       color: var(--color-alert);
       font-size: 0.75rem;
       font-weight: 600;
-    }
-    .place-picker {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      padding: var(--space-3);
-      border-radius: var(--radius-sm);
-      background: var(--color-bg);
-      border: 1px solid var(--color-border);
-    }
-    .place-input-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-    }
-    .place-input-row input {
-      flex: 1 1 160px;
-      min-width: 0;
-      background: var(--color-surface);
-    }
-    .place-hint {
-      font-size: 0.75rem;
-      color: var(--color-text-muted);
-    }
-    .pinned-badge {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      padding: 8px 10px;
-      border-radius: var(--radius-sm);
-      background: var(--color-primary-tint);
-      color: var(--color-primary);
-      font-size: 0.8125rem;
-    }
-    .pinned-info {
-      display: flex;
-      align-items: flex-start;
-      gap: 6px;
-      min-width: 0;
-    }
-    .pin-ico {
-      color: var(--color-accent);
-      margin-top: 2px;
-    }
-    .pinned-badge p {
-      margin: 2px 0 0;
-      font-size: 0.75rem;
-      color: var(--color-text-secondary);
-    }
-    .candidate-list {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      max-height: 180px;
-      overflow-y: auto;
-    }
-    .candidate-row {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      padding: 8px 10px;
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-sm);
-      background: var(--color-surface);
-      color: var(--color-text-primary);
-      font: inherit;
-      font-size: 0.8125rem;
-      text-align: left;
-      cursor: pointer;
-    }
-    .candidate-row:hover {
-      border-color: var(--color-primary);
-    }
-    .candidate-row span {
-      font-size: 0.72rem;
-      color: var(--color-text-muted);
     }
     .pill-btn {
       display: inline-flex;
@@ -546,106 +460,34 @@ export interface ItemFormSubmitEvent {
     }
     .actions {
       display: flex;
+      flex-wrap: wrap;
       justify-content: flex-end;
       gap: 8px;
       margin-top: 4px;
     }
-    .attachments-box {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      padding: var(--space-3);
-      border-radius: var(--radius-sm);
-      background: var(--color-bg);
-      border: 1px solid var(--color-border);
-    }
-    .att-head {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-    .att-title {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 0.78rem;
-      font-weight: 600;
-      color: var(--color-primary);
-    }
-    .att-list {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-    .att-row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 8px;
-      border-radius: var(--radius-sm);
-      background: var(--color-surface);
-      border: 1px solid var(--color-border);
-      font-size: 0.8rem;
-    }
-    .att-ico {
-      color: var(--color-accent);
-      flex-shrink: 0;
-    }
-    .att-link {
-      flex: 1;
-      min-width: 0;
-      color: var(--color-primary);
-      text-decoration: none;
-      font-weight: 600;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .att-link:hover {
-      text-decoration: underline;
-    }
-    .att-remove {
-      display: inline-flex;
-      border: none;
-      background: transparent;
-      color: var(--color-text-muted);
-      cursor: pointer;
-      padding: 2px;
-    }
-    .att-inputs {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .att-inputs input {
-      padding: 8px 10px;
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-sm);
-      background: var(--color-surface);
-      color: var(--color-text-primary);
-      font: inherit;
-      font-size: 0.8125rem;
-    }
   `,
 })
 export class ItemFormModalComponent {
-  private readonly api = inject(TripilotApiService);
   private readonly i18n = inject(I18nService);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly attachmentsEditor = viewChild(ItemAttachmentsEditorComponent);
 
   readonly open = input(false);
+  readonly initialType = input<ItemType>('SPOT');
   readonly editingItem = input<ItineraryItem | null>(null);
   readonly alternativeFor = input<ItineraryItem | null>(null);
+  readonly saving = input(false);
 
   readonly closed = output<void>();
   readonly saved = output<ItemFormSubmitEvent>();
 
+  protected readonly changingType = signal(false);
   protected readonly titleError = signal(false);
-  protected readonly searchingPlaces = signal(false);
-  protected readonly placeSearchError = signal(false);
-  protected readonly placeCandidates = signal<PlaceCandidate[]>([]);
+  protected readonly justAddedTitle = signal('');
   protected readonly pinnedPlace = signal<PlaceCandidate | null>(null);
   protected readonly attachments = signal<ItemAttachment[]>([]);
-  protected readonly resolvingAttachment = signal(false);
+  protected readonly placeResetToken = signal(0);
+  protected readonly attachmentResetToken = signal(0);
   protected readonly showAddress = signal(false);
   protected readonly showBookingRef = signal(false);
   protected readonly showFreeCancel = signal(false);
@@ -656,19 +498,18 @@ export class ItemFormModalComponent {
   protected readonly readNumberValue = readNumberValue;
 
   protected readonly itemType = signal<ItemType>('SPOT');
-  protected readonly itemTypeOptions = computed<readonly SelectOption<ItemType>[]>(() => [
-    { value: 'SPOT', label: this.i18n.t('item.type.spot') },
-    { value: 'FOOD', label: this.i18n.t('item.type.food') },
-    { value: 'STAY', label: this.i18n.t('item.type.stay') },
-    { value: 'FLIGHT', label: this.i18n.t('item.type.flight') },
-    { value: 'RESERVED_TRANSIT', label: this.i18n.t('item.type.reservedTransit') },
-    { value: 'LOCAL_TRANSIT', label: this.i18n.t('item.type.localTransit') },
-  ]);
+  protected readonly itemTypeOptions = computed<readonly SelectOption<ItemType>[]>(() =>
+    ITEM_TYPE_OPTIONS.map((opt) => ({
+      value: opt.type,
+      label: this.i18n.t(opt.labelKey),
+    })),
+  );
+  protected readonly activeTypeMeta = computed(() => getItemTypeMeta(this.itemType()));
+
   protected readonly itemTitle = signal('');
   protected readonly address = signal('');
   protected readonly startTime = signal('');
   protected readonly endTime = signal('');
-  protected readonly placeQuery = signal('');
   protected readonly notes = signal('');
   protected readonly flightNo = signal('');
   protected readonly originIata = signal('');
@@ -679,20 +520,17 @@ export class ItemFormModalComponent {
   protected readonly transitMin = signal<number | null>(15);
   protected readonly freeCancel = signal('');
   protected readonly localName = signal('');
-  protected readonly attachmentName = signal('');
-  protected readonly attachmentUrl = signal('');
 
-  protected readonly modalTitle = computed<
-    'itinerary.editItem' | 'itinerary.choice.modalTitle' | 'itinerary.addItem'
-  >(() => {
-    if (this.editingItem()) return 'itinerary.editItem';
-    if (this.alternativeFor()) return 'itinerary.choice.modalTitle';
-    return 'itinerary.addItem';
-  });
-
-  protected readonly isUrlInput = computed(() => {
-    const q = this.placeQuery().trim().toLowerCase();
-    return q.startsWith('http://') || q.startsWith('https://');
+  protected readonly modalTitle = computed(() => {
+    if (this.editingItem()) {
+      return this.i18n.t('itinerary.editItem');
+    }
+    if (this.alternativeFor()) {
+      return this.i18n.t('itinerary.choice.modalTitle');
+    }
+    return this.i18n.t('itinerary.addItemTyped', {
+      type: this.i18n.t(this.activeTypeMeta().labelKey),
+    });
   });
 
   protected readonly supportsBookingFields = computed(() => {
@@ -700,19 +538,31 @@ export class ItemFormModalComponent {
     return t === 'STAY' || t === 'FLIGHT' || t === 'RESERVED_TRANSIT';
   });
 
+  private bannerTimer: ReturnType<typeof setTimeout> | null = null;
+
   constructor() {
+    this.destroyRef.onDestroy(() => this.clearBannerTimer());
+
     effect(() => {
-      if (!this.open()) return;
+      if (!this.open()) {
+        untracked(() => {
+          this.clearBannerTimer();
+          this.justAddedTitle.set('');
+          this.changingType.set(false);
+        });
+        return;
+      }
       const edit = this.editingItem();
       const alt = this.alternativeFor();
+      const requestedType = this.initialType();
 
       untracked(() => {
+        this.clearBannerTimer();
+        this.justAddedTitle.set('');
+        this.changingType.set(false);
         this.titleError.set(false);
-        this.placeSearchError.set(false);
-        this.placeCandidates.set([]);
-        this.placeQuery.set('');
-        this.attachmentName.set('');
-        this.attachmentUrl.set('');
+        this.placeResetToken.update((n) => n + 1);
+        this.attachmentResetToken.update((n) => n + 1);
 
         if (edit) {
           this.itemType.set(edit.type);
@@ -736,9 +586,7 @@ export class ItemFormModalComponent {
           this.freeCancel.set(cancel);
           const local = String(d['local_name'] ?? '');
           this.localName.set(local);
-          const parsedAttachments = extractItemAttachments(d, (url) =>
-            this.deriveAttachmentName(url),
-          );
+          const parsedAttachments = extractItemAttachments(d, deriveAttachmentName);
           this.attachments.set(parsedAttachments);
 
           if (edit.latitude !== null && edit.longitude !== null) {
@@ -760,155 +608,58 @@ export class ItemFormModalComponent {
           this.showNotes.set(Boolean(editNotes));
           this.showAttachments.set(parsedAttachments.length > 0);
         } else {
-          this.itemType.set(alt ? alt.type : 'SPOT');
-          this.itemTitle.set('');
-          this.address.set('');
-          this.startTime.set(alt?.start_time ?? '');
-          this.endTime.set(alt?.end_time ?? '');
-          this.notes.set('');
-          this.flightNo.set('');
-          this.originIata.set('');
-          this.destIata.set('');
-          this.bookingRef.set('');
-          this.trainLine.set('');
-          this.seat.set('');
-          this.transitMin.set(15);
-          this.freeCancel.set('');
-          this.localName.set('');
-          this.pinnedPlace.set(null);
-          this.attachments.set([]);
-          this.showAddress.set(false);
-          this.showBookingRef.set(false);
-          this.showFreeCancel.set(false);
-          this.showLocalName.set(false);
-          this.showNotes.set(false);
-          this.showAttachments.set(false);
+          this.resetBlankForm(
+            alt ? alt.type : requestedType,
+            alt?.start_time ?? '',
+            alt?.end_time ?? '',
+          );
         }
       });
     });
   }
 
-  protected onItemTypeChange(next: ItemType): void {
-    this.itemType.set(next);
+  /** Clear fields for rapid sequential entry while keeping the current item type. */
+  resetForNext(savedTitle: string, carryStartTime: string): void {
+    this.resetBlankForm(this.itemType(), carryStartTime, '');
+    this.placeResetToken.update((n) => n + 1);
+    this.attachmentResetToken.update((n) => n + 1);
+    this.justAddedTitle.set(savedTitle);
+    this.clearBannerTimer();
+    this.bannerTimer = setTimeout(() => {
+      this.justAddedTitle.set('');
+      this.bannerTimer = null;
+    }, ADDED_BANNER_DURATION_MS);
   }
 
-  protected async searchOrResolvePlace(): Promise<void> {
-    const q = this.placeQuery().trim();
-    if (!q) return;
+  protected onItemTypeChange(next: ItemType): void {
+    this.itemType.set(next);
+    this.changingType.set(false);
+  }
 
-    this.searchingPlaces.set(true);
-    this.placeSearchError.set(false);
-    this.placeCandidates.set([]);
-
-    try {
-      if (this.isUrlInput()) {
-        const resolved = await this.api.resolvePlaceUrl(q);
-        this.selectPlaceCandidate(resolved);
-      } else {
-        const results = await this.api.searchPlaces(q, this.i18n.locale());
-        if (results.length === 0) {
-          this.placeSearchError.set(true);
-        } else {
-          this.placeCandidates.set(results);
-        }
-      }
-    } catch {
-      this.placeSearchError.set(true);
-    } finally {
-      this.searchingPlaces.set(false);
+  protected onTitleInput(event: Event): void {
+    this.itemTitle.set(readInputValue(event));
+    this.titleError.set(false);
+    if (this.justAddedTitle()) {
+      this.clearBannerTimer();
+      this.justAddedTitle.set('');
     }
   }
 
-  protected selectPlaceCandidate(cand: PlaceCandidate): void {
+  protected onPlaceSelected(cand: PlaceCandidate): void {
     this.pinnedPlace.set(cand);
-    this.placeCandidates.set([]);
     if (!this.itemTitle().trim()) {
       this.itemTitle.set(cand.name);
+      this.titleError.set(false);
     }
     if (cand.address) {
       this.address.set(cand.address);
     }
   }
 
-  protected async addAttachment(): Promise<void> {
-    let rawUrl = this.attachmentUrl().trim();
-    if (!rawUrl) {
+  protected submit(addAnother: boolean): void {
+    if (this.saving()) {
       return;
     }
-    if (!rawUrl.startsWith('http://') && !rawUrl.startsWith('https://')) {
-      rawUrl = `https://${rawUrl}`;
-    }
-    let label = this.attachmentName().trim();
-    if (!label) {
-      const directFile = this.extractUrlFilename(rawUrl);
-      if (directFile) {
-        label = directFile;
-      } else {
-        this.resolvingAttachment.set(true);
-        try {
-          const resolved = await this.api.resolveLinkTitle(rawUrl);
-          label = resolved.title?.trim() || this.deriveAttachmentName(rawUrl);
-        } catch {
-          label = this.deriveAttachmentName(rawUrl);
-        } finally {
-          this.resolvingAttachment.set(false);
-        }
-      }
-    }
-    this.attachments.update((list) => [...list, { name: label, url: rawUrl }]);
-    this.attachmentName.set('');
-    this.attachmentUrl.set('');
-  }
-
-  protected removeAttachment(index: number): void {
-    this.attachments.update((list) => list.filter((_, i) => i !== index));
-  }
-
-  private extractUrlFilename(rawUrl: string): string | null {
-    try {
-      const parsed = new URL(rawUrl);
-      const segments = parsed.pathname.split('/').filter(Boolean);
-      const last = segments.length > 0 ? decodeURIComponent(segments[segments.length - 1]) : '';
-      const generic = new Set(['view', 'edit', 'open', 'uc', 'd', 'preview', 'share', 'download']);
-      if (last && !generic.has(last.toLowerCase()) && last.includes('.')) {
-        return last;
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  }
-
-  private deriveAttachmentName(rawUrl: string): string {
-    const directFile = this.extractUrlFilename(rawUrl);
-    if (directFile) {
-      return directFile;
-    }
-    try {
-      const parsed = new URL(rawUrl);
-      const host = parsed.hostname.toLowerCase();
-      if (host.includes('drive.google.com') || host.includes('docs.google.com')) {
-        return 'Google Drive';
-      }
-      if (host.includes('dropbox.com')) {
-        return 'Dropbox';
-      }
-      if (host.includes('onedrive.live.com') || host.includes('1drv.ms')) {
-        return 'OneDrive';
-      }
-      if (host.includes('icloud.com')) {
-        return 'iCloud';
-      }
-      if (host.includes('notion.so') || host.includes('notion.site')) {
-        return 'Notion';
-      }
-      return parsed.hostname.replace(/^www\./, '');
-    } catch {
-      return 'Attachment';
-    }
-  }
-
-  protected submit(): void {
     const title = this.itemTitle().trim();
     if (!title) {
       this.titleError.set(true);
@@ -946,18 +697,9 @@ export class ItemFormModalComponent {
     if (localName) {
       details['local_name'] = localName;
     }
-    const finalAttachments = [...this.attachments()];
-    const pendingUrl = this.attachmentUrl().trim();
-    if (pendingUrl) {
-      const normalized =
-        pendingUrl.startsWith('http://') || pendingUrl.startsWith('https://')
-          ? pendingUrl
-          : `https://${pendingUrl}`;
-      finalAttachments.push({
-        name: this.attachmentName().trim() || this.deriveAttachmentName(normalized),
-        url: normalized,
-      });
-    }
+
+    const finalAttachments =
+      this.attachmentsEditor()?.collectFinalAttachments() ?? [...this.attachments()];
     if (finalAttachments.length > 0) {
       details['attachments'] = finalAttachments;
     }
@@ -965,6 +707,7 @@ export class ItemFormModalComponent {
     const pinned = this.pinnedPlace();
     this.saved.emit({
       editingItemId: this.editingItem()?.id ?? null,
+      addAnother,
       payload: {
         type,
         title,
@@ -981,5 +724,40 @@ export class ItemFormModalComponent {
           : (this.alternativeFor()?.id ?? null),
       },
     });
+  }
+
+  private resetBlankForm(nextType: ItemType, nextStartTime: string, nextEndTime: string): void {
+    this.itemType.set(nextType);
+    this.changingType.set(false);
+    this.titleError.set(false);
+    this.itemTitle.set('');
+    this.address.set('');
+    this.startTime.set(nextStartTime);
+    this.endTime.set(nextEndTime);
+    this.notes.set('');
+    this.flightNo.set('');
+    this.originIata.set('');
+    this.destIata.set('');
+    this.bookingRef.set('');
+    this.trainLine.set('');
+    this.seat.set('');
+    this.transitMin.set(15);
+    this.freeCancel.set('');
+    this.localName.set('');
+    this.pinnedPlace.set(null);
+    this.attachments.set([]);
+    this.showAddress.set(false);
+    this.showBookingRef.set(false);
+    this.showFreeCancel.set(false);
+    this.showLocalName.set(false);
+    this.showNotes.set(false);
+    this.showAttachments.set(false);
+  }
+
+  private clearBannerTimer(): void {
+    if (this.bannerTimer !== null) {
+      clearTimeout(this.bannerTimer);
+      this.bannerTimer = null;
+    }
   }
 }

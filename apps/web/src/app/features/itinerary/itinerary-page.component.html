@@ -236,16 +236,56 @@
                   <span>{{ 'itinerary.plan.addOption' | t }}</span>
                 </button>
                 <button
+                  #addItemBtn
+                  cdkOverlayOrigin
+                  #addItemOrigin="cdkOverlayOrigin"
                   type="button"
                   class="add-item-btn"
                   [disabled]="isOfflineReadOnly()"
                   [title]="isOfflineReadOnly() ? ('sync.offlineReadOnly' | t) : ''"
-                  (click)="openAddItemModal()"
+                  [attr.aria-haspopup]="'menu'"
+                  [attr.aria-expanded]="addTypeMenuOpen()"
+                  (click)="toggleAddTypeMenu($event)"
                 >
                   <span class="ms-icon sm" aria-hidden="true">add</span>
                   <span>{{ 'itinerary.addItem' | t }}</span>
                 </button>
               </div>
+              <ng-template
+                cdkConnectedOverlay
+                [cdkConnectedOverlayOrigin]="addItemOrigin"
+                [cdkConnectedOverlayOpen]="addTypeMenuOpen()"
+                [cdkConnectedOverlayPositions]="addMenuPositions"
+                [cdkConnectedOverlayPush]="true"
+                [cdkConnectedOverlayViewportMargin]="12"
+                (overlayOutsideClick)="onAddTypeMenuOutsideClick($event)"
+                (overlayKeydown)="onAddTypeMenuKeydown($event)"
+                (detach)="addTypeMenuOpen.set(false)"
+              >
+                <div
+                  class="add-type-menu"
+                  role="menu"
+                  [attr.aria-label]="'itinerary.addItemMenuAria' | t"
+                >
+                  @for (opt of addItemTypeOptions; track opt.type) {
+                    <button
+                      type="button"
+                      class="add-type-option"
+                      role="menuitem"
+                      (click)="openAddItemModal(opt.type)"
+                    >
+                      <span
+                        class="ms-icon sm add-type-icon"
+                        [style.color]="opt.color"
+                        aria-hidden="true"
+                      >
+                        {{ opt.icon }}
+                      </span>
+                      <span>{{ opt.labelKey | t }}</span>
+                    </button>
+                  }
+                </div>
+              </ng-template>
             </div>
 
             @if (timelineSlots().length === 0) {
@@ -441,8 +481,10 @@
   <!-- Unified Add / Edit / Alternative Item Modal -->
   <app-item-form-modal
     [open]="showItemModal()"
+    [initialType]="initialItemType()"
     [editingItem]="editingItem()"
     [alternativeFor]="alternativeTarget()"
+    [saving]="savingItem()"
     (closed)="showItemModal.set(false)"
     (saved)="handleItemSaved($event)"
   />

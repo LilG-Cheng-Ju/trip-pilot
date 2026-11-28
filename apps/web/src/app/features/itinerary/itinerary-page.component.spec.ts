@@ -219,9 +219,20 @@ describe('ItineraryPageComponent', () => {
     const addItemBtn = host.querySelector('.split-cta .add-item-btn') as HTMLButtonElement;
     addItemBtn.click();
     fixture.detectChanges();
+
+    const typeOptions = Array.from(
+      document.querySelectorAll<HTMLButtonElement>('.add-type-menu .add-type-option'),
+    );
+    expect(typeOptions).toHaveLength(6);
+
+    const flightOption = typeOptions.find((btn) => btn.textContent?.includes('Flight'));
+    expect(flightOption).toBeTruthy();
+    flightOption!.click();
+    fixture.detectChanges();
+
     expect(
       host.querySelector('app-item-form-modal [role="dialog"]')?.getAttribute('aria-label'),
-    ).toBe('Add Item');
+    ).toBe('Add Flight');
 
     const closeItemBtn = host.querySelector('app-item-form-modal .close-btn') as HTMLButtonElement;
     closeItemBtn.click();
