@@ -14,7 +14,7 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
       <header class="toast-head">
         <div class="toast-badges">
           <span class="badge-pill">
-            <span class="ms-icon sm" aria-hidden="true">auto_awesome</span>
+            <span class="ms-icon sm" aria-hidden="true">new_releases</span>
             <span>
               {{
                 mode() === 'update-ready'

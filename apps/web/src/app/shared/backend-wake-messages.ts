@@ -61,7 +61,7 @@ export const BACKEND_WAKE_MESSAGES: readonly WakeMessage[] = [
   },
   {
     kind: 'tip',
-    tag: { 'zh-TW': 'AI 副駕駛', en: 'AI Copilot' },
+    tag: { 'zh-TW': 'AI 助理', en: 'AI Assistant' },
     text: {
       'zh-TW': '到「設定」建立 API 金鑰，就能讓 ChatGPT、Claude 或 Gemini CLI 幫你排行程。',
       en: 'Create an API Token in Settings so ChatGPT, Claude, or Gemini CLI can help plan trips.',
