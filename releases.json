@@ -1,5 +1,25 @@
 [
   {
+    "version": "0.9.16-beta",
+    "date": "2026-11-28",
+    "title": {
+      "zh-TW": "支援跨天與跨方案移動行程項目",
+      "en": "Move Stops Across Days & Plans"
+    },
+    "changes": {
+      "zh-TW": [
+        "行程卡片選單新增「移至其他天」，可一鍵將景點、餐廳或交通搬到不同日期或備案",
+        "搬移項目時自動依時間排序、重算路線，並同步更新關聯花費所屬天數",
+        "AI 助理同步支援跨天搬移行程指令，對話調整旅程天數更省力"
+      ],
+      "en": [
+        "Added a Move to another day action on itinerary cards to relocate stops across days or plans",
+        "Automatically re-sorted moved stops by time, updated routes, and synced linked expense days",
+        "Enabled AI assistants to move itinerary stops across dates directly through conversation"
+      ]
+    }
+  },
+  {
     "version": "0.9.15-beta",
     "date": "2026-11-28",
     "title": {

@@ -2,6 +2,13 @@
 
 <!-- Auto-generated from releases.json. Run `node scripts/sync-releases.mjs` after editing releases.json. -->
 
+## v0.9.16-beta (2026-11-28) — 支援跨天與跨方案移動行程項目
+*Move Stops Across Days & Plans*
+
+- 行程卡片選單新增「移至其他天」，可一鍵將景點、餐廳或交通搬到不同日期或備案
+- 搬移項目時自動依時間排序、重算路線，並同步更新關聯花費所屬天數
+- AI 助理同步支援跨天搬移行程指令，對話調整旅程天數更省力
+
 ## v0.9.15-beta (2026-11-28) — 介面元件一致性與系統架構精進
 *Form Consistency & Architecture Polish*
 
