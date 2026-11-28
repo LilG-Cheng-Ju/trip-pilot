@@ -158,10 +158,10 @@ Headers:
 - `Content-Type: application/json`
 - `Accept: application/json, text/event-stream`
 
-Available MCP tools (33 total):
+Available MCP tools (34 total):
 - Trips & Days: `list_trips`, `get_trip`, `create_trip`, `update_trip`, `delete_trip`, `append_day`, `update_day_title` (`title`, `notes`), `delete_trip_day`
 - Day Options & Routes (Plan A/B): `create_day_option`, `clone_day_option`, `rename_day_option`, `delete_day_option`, `set_active_option`, `recalculate_option_route`
-- Itinerary Items: `add_itinerary_item` (`type`), `add_item_by_date` (`type`), `update_itinerary_item` (flat fields), `delete_itinerary_item`, `select_choice_item`, `reorder_itinerary_items`
+- Itinerary Items: `add_itinerary_item` (`type`), `add_item_by_date` (`type`), `update_itinerary_item` (flat fields), `delete_itinerary_item`, `select_choice_item`, `reorder_itinerary_items`, `move_itinerary_item` (`target_option_id` or `target_date`)
 - Share Links: `list_trip_shares`, `create_trip_share`, `revoke_trip_share`
 - Places, Airports & Cloud Links: `search_places` (`query`, `lang`, `limit`), `resolve_google_maps_url`, `search_airports` (`query`, `limit`), `resolve_link_title`
 - Expenses & FX: `list_expenses`, `add_expense` (omit `exchange_rate` to auto-fetch live FX), `update_expense`, `delete_expense`, `get_fx_rate`
@@ -182,6 +182,7 @@ Key endpoints:
 - `POST /api/v1/options/{{option_id}}/items` — add item (`FLIGHT`, `RESERVED_TRANSIT`, `LOCAL_TRANSIT`, `STAY`, `SPOT`, `FOOD`)
 - `PATCH /api/v1/items/{{item_id}}` — update item
 - `PATCH /api/v1/items/{{item_id}}/select` — switch active alternative in a choice group
+- `PATCH /api/v1/items/{{item_id}}/move` — move an item to another day/option (`target_option_id`, optional `sort_order`)
 - `GET /api/v1/places/search?q=...&lang=zh-TW` — geocode places before adding items
 - `POST /api/v1/places/resolve-url` — resolve Google Maps URL
 - `GET /api/v1/fx/rate?from=JPY&to=TWD` — live cached exchange rate

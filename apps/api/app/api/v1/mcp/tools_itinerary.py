@@ -13,6 +13,7 @@ from app.models.enums import ItemType
 from app.schemas.trip import (
     DayOptionResponse,
     ItineraryItemCreate,
+    ItineraryItemMoveRequest,
     ItineraryItemResponse,
     ItineraryItemUpdate,
 )
@@ -224,3 +225,46 @@ async def reorder_itinerary_items(option_id: str, item_ids: list[str]) -> str:
             option_id, ctx.auth_ctx.user.id, item_ids
         )
         return json_text(dump_model(DayOptionResponse, opt))
+
+
+@mcp_server.tool()
+async def move_itinerary_item(
+    item_id: str,
+    target_option_id: str | None = None,
+    target_date: str | None = None,
+    option_label: str | None = None,
+    sort_order: int | None = None,
+) -> str:
+    """Move an itinerary item to another day option (by ID or target_date)."""
+    async with tool_session("trips:write") as ctx:
+        trip_svc = TripService(ctx.db)
+        resolved_option_id = target_option_id
+        if not resolved_option_id:
+            if not target_date:
+                raise ValueError(
+                    "Either target_option_id or target_date must be provided."
+                )
+            item = await trip_svc.repo.get_item_for_user(
+                item_id, ctx.auth_ctx.user.id
+            )
+            if item is None:
+                raise ValueError(f"Itinerary item '{item_id}' not found.")
+            day_loc = await trip_svc._get_day_location_for_option(
+                item.day_option_id
+            )
+            if day_loc is None:
+                raise ValueError("Source day option not found.")
+            trip_id, _ = day_loc
+            trip = await trip_svc.get_trip_detail(trip_id, ctx.auth_ctx.user.id)
+            resolved_option_id = _resolve_option_id_for_date(
+                trip, trip_id, target_date, option_label
+            )
+        moved = await trip_svc.move_item(
+            item_id,
+            ctx.auth_ctx.user.id,
+            ItineraryItemMoveRequest(
+                target_option_id=resolved_option_id,
+                sort_order=sort_order,
+            ),
+        )
+        return json_text(dump_model(ItineraryItemResponse, moved))

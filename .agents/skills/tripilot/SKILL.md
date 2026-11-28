@@ -40,8 +40,9 @@ Use Tripilot's Remote MCP endpoint (`POST <API_URL>/mcp`) or `/api/v1` REST API 
   - Link expenses to a specific stop via `trip_day_id` and `itinerary_item_id` so they group cleanly on cards and filter in `/trips/:id/expenses?itemId=...`.
   - Manage expenses with `list_expenses`, `add_expense`, `update_expense`, and `delete_expense` (pass optional `paid_at` as `YYYY-MM-DD` or ISO-8601 datetime).
   - Omit `exchange_rate` in `add_expense` or when changing `currency_original` in `update_expense` to auto-resolve the live FX rate into the user's home currency, or call `get_fx_rate` (`GET /api/v1/fx/rate?from=JPY&to=TWD`) when inspecting rates directly — never fabricate exchange rates.
-- **Updating Itinerary Items**:
+- **Updating & Moving Itinerary Items**:
   - Call `update_itinerary_item` with flat optional fields (`title`, `start_time`, `end_time`, `notes`, `details`, `is_selected`, `sort_order`, etc.) via Remote MCP.
+  - Call `move_itinerary_item(item_id, target_option_id=..., target_date=..., option_label=...)` (`PATCH /api/v1/items/{item_id}/move`) to move an item to another day or Plan A/B option; linked expenses and routes sync automatically.
 
 ---
 

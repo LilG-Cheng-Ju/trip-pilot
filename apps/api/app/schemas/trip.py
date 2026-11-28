@@ -325,6 +325,11 @@ class ItineraryItemReorderRequest(BaseModel):
     item_ids: list[str] = Field(min_length=1)
 
 
+class ItineraryItemMoveRequest(BaseModel):
+    target_option_id: str = Field(min_length=1, max_length=36)
+    sort_order: int | None = Field(default=None, ge=0)
+
+
 class ItineraryItemResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

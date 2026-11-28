@@ -871,3 +871,131 @@ async def test_add_item_middle_insertion_recalculates_routes(
         (spot_b["id"], spot_c["id"]),
     ]
     assert after["cached_ground_distance_km"] == 9.0
+
+
+@pytest.mark.asyncio
+async def test_move_item_across_days_syncs_order_choices_expenses_and_blocks_cross_trip(
+    api_client: AsyncClient, dev_headers: dict[str, str]
+) -> None:
+    trip_resp = await api_client.post(
+        "/api/v1/trips",
+        headers=dev_headers,
+        json={
+            "title": "Kyoto Week",
+            "destination_summary": "Kyoto",
+            "country_codes": ["JP"],
+            "start_date": "2026-11-01",
+            "end_date": "2026-11-02",
+            "default_currency": "JPY",
+        },
+    )
+    assert trip_resp.status_code == 201
+    trip = trip_resp.json()
+    day1, day2 = trip["days"][0], trip["days"][1]
+    opt1 = day1["active_option_id"]
+    opt2 = day2["active_option_id"]
+
+    other_trip = (
+        await api_client.post(
+            "/api/v1/trips",
+            headers=dev_headers,
+            json={
+                "title": "Osaka Side",
+                "destination_summary": "Osaka",
+                "country_codes": ["JP"],
+                "start_date": "2026-12-01",
+                "end_date": "2026-12-01",
+                "default_currency": "JPY",
+            },
+        )
+    ).json()
+    other_opt = other_trip["days"][0]["active_option_id"]
+
+    # Day 1 has a slot with primary + backup alternative.
+    primary = (
+        await api_client.post(
+            f"/api/v1/options/{opt1}/items",
+            headers=dev_headers,
+            json={"type": "SPOT", "title": "Fushimi Inari", "start_time": "10:00"},
+        )
+    ).json()
+    backup = (
+        await api_client.post(
+            f"/api/v1/options/{opt1}/items",
+            headers=dev_headers,
+            json={
+                "type": "SPOT",
+                "title": "Tofuku-ji",
+                "start_time": "10:00",
+                "alternative_for_item_id": primary["id"],
+            },
+        )
+    ).json()
+
+    # Day 2 starts with a later-timed item so moving primary inserts before it.
+    day2_later = (
+        await api_client.post(
+            f"/api/v1/options/{opt2}/items",
+            headers=dev_headers,
+            json={"type": "FOOD", "title": "Nishiki Dinner", "start_time": "18:00"},
+        )
+    ).json()
+
+    # Expense linked to primary on Day 1.
+    exp = (
+        await api_client.post(
+            f"/api/v1/trips/{trip['id']}/expenses",
+            headers=dev_headers,
+            json={
+                "title": "Omamori",
+                "category": "ACTIVITY",
+                "amount_original": "800.00",
+                "currency_original": "JPY",
+                "exchange_rate": "0.21",
+                "trip_day_id": day1["id"],
+                "itinerary_item_id": primary["id"],
+            },
+        )
+    ).json()
+    assert exp["trip_day_id"] == day1["id"]
+
+    # Cross-trip move must be rejected.
+    bad_move = await api_client.patch(
+        f"/api/v1/items/{primary['id']}/move",
+        headers=dev_headers,
+        json={"target_option_id": other_opt},
+    )
+    assert bad_move.status_code == 400
+
+    # Move primary from Day 1 -> Day 2.
+    moved_resp = await api_client.patch(
+        f"/api/v1/items/{primary['id']}/move",
+        headers=dev_headers,
+        json={"target_option_id": opt2},
+    )
+    assert moved_resp.status_code == 200
+    moved = moved_resp.json()
+    assert moved["day_option_id"] == opt2
+    assert moved["choice_group_id"] is None
+    assert moved["is_selected"] is True
+    assert moved["sort_order"] == 0
+
+    refreshed = (
+        await api_client.get(f"/api/v1/trips/{trip['id']}", headers=dev_headers)
+    ).json()
+    day1_items = refreshed["days"][0]["options"][0]["items"]
+    day2_items = refreshed["days"][1]["options"][0]["items"]
+    assert [(i["id"], i["is_selected"]) for i in day1_items] == [
+        (backup["id"], True)
+    ]
+    assert [(i["id"], i["sort_order"]) for i in day2_items] == [
+        (primary["id"], 0),
+        (day2_later["id"], 1),
+    ]
+
+    expenses_after = (
+        await api_client.get(
+            f"/api/v1/trips/{trip['id']}/expenses", headers=dev_headers
+        )
+    ).json()["items"]
+    assert expenses_after[0]["trip_day_id"] == day2["id"]

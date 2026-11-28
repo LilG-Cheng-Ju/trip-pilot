@@ -6,11 +6,12 @@ from datetime import time
 
 from fastapi import HTTPException, status
 from pydantic import ValidationError
-from sqlalchemy import select
+from sqlalchemy import select, update
 
-from app.models import DayOption, ItemType, ItineraryItem
+from app.models import DayOption, Expense, ItemType, ItineraryItem, TripDay
 from app.schemas.trip import (
     ItineraryItemCreate,
+    ItineraryItemMoveRequest,
     ItineraryItemUpdate,
     validate_item_details_for_type,
 )
@@ -333,3 +334,147 @@ class ItineraryItemsMixin(TripServiceBase):
             ),
             "Day option not found",
         )
+
+    async def move_item(
+        self, item_id: str, user_id: str, payload: ItineraryItemMoveRequest
+    ) -> ItineraryItem:
+        """Move an item to another day option, syncing expenses and routes."""
+        item = await self.repo.get_item_for_user(item_id, user_id)
+        if item is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Itinerary item not found"
+            )
+        target_option = await self.repo.get_option_for_user(
+            payload.target_option_id, user_id
+        )
+        if target_option is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Day option not found"
+            )
+
+        source_row = (
+            await self.db.execute(
+                select(TripDay.trip_id, TripDay.day_index, TripDay.id)
+                .join(DayOption, DayOption.trip_day_id == TripDay.id)
+                .where(DayOption.id == item.day_option_id)
+            )
+        ).first()
+        target_row = (
+            await self.db.execute(
+                select(TripDay.trip_id, TripDay.day_index, TripDay.id)
+                .join(DayOption, DayOption.trip_day_id == TripDay.id)
+                .where(DayOption.id == target_option.id)
+            )
+        ).first()
+        if source_row is None or target_row is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Trip day not found"
+            )
+
+        source_trip_id, source_day_index, source_day_id = (
+            str(source_row[0]),
+            int(source_row[1]),
+            str(source_row[2]),
+        )
+        target_trip_id, target_day_index, target_day_id = (
+            str(target_row[0]),
+            int(target_row[1]),
+            str(target_row[2]),
+        )
+        if source_trip_id != target_trip_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot move item across different trips",
+            )
+
+        source_option_id = item.day_option_id
+        has_coords = item.latitude is not None and item.longitude is not None
+        is_stay = item.type == ItemType.STAY.value
+
+        if source_option_id == target_option.id:
+            if payload.sort_order is None or payload.sort_order == item.sort_order:
+                return item
+            item.sort_order = payload.sort_order
+            await self.db.commit()
+            if item.is_selected and has_coords:
+                await self._sync_routes_after_commit(
+                    source_trip_id,
+                    user_id,
+                    [target_option.id],
+                    cascade_after_day_index=target_day_index if is_stay else None,
+                    invalidate_item_ids={item.id},
+                )
+            await self.db.refresh(item)
+            return item
+
+        was_group_id = item.choice_group_id
+        was_selected = item.is_selected
+        promoted_is_stay = False
+        promoted_has_coords = False
+
+        if was_group_id and was_selected:
+            source_option = await self.repo.get_option_for_user(
+                source_option_id, user_id
+            )
+            if source_option is not None:
+                siblings = [
+                    i
+                    for i in source_option.items
+                    if i.id != item.id and i.choice_group_id == was_group_id
+                ]
+                if siblings and not any(s.is_selected for s in siblings):
+                    siblings[0].is_selected = True
+                    promoted_is_stay = siblings[0].type == ItemType.STAY.value
+                    promoted_has_coords = (
+                        siblings[0].latitude is not None
+                        and siblings[0].longitude is not None
+                    )
+
+        if payload.sort_order is not None:
+            target_sort_order = payload.sort_order
+        elif (parsed_start := parse_start_time(item.start_time)) is not None:
+            target_sort_order = await self._resolve_chronological_sort_order(
+                target_option.id, parsed_start
+            )
+        else:
+            target_sort_order = (
+                max((i.sort_order for i in target_option.items), default=-1) + 1
+            )
+
+        await self._delete_item_route_segments([item.id])
+        item.day_option_id = target_option.id
+        item.sort_order = target_sort_order
+        item.choice_group_id = None
+        item.is_selected = True
+
+        if source_day_id != target_day_id:
+            await self.db.execute(
+                update(Expense)
+                .where(Expense.itinerary_item_id == item.id)
+                .values(trip_day_id=target_day_id)
+            )
+
+        await self.db.commit()
+
+        options_to_sync: list[str] = []
+        if (has_coords and was_selected) or promoted_has_coords:
+            options_to_sync.append(source_option_id)
+        if has_coords:
+            options_to_sync.append(target_option.id)
+
+        cascade_after: int | None = None
+        if is_stay:
+            cascade_after = min(source_day_index, target_day_index)
+        elif promoted_is_stay:
+            cascade_after = source_day_index
+
+        if options_to_sync or cascade_after is not None:
+            await self._sync_routes_after_commit(
+                source_trip_id,
+                user_id,
+                options_to_sync,
+                cascade_after_day_index=cascade_after,
+                invalidate_item_ids={item.id},
+            )
+        await self.db.refresh(item)
+        return item

@@ -123,6 +123,7 @@ async def test_remote_mcp_lifecycle_and_tool_calls(
         "delete_itinerary_item",
         "select_choice_item",
         "reorder_itinerary_items",
+        "move_itinerary_item",
         "list_trip_shares",
         "create_trip_share",
         "revoke_trip_share",
@@ -137,7 +138,7 @@ async def test_remote_mcp_lifecycle_and_tool_calls(
         "get_fx_rate",
         "get_travel_stats",
     }
-    assert len(expected) == 33
+    assert len(expected) == 34
     assert expected <= tool_names
 
     fx = await api_client.post(
@@ -469,7 +470,7 @@ async def test_mcp_auto_fx_expense_flat_patches_and_schema_parity(
     )
     assert tools_res.status_code == 200
     tools_by_name = {t["name"]: t for t in tools_res.json()["result"]["tools"]}
-    assert len(tools_by_name) == 33
+    assert len(tools_by_name) == 34
     add_props = tools_by_name["add_itinerary_item"]["inputSchema"]["properties"]
     assert "type" in add_props
     assert "item_type" not in add_props
@@ -667,6 +668,13 @@ async def test_remote_mcp_full_parity_tools(
     reordered_items = reordered["items"]
     assert isinstance(reordered_items, list)
     assert [it["id"] for it in reordered_items] == [item2["id"], item1["id"]]
+
+    moved_item = await _call(
+        "move_itinerary_item",
+        {"item_id": item1["id"], "target_date": "2026-10-04"},
+    )
+    day2_opt_id = str(days[1]["active_option_id"])
+    assert moved_item["day_option_id"] == day2_opt_id
 
     recalc = await _call("recalculate_option_route", {"option_id": opt_id})
     assert recalc["id"] == opt_id
