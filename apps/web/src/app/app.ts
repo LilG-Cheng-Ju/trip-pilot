@@ -22,18 +22,21 @@ import { filter, map } from 'rxjs';
 import { AuthSessionService } from './core/auth/auth-session.service';
 import { SessionCleanupService } from './core/auth/session-cleanup.service';
 import { APP_VERSION, IS_BETA } from './core/config/app-version';
+import { RELEASE_NOTES, ReleaseNoteEntry } from './core/config/release-notes.generated';
 import { I18nService } from './core/i18n/i18n.service';
 import { TranslatePipe } from './core/i18n/translate.pipe';
 import { BackendWakeService } from './core/network/backend-wake.service';
 import { NetworkStatusService } from './core/network/network-status.service';
+import { PwaUpdateService } from './core/pwa/pwa-update.service';
 import {
   injectMenuCloseScrollStrategy,
   isClickInsideElement,
   MENU_OVERLAY_POSITIONS,
 } from './core/utils/overlay-positions';
 import { AppBackendWakeOverlayComponent } from './shared/backend-wake-overlay.component';
-import { AppReleaseNotesModalComponent } from './shared/release-notes-modal.component';
 import { MobileBottomNavComponent } from './shared/mobile-bottom-nav.component';
+import { AppReleaseNotesModalComponent } from './shared/release-notes-modal.component';
+import { AppUpdateToastComponent } from './shared/update-toast.component';
 import { AuthStore } from './state/auth.store';
 
 const LAST_SEEN_VERSION_KEY = 'tripilot:last_seen_version';
@@ -63,6 +66,7 @@ function writeLastSeenVersion(version: string): void {
   imports: [
     AppBackendWakeOverlayComponent,
     AppReleaseNotesModalComponent,
+    AppUpdateToastComponent,
     CdkConnectedOverlay,
     CdkOverlayOrigin,
     MobileBottomNavComponent,
@@ -81,6 +85,7 @@ export class App {
   protected readonly authStore = inject(AuthStore);
   protected readonly backendWake = inject(BackendWakeService);
   protected readonly network = inject(NetworkStatusService);
+  protected readonly pwaUpdate = inject(PwaUpdateService);
   private readonly sessionCleanup = inject(SessionCleanupService);
   private readonly router = inject(Router);
   private readonly avatarBtn = viewChild<ElementRef<HTMLButtonElement>>('avatarBtn');
@@ -92,11 +97,34 @@ export class App {
   protected readonly isBeta = IS_BETA;
   protected readonly accountMenuOpen = signal(false);
   protected readonly releaseNotesOpen = signal(false);
+  protected readonly whatsNewDismissed = signal(false);
   private readonly lastSeenVersion = signal<string | null>(readLastSeenVersion());
 
   protected readonly hasUnseenRelease = computed(
     () => this.lastSeenVersion() !== this.appVersion,
   );
+
+  protected readonly activeUpdateNotice = computed<{
+    mode: 'update-ready' | 'whats-new';
+    note: ReleaseNoteEntry | null;
+  } | null>(() => {
+    if (this.hideAppChrome() || this.releaseNotesOpen()) {
+      return null;
+    }
+    const pending = this.pwaUpdate.pendingUpdate();
+    if (pending && !this.pwaUpdate.dismissedUpdate()) {
+      return { mode: 'update-ready', note: pending.note };
+    }
+    const seen = this.lastSeenVersion();
+    if (seen !== null && seen !== this.appVersion && !this.whatsNewDismissed()) {
+      const currentNote =
+        RELEASE_NOTES.find((entry) => entry.version === this.appVersion) ??
+        RELEASE_NOTES[0] ??
+        null;
+      return { mode: 'whats-new', note: currentNote };
+    }
+    return null;
+  });
 
   protected readonly currentUrl = toSignal(
     this.router.events.pipe(
@@ -144,12 +172,38 @@ export class App {
   protected openReleaseNotes(): void {
     this.closeAccountMenu();
     this.releaseNotesOpen.set(true);
-    this.lastSeenVersion.set(this.appVersion);
-    writeLastSeenVersion(this.appVersion);
+    this.markCurrentVersionSeen();
   }
 
   protected closeReleaseNotes(): void {
     this.releaseNotesOpen.set(false);
+  }
+
+  protected onUpdateToastReload(): void {
+    void this.pwaUpdate.applyUpdate((version) => {
+      this.lastSeenVersion.set(version);
+      writeLastSeenVersion(version);
+    });
+  }
+
+  protected onUpdateToastChangelog(): void {
+    this.whatsNewDismissed.set(true);
+    this.openReleaseNotes();
+  }
+
+  protected onUpdateToastDismiss(): void {
+    const notice = this.activeUpdateNotice();
+    if (notice?.mode === 'update-ready') {
+      this.pwaUpdate.dismissPendingUpdate();
+      return;
+    }
+    this.whatsNewDismissed.set(true);
+    this.markCurrentVersionSeen();
+  }
+
+  private markCurrentVersionSeen(): void {
+    this.lastSeenVersion.set(this.appVersion);
+    writeLastSeenVersion(this.appVersion);
   }
 
   protected async signOut(): Promise<void> {

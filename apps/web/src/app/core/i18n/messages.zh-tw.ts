@@ -436,4 +436,13 @@ export const MESSAGES_ZH_TW: Record<TranslationKey, string> = {
   'wake.subtitle': '首次喚醒約需數秒，完成後將自動解鎖。',
   'wake.next': '換一則',
   'wake.closePreview': '關閉預覽',
+  'update.newAvailableBadge': '發現新版本',
+  'update.updatedBadge': '已更新',
+  'update.genericTitle': 'Tripilot 新版本已準備就緒',
+  'update.reloadNow': '立即更新',
+  'update.updating': '更新中...',
+  'update.later': '稍後',
+  'update.viewChangelog': '更新日誌',
+  'update.acknowledge': '確認',
+  'update.dismissAria': '關閉更新通知',
 };

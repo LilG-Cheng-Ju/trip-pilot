@@ -434,6 +434,15 @@ export const MESSAGES_EN = {
   'wake.subtitle': 'Usually ready in a few seconds. Features unlock automatically.',
   'wake.next': 'Next',
   'wake.closePreview': 'Exit preview',
+  'update.newAvailableBadge': 'New version',
+  'update.updatedBadge': 'Updated',
+  'update.genericTitle': 'A newer version of Tripilot is ready',
+  'update.reloadNow': 'Update now',
+  'update.updating': 'Updating...',
+  'update.later': 'Later',
+  'update.viewChangelog': 'Release Notes',
+  'update.acknowledge': 'Got it',
+  'update.dismissAria': 'Dismiss update notice',
 } as const;
 
 export type TranslationKey = keyof typeof MESSAGES_EN;

@@ -9,6 +9,7 @@ import { I18nService } from './core/i18n/i18n.service';
 import { UserProfile } from './core/models/tripilot.models';
 import { BackendWakeService } from './core/network/backend-wake.service';
 import { NetworkStatusService } from './core/network/network-status.service';
+import { PwaUpdateService } from './core/pwa/pwa-update.service';
 import { AuthStore } from './state/auth.store';
 
 describe('App', () => {
@@ -170,5 +171,90 @@ describe('App', () => {
     expect(dropdown?.querySelector('.version-pill-btn')).toBeTruthy();
 
     wake.reset();
+  });
+
+  it('should show whats-new toast for returning upgraded users with release notes and acknowledge buttons', async () => {
+    localStorage.setItem('tripilot:last_seen_version', '0.9.16-beta');
+    const i18n = TestBed.inject(I18nService);
+    i18n.setLocale('zh-TW');
+
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    const toast = compiled.querySelector('app-update-toast');
+    expect(toast).toBeTruthy();
+    expect(toast?.textContent).toContain(`v${APP_VERSION}`);
+    expect(toast?.textContent).toContain('更新日誌');
+    expect(toast?.textContent).toContain('確認');
+
+    const changelogBtn = toast?.querySelector('.btn-ghost') as HTMLButtonElement;
+    changelogBtn.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(compiled.querySelector('app-update-toast')).toBeNull();
+    expect(compiled.textContent).toContain('Tripilot 更新日誌');
+    expect(localStorage.getItem('tripilot:last_seen_version')).toBe(APP_VERSION);
+  });
+
+  it('should dismiss whats-new toast and clear unread dot when clicking acknowledge', async () => {
+    localStorage.setItem('tripilot:last_seen_version', '0.9.16-beta');
+    const i18n = TestBed.inject(I18nService);
+    i18n.setLocale('zh-TW');
+
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.querySelector('.avatar-unread-dot')).toBeTruthy();
+    const ackBtn = compiled.querySelector('app-update-toast .btn-primary') as HTMLButtonElement;
+    ackBtn.click();
+    fixture.detectChanges();
+
+    expect(compiled.querySelector('app-update-toast')).toBeNull();
+    expect(compiled.querySelector('.avatar-unread-dot')).toBeNull();
+    expect(localStorage.getItem('tripilot:last_seen_version')).toBe(APP_VERSION);
+  });
+
+  it('should show update-ready toast when PwaUpdateService detects a pending SW build', async () => {
+    localStorage.setItem('tripilot:last_seen_version', APP_VERSION);
+    const i18n = TestBed.inject(I18nService);
+    i18n.setLocale('zh-TW');
+
+    const fixture = TestBed.createComponent(App);
+    const pwaUpdate = TestBed.inject(PwaUpdateService);
+    pwaUpdate.pendingUpdate.set({
+      versionHash: 'hash-next',
+      note: {
+        version: '0.9.18-beta',
+        date: '2026-11-29',
+        title: {
+          'zh-TW': '即將更新的測試版本',
+          en: 'Upcoming Release',
+        },
+        changes: {
+          'zh-TW': ['加入即時新版本提示卡片'],
+          en: ['Added proactive update banner'],
+        },
+      },
+    });
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    const toast = compiled.querySelector('app-update-toast');
+    expect(toast).toBeTruthy();
+    expect(toast?.textContent).toContain('發現新版本');
+    expect(toast?.textContent).toContain('v0.9.18-beta');
+    expect(toast?.textContent).toContain('加入即時新版本提示卡片');
+    expect(toast?.textContent).toContain('立即更新');
   });
 });

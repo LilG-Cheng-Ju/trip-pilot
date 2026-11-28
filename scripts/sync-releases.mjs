@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const RELEASES_PATH = path.join(ROOT, 'releases.json');
 const CHANGELOG_PATH = path.join(ROOT, 'CHANGELOG.md');
+const NGSW_CONFIG_PATH = path.join(ROOT, 'apps/web/ngsw-config.json');
 const WEB_GENERATED_PATH = path.join(
   ROOT,
   'apps/web/src/app/core/config/release-notes.generated.ts',
@@ -87,6 +88,20 @@ function renderWebTs(releases) {
   ].join('\n');
 }
 
+function renderNgswConfig(latestRelease) {
+  const existing = JSON.parse(fs.readFileSync(NGSW_CONFIG_PATH, 'utf8'));
+  const updated = {
+    ...existing,
+    appData: {
+      version: latestRelease.version,
+      date: latestRelease.date,
+      title: latestRelease.title,
+      changes: latestRelease.changes,
+    },
+  };
+  return `${JSON.stringify(updated, null, 2)}\n`;
+}
+
 function readNormalized(filePath) {
   return fs.existsSync(filePath)
     ? fs.readFileSync(filePath, 'utf8').replace(/\r\n/g, '\n')
@@ -148,10 +163,11 @@ function checkVersionConsistency(latestVersion) {
 const releases = loadReleases();
 const changelogOk = writeOrCheck(CHANGELOG_PATH, renderChangelog(releases));
 const webTsOk = writeOrCheck(WEB_GENERATED_PATH, renderWebTs(releases));
+const ngswOk = writeOrCheck(NGSW_CONFIG_PATH, renderNgswConfig(releases[0]));
 
 if (checkMode) {
   const versionsOk = checkVersionConsistency(releases[0].version);
-  if (!changelogOk || !webTsOk || !versionsOk) {
+  if (!changelogOk || !webTsOk || !ngswOk || !versionsOk) {
     console.error('Release notes or version strings are out of sync. Run: node scripts/sync-releases.mjs');
     process.exit(1);
   }

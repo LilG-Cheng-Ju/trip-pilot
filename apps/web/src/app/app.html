@@ -213,4 +213,17 @@
       (closed)="closeReleaseNotes()"
     />
   }
+
+  @if (activeUpdateNotice(); as notice) {
+    @defer (when activeUpdateNotice() !== null) {
+      <app-update-toast
+        [mode]="notice.mode"
+        [note]="notice.note"
+        [applying]="pwaUpdate.applying()"
+        (reloadRequested)="onUpdateToastReload()"
+        (changelogRequested)="onUpdateToastChangelog()"
+        (dismissed)="onUpdateToastDismiss()"
+      />
+    }
+  }
 </div>
