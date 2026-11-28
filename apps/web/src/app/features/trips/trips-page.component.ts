@@ -247,15 +247,16 @@ import { TripFormModalComponent, TripFormSubmitEvent } from './trip-form-modal.c
     .tab-bar {
       display: inline-flex;
       gap: 4px;
-      padding: 4px;
+      padding: 3px;
       margin-bottom: var(--space-5);
       background: var(--color-surface-muted);
-      border-radius: var(--radius-pill);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
     }
     .tab-pill {
       padding: 8px 18px;
       border: none;
-      border-radius: var(--radius-pill);
+      border-radius: var(--radius-xs);
       background: transparent;
       color: var(--color-text-secondary);
       font: inherit;
@@ -342,7 +343,7 @@ import { TripFormModalComponent, TripFormSubmitEvent } from './trip-form-modal.c
     }
     .countdown-badge {
       padding: 2px 9px;
-      border-radius: var(--radius-pill);
+      border-radius: var(--radius-xs);
       background: var(--color-accent-tint);
       color: var(--color-accent-ink);
       font-size: var(--text-badge);

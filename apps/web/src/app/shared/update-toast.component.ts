@@ -122,7 +122,7 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
       align-items: center;
       gap: 4px;
       padding: 2px 8px;
-      border-radius: var(--radius-pill);
+      border-radius: var(--radius-xs);
       background: var(--color-accent-soft);
       color: var(--color-accent-ink);
       font-size: 0.7rem;
@@ -141,7 +141,7 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
       color: var(--color-primary);
       background: var(--color-primary-tint);
       padding: 2px 7px;
-      border-radius: var(--radius-pill);
+      border-radius: var(--radius-xs);
     }
 
     .dismiss-btn {

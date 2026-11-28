@@ -234,7 +234,7 @@ export function deriveAttachmentName(rawUrl: string): string {
       gap: 4px;
       padding: 7px 12px;
       border: 1px solid var(--color-border);
-      border-radius: var(--radius-pill);
+      border-radius: var(--radius-sm);
       background: var(--color-surface);
       color: var(--color-primary);
       font: inherit;

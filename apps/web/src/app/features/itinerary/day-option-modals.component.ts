@@ -146,7 +146,7 @@ import { ItineraryStore } from '../../state/itinerary.store';
       gap: 4px;
       padding: 7px 14px;
       border: none;
-      border-radius: var(--radius-pill);
+      border-radius: var(--radius-sm);
       background: var(--color-primary);
       color: var(--color-text-on-primary);
       font: inherit;

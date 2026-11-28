@@ -71,7 +71,6 @@
   pointer-events: none;
 }
 
-/* Unified Logbook Spread */
 .logbook-ledger {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -83,34 +82,38 @@
   margin-bottom: var(--space-4);
 }
 .logbook-hero {
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 11px;
-  padding: 16px 18px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    'top'
+    'val'
+    'map'
+    'modes';
+  gap: 8px;
+  padding: 15px 18px;
   background: var(--color-primary);
   color: var(--color-text-on-primary);
 }
-.hero-carto {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-.hero-top,
-.hero-value,
-.hero-modes {
-  position: relative;
-  z-index: 1;
-}
 .hero-top {
+  grid-area: top;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   flex-wrap: wrap;
+}
+.hero-value {
+  grid-area: val;
+}
+.hero-map-slot {
+  grid-area: map;
+}
+.hero-modes {
+  grid-area: modes;
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 .hero-title {
   font-size: 0.9rem;
@@ -137,23 +140,17 @@
   overflow-wrap: anywhere;
 }
 .kpi-value.hero-value {
-  margin: 2px 0 2px;
-  font-size: 2.05rem;
+  margin: 0;
+  font-size: 1.95rem;
   line-height: 1.06;
   color: #f8f7f4;
 }
 .hero-unit {
   font-family: var(--font-sans);
-  font-size: 0.98rem;
+  font-size: 0.95rem;
   font-weight: 500;
   letter-spacing: 0;
   color: var(--color-accent-light);
-}
-.hero-modes {
-  margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 11px;
 }
 .distance-bar {
   display: flex;
@@ -180,10 +177,13 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
-.mode-col {
+.mode-col,
+.logbook-metric-row {
   min-width: 0;
   display: flex;
   flex-direction: column;
+}
+.mode-col {
   gap: 3px;
 }
 .mode-col + .mode-col {
@@ -220,16 +220,12 @@
   color: rgba(248, 247, 244, 0.6);
 }
 
-/* Right 2x2 Architectural Ledger Grid */
 .logbook-metrics {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   background: var(--color-surface);
 }
 .logbook-metric-row {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
   justify-content: center;
   gap: 4px;
   padding: 14px 16px;
@@ -252,7 +248,6 @@
 }
 .kpi-sub {
   font-size: 0.75rem;
-  font-weight: 400;
   line-height: 1.35;
   color: var(--color-text-muted);
   white-space: nowrap;
@@ -260,7 +255,6 @@
   text-overflow: ellipsis;
 }
 
-/* Insights Panels */
 .insights-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -300,12 +294,16 @@
   font-weight: 600;
   color: var(--color-accent-ink);
 }
+.stacked-bar,
+.bar-track,
+.month-track {
+  border-radius: var(--radius-xs);
+  background: var(--color-surface-muted);
+  overflow: hidden;
+}
 .stacked-bar {
   display: flex;
   height: 9px;
-  border-radius: var(--radius-xs);
-  overflow: hidden;
-  background: var(--color-surface-muted);
   gap: 2px;
   margin-bottom: var(--space-4);
 }
@@ -396,9 +394,6 @@
 }
 .bar-track {
   height: 6px;
-  border-radius: var(--radius-xs);
-  background: var(--color-surface-muted);
-  overflow: hidden;
 }
 .bar-fill,
 .month-fill {
@@ -409,7 +404,6 @@
   height: 100%;
 }
 
-/* 12-Month Domestic Cadence Chart */
 .month-cadence {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -430,11 +424,8 @@
   width: 100%;
   max-width: 18px;
   height: 82px;
-  border-radius: var(--radius-xs);
-  background: var(--color-surface-muted);
   display: flex;
   align-items: flex-end;
-  overflow: hidden;
 }
 .month-fill {
   width: 100%;
@@ -455,7 +446,6 @@
   color: var(--color-text-muted);
 }
 
-/* Period Trips List */
 .trips-panel .panel-head {
   margin-bottom: 0;
 }
@@ -570,8 +560,8 @@
     width: 138px;
   }
   .logbook-hero {
-    padding: 20px 22px;
-    gap: 14px;
+    padding: 18px 22px;
+    gap: 10px;
   }
   .kpi-value {
     font-size: 1.5rem;
@@ -599,15 +589,38 @@
     gap: 6px;
   }
 }
-@media (min-width: 820px) {
-  .logbook-ledger {
-    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.28fr);
-  }
+@media (min-width: 760px) {
   .logbook-hero {
-    padding: 24px 26px;
+    grid-template-columns: minmax(0, 0.86fr) minmax(0, 1.34fr);
+    grid-template-rows: auto auto 1fr;
+    grid-template-areas:
+      'top map'
+      'val map'
+      'modes map';
+    column-gap: 20px;
+    row-gap: 8px;
+    padding: 20px 24px;
+  }
+  .hero-map-slot {
+    align-self: center;
+    padding-left: 18px;
+    border-left: 1px solid rgba(248, 247, 244, 0.08);
+  }
+  .hero-modes {
+    align-self: end;
+  }
+}
+@media (min-width: 820px) {
+  .logbook-metrics {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
   .logbook-metric-row {
-    padding: 20px 24px;
+    padding: 16px 20px;
+    border-bottom: none;
+    border-right: 1px solid var(--color-border-soft);
+  }
+  .logbook-metric-row:last-child {
+    border-right: none;
   }
   .trip-row {
     grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) 166px 124px;
@@ -623,14 +636,15 @@
     margin-top: 0;
     font-size: 0.82rem;
   }
-  .trip-dates {
-    align-self: center;
-    margin-top: 0;
-    font-size: 0.81rem;
-  }
+  .trip-dates,
   .trip-spend {
     align-self: center;
     margin-top: 0;
+  }
+  .trip-dates {
+    font-size: 0.81rem;
+  }
+  .trip-spend {
     font-size: 0.94rem;
   }
 }

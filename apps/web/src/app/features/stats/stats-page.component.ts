@@ -5,7 +5,11 @@ import { MS_PER_DAY } from '../../core/constants/app-limits';
 import { findCountry } from '../../core/constants/travel-options';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { ExpenseCategory, StatsScope, TripStatSummary } from '../../core/models/tripilot.models';
+import {
+  ExpenseCategory,
+  StatsScope,
+  TripStatSummary,
+} from '../../core/models/tripilot.models';
 import { createAnimatedNumber } from '../../core/utils/count-up.utils';
 import {
   EXPENSE_CATEGORY_COLORS,
@@ -14,6 +18,7 @@ import {
 } from '../../core/utils/travel-format.utils';
 import { AppSelectComponent, SelectOption } from '../../shared/select-input.component';
 import { StatsStore } from '../../state/stats.store';
+import { StatsHeroMapComponent } from './stats-hero-map.component';
 
 type YearSelectValue = 'all' | number;
 
@@ -38,21 +43,6 @@ interface YearFootprintEntry {
   barPercent: number;
 }
 
-interface HeroWaypoint {
-  x: number;
-  y: number;
-  isEnd: boolean;
-}
-
-function sampleHeroCurvePoint(t: number): { x: number; y: number } {
-  const u = 1 - t;
-  const x =
-    u * u * u * 175 + 3 * u * u * t * 235 + 3 * u * t * t * 305 + t * t * t * 378;
-  const y =
-    u * u * u * 162 + 3 * u * u * t * 112 + 3 * u * t * t * 88 + t * t * t * 66;
-  return { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 };
-}
-
 function parseUtcDateMs(isoDate: string): number {
   const [year, month, day] = isoDate.split('-').map(Number);
   return Date.UTC(year, month - 1, day);
@@ -62,7 +52,7 @@ function parseUtcDateMs(isoDate: string): number {
 @Component({
   selector: 'app-stats-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, TranslatePipe, AppSelectComponent],
+  imports: [RouterLink, TranslatePipe, AppSelectComponent, StatsHeroMapComponent],
   templateUrl: './stats-page.component.html',
   styleUrl: './stats-page.component.css',
 })
@@ -128,23 +118,6 @@ export class StatsPageComponent implements OnInit {
       return `${yr} · ${sc} · ${this.countryLabel(s.home_country_code)}`;
     }
     return `${yr} · ${sc}`;
-  });
-
-  protected readonly heroRoute = computed<{
-    hasRoute: boolean;
-    waypoints: HeroWaypoint[];
-  }>(() => {
-    const s = this.store.stats();
-    if (!s || s.total_trips === 0) {
-      return { hasRoute: false, waypoints: [{ x: 175, y: 162, isEnd: false }] };
-    }
-    const count = Math.min(5, Math.max(2, s.flight_count > 0 ? s.flight_count + 1 : s.total_trips + 1));
-    const waypoints: HeroWaypoint[] = [];
-    for (let i = 0; i < count; i++) {
-      const pt = sampleHeroCurvePoint(i / (count - 1));
-      waypoints.push({ x: pt.x, y: pt.y, isEnd: i === count - 1 });
-    }
-    return { hasRoute: true, waypoints };
   });
 
   protected readonly distanceModes = computed<DistanceModeEntry[]>(() => {

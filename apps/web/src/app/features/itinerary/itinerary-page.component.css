@@ -52,8 +52,7 @@
   white-space: nowrap;
 }
 .mobile-map-fab,
-.add-item-btn,
-.choice-pill.active {
+.add-item-btn {
   background: var(--color-primary);
   color: var(--color-text-on-primary);
 }
@@ -160,12 +159,11 @@
   flex-shrink: 0;
   align-self: stretch;
   padding: 0 11px;
-  border: 1px solid var(--color-border-soft);
+  border: 1px dashed var(--color-border-strong);
   border-radius: var(--radius-sm);
-  background: var(--color-surface-alt);
+  background: transparent;
   color: var(--color-text-secondary);
   font-size: 0.76rem;
-  transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
 }
 .day-add-btn:hover:not(:disabled) {
   border-color: var(--color-primary);
@@ -355,6 +353,11 @@
   border-color: var(--color-accent);
   background: var(--color-accent-soft);
 }
+.day-add-btn,
+.set-active-pill,
+.choice-pill {
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+}
 .set-active-pill {
   height: 26px;
   padding: 0 10px;
@@ -363,7 +366,6 @@
   background: var(--color-accent-soft);
   color: var(--color-accent-ink);
   font-size: 0.74rem;
-  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
 }
 .set-active-pill:hover:not(:disabled) {
   border-color: var(--color-accent);
@@ -447,15 +449,21 @@
 }
 .choice-pill {
   gap: 5px;
-  padding: 4px 10px;
-  border: 1px solid var(--color-border);
+  padding: 4px 9px;
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  background: var(--color-surface);
+  background: var(--color-surface-alt);
   color: var(--color-text-secondary);
   font-size: 0.75rem;
 }
+.choice-pill:hover:not(:disabled):not(.active) {
+  background: var(--color-surface-muted);
+  color: var(--color-primary);
+}
 .choice-pill.active {
-  border-color: var(--color-primary);
+  border-color: var(--color-accent-border);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-ink);
 }
 @media (min-width: 640px) {
   .plan-pill {
@@ -498,7 +506,6 @@
   }
   .day-add-btn {
     padding: 0 14px;
-    border-radius: var(--radius-md);
     font-size: 0.8125rem;
   }
   .summary-bar {
@@ -512,20 +519,22 @@
   .mobile-map-fab {
     display: none;
   }
+  .itinerary-layout,
+  .timeline-pane,
+  .desktop-map-pane {
+    height: calc(100dvh - var(--topbar-height));
+  }
   .itinerary-layout {
     grid-template-columns: minmax(440px, 46%) 1fr;
-    height: calc(100dvh - var(--topbar-height));
   }
   .timeline-pane {
     max-width: none;
-    height: calc(100dvh - var(--topbar-height));
     overflow: hidden;
   }
   .sticky-trip-top {
     position: static;
     padding: var(--space-4) var(--space-5) var(--space-3);
   }
-  .collapsible-subnav,
   .collapsible-subnav.collapsed {
     grid-template-rows: 1fr;
     opacity: 1;
@@ -543,7 +552,6 @@
   .desktop-map-pane {
     display: block;
     padding: var(--space-4) var(--space-4) var(--space-4) 0;
-    height: calc(100dvh - var(--topbar-height));
     position: sticky;
     top: var(--topbar-height);
   }

@@ -288,6 +288,11 @@ export function findCountry(code: string): CountryOption | undefined {
   return COUNTRY_BY_CODE.get(code.toUpperCase());
 }
 
+/** Return [lng, lat] center for a single ISO-2 country code, or null if unknown. */
+export function getCountryCenter(code: string): readonly [number, number] | null {
+  return COUNTRY_MAP_CENTERS[code.trim().toUpperCase()] ?? null;
+}
+
 /** Resolves a destination-appropriate [lng, lat] center when a day has no pinned coordinates yet. */
 export function resolveCountryMapCenter(
   countryCodes: readonly string[],

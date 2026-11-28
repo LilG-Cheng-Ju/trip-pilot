@@ -9,13 +9,57 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models import DayOption, ItemType, Trip, TripDay, TripStatus, User
-from app.schemas.stats import StatsScope, TravelStatsResponse, TripStatSummary
+from app.schemas.stats import (
+    FlightRouteStat,
+    StatsScope,
+    TravelStatsResponse,
+    TripStatSummary,
+)
+from app.services.airport_service import AirportEntry, get_airport
 from app.services.expense_service import convert_expense_with_rates, resolve_home_rates
 
 
 def _is_international_trip(trip: Trip, home_country: str) -> bool:
     trip_countries = {c.upper() for c in (trip.country_codes or [])}
     return any(code != home_country for code in trip_countries)
+
+
+def _canonical_flight_pair(
+    origin_ap: AirportEntry,
+    dest_ap: AirportEntry,
+    home_country: str,
+) -> tuple[AirportEntry, AirportEntry]:
+    """Order an airport pair deterministically so round-trips share one key."""
+    if origin_ap.country_code == home_country and dest_ap.country_code != home_country:
+        return origin_ap, dest_ap
+    if dest_ap.country_code == home_country and origin_ap.country_code != home_country:
+        return dest_ap, origin_ap
+    if origin_ap.iata < dest_ap.iata:
+        return origin_ap, dest_ap
+    return dest_ap, origin_ap
+
+
+def _serialize_flight_routes(
+    route_map: dict[tuple[str, str], tuple[AirportEntry, AirportEntry, int]],
+) -> list[FlightRouteStat]:
+    """Serialize aggregated flight pairs sorted by descending segment count."""
+    return [
+        FlightRouteStat(
+            origin_iata=first_ap.iata,
+            dest_iata=second_ap.iata,
+            origin_country_code=first_ap.country_code,
+            dest_country_code=second_ap.country_code,
+            origin_lat=first_ap.latitude,
+            origin_lng=first_ap.longitude,
+            dest_lat=second_ap.latitude,
+            dest_lng=second_ap.longitude,
+            count=cnt,
+        )
+        for (first_ap, second_ap, cnt) in sorted(
+            route_map.values(),
+            key=lambda row: (-row[2], row[0].iata, row[1].iata),
+        )
+    ]
 
 
 class StatsService:
@@ -78,6 +122,7 @@ class StatsService:
         total_ground_km = 0.0
         total_spend = Decimal("0.00")
         spend_by_category: dict[str, Decimal] = defaultdict(lambda: Decimal("0.00"))
+        route_map: dict[tuple[str, str], tuple[AirportEntry, AirportEntry, int]] = {}
         trip_summaries: list[TripStatSummary] = []
 
         all_expenses = [exp for trip in trips for exp in trip.expenses]
@@ -114,6 +159,22 @@ class StatsService:
                         dist = item.details.get("distance_km")
                         if isinstance(dist, (int, float)):
                             total_flight_km += float(dist)
+                        origin_raw = item.details.get("origin_iata")
+                        dest_raw = item.details.get("dest_iata")
+                        if isinstance(origin_raw, str) and isinstance(dest_raw, str):
+                            origin_ap = get_airport(origin_raw)
+                            dest_ap = get_airport(dest_raw)
+                            if origin_ap and dest_ap and origin_ap.iata != dest_ap.iata:
+                                first_ap, second_ap = _canonical_flight_pair(
+                                    origin_ap, dest_ap, home_country
+                                )
+                                key = (first_ap.iata, second_ap.iata)
+                                prev = route_map.get(key)
+                                route_map[key] = (
+                                    first_ap,
+                                    second_ap,
+                                    (prev[2] + 1) if prev else 1,
+                                )
 
             trip_spend = Decimal("0.00")
             for exp in trip.expenses:
@@ -167,4 +228,5 @@ class StatsService:
                 for cat, amt in spend_by_category.items()
             },
             trips=trip_summaries,
+            flight_routes=_serialize_flight_routes(route_map),
         )

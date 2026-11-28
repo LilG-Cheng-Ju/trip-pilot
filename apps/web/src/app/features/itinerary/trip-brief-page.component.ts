@@ -289,11 +289,6 @@ interface TripAttachmentEntry {
     </div>
   `,
   styles: `
-    .page {
-      max-width: 1120px;
-      margin: 0 auto;
-      padding: var(--space-4) var(--space-3) calc(var(--nav-bottom-height) + var(--space-6));
-    }
     .brief-grid {
       display: grid;
       grid-template-columns: minmax(0, 1fr);
@@ -551,9 +546,6 @@ interface TripAttachmentEntry {
       color: var(--color-text-muted);
     }
     @media (min-width: 640px) {
-      .page {
-        padding: var(--space-4) var(--space-4) calc(var(--nav-bottom-height) + var(--space-6));
-      }
       .brief-grid {
         gap: var(--space-4);
       }

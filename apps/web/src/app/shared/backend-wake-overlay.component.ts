@@ -134,7 +134,7 @@ const AUTO_ROTATE_INTERVAL_MS = 5800;
     }
     .preview-exit-btn {
       padding: 4px 10px;
-      border-radius: var(--radius-pill);
+      border-radius: var(--radius-sm);
       border: 1px solid var(--color-border);
       background: var(--color-surface-alt);
       color: var(--color-text-secondary);
@@ -219,7 +219,7 @@ const AUTO_ROTATE_INTERVAL_MS = 5800;
     .wake-tag {
       align-self: flex-start;
       padding: 2px 8px;
-      border-radius: var(--radius-pill);
+      border-radius: var(--radius-xs);
       background: var(--color-primary-tint);
       color: var(--color-primary);
       font-size: 0.7rem;

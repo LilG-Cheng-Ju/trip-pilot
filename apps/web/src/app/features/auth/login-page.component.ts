@@ -1,4 +1,9 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  signal,
+} from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import { AuthSessionService } from '../../core/auth/auth-session.service';
@@ -11,125 +16,40 @@ import { MIN_PASSWORD_LENGTH } from '../../core/constants/app-limits';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { readInputValue } from '../../core/utils/form-events.utils';
+import { LoginArtifactShowcaseComponent } from './login-artifact-showcase.component';
 
-/** Split-screen editorial login page with cartographic vector artwork, Email/Password, and Google Sign-In. */
+/** Smart container login page handling auth flows and delegating product artifact previews. */
 @Component({
   selector: 'app-login-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslatePipe],
+  imports: [TranslatePipe, LoginArtifactShowcaseComponent],
   template: `
     <div class="login-shell">
-      <!-- Left Cartographic Editorial Artwork (zero external image dependencies) -->
-      <section class="visual-pane" aria-hidden="true">
+      <!-- Left Cartographic Editorial Pane & Rotating Product Artifacts -->
+      <section class="visual-pane">
         <svg
           class="carto-backdrop"
           viewBox="0 0 800 900"
           preserveAspectRatio="xMidYMid slice"
           fill="none"
+          aria-hidden="true"
         >
-          <defs>
-            <radialGradient id="carto-glow" cx="585" cy="285" r="360" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stop-color="#C4924C" stop-opacity="0.16" />
-              <stop offset="55%" stop-color="#C4924C" stop-opacity="0.04" />
-              <stop offset="100%" stop-color="#162136" stop-opacity="0" />
-            </radialGradient>
-            <linearGradient
-              id="route-grad"
-              x1="112"
-              y1="682"
-              x2="585"
-              y2="285"
-              gradientUnits="userSpaceOnUse"
-            >
-              <stop offset="0%" stop-color="#C4924C" stop-opacity="0.45" />
-              <stop offset="65%" stop-color="#C4924C" stop-opacity="0.88" />
-              <stop offset="100%" stop-color="#F3D7A4" stop-opacity="0.95" />
-            </linearGradient>
-          </defs>
-
-          <!-- Atmospheric warm glow behind destination -->
-          <rect width="800" height="900" fill="url(#carto-glow)" />
-
-          <!-- Meridian and latitude graticule lines -->
+          <!-- Restrained static cartographic hair-grid -->
           <g stroke="rgba(248, 247, 244, 0.045)" stroke-width="1">
             <line x1="160" y1="0" x2="160" y2="900" />
-            <line x1="360" y1="0" x2="360" y2="900" />
-            <line x1="560" y1="0" x2="560" y2="900" />
-            <line x1="0" y1="200" x2="800" y2="200" />
-            <line x1="0" y1="420" x2="800" y2="420" />
-            <line x1="0" y1="640" x2="800" y2="640" />
+            <line x1="320" y1="0" x2="320" y2="900" />
+            <line x1="480" y1="0" x2="480" y2="900" />
+            <line x1="640" y1="0" x2="640" y2="900" />
+            <line x1="0" y1="180" x2="800" y2="180" />
+            <line x1="0" y1="360" x2="800" y2="360" />
+            <line x1="0" y1="540" x2="800" y2="540" />
+            <line x1="0" y1="720" x2="800" y2="720" />
           </g>
-
-          <!-- Cartographic intersection crosshairs -->
-          <g stroke="rgba(248, 247, 244, 0.14)" stroke-width="1">
-            <path d="M 155 200 H 165 M 160 195 V 205" />
-            <path d="M 355 420 H 365 M 360 415 V 425" />
-            <path d="M 555 640 H 565 M 560 635 V 645" />
-          </g>
-
-          <!-- Organic nested topographic contours around destination -->
-          <g stroke="#C4924C" fill="none">
-            <path
-              d="M 425 270 C 425 185, 508 135, 602 152 C 692 168, 742 238, 725 322 C 708 402, 620 440, 535 415 C 455 390, 425 342, 425 270 Z"
-              stroke-opacity="0.07"
-              stroke-width="1"
-            />
-            <path
-              d="M 465 276 C 468 212, 526 172, 594 184 C 660 196, 698 248, 686 308 C 674 366, 610 396, 548 378 C 488 360, 462 325, 465 276 Z"
-              stroke-opacity="0.11"
-              stroke-width="1"
-            />
-            <path
-              d="M 505 282 C 508 238, 546 212, 588 220 C 632 228, 656 262, 648 300 C 640 338, 598 356, 558 344 C 520 332, 502 312, 505 282 Z"
-              stroke-opacity="0.15"
-              stroke-width="1.1"
-            />
-          </g>
-
-          <!-- Dashed compass range ring with cardinal ticks -->
-          <g stroke="rgba(196, 146, 76, 0.2)" stroke-width="1">
-            <circle cx="585" cy="285" r="196" stroke-dasharray="3 6" />
-            <line x1="585" y1="81" x2="585" y2="97" />
-            <line x1="585" y1="473" x2="585" y2="489" />
-            <line x1="381" y1="285" x2="397" y2="285" />
-            <line x1="773" y1="285" x2="789" y2="285" />
-          </g>
-
-          <!-- Subtle coastal spur branch + multi-leg aviation curves -->
-          <path
-            d="M 374 444 C 425 462, 462 486, 488 520"
-            stroke="#C4924C"
-            stroke-width="1.25"
-            stroke-dasharray="3 5"
-            stroke-opacity="0.34"
-            stroke-linecap="round"
-          />
-          <path
-            d="M 112 682 C 208 532, 378 430, 585 285"
-            stroke="url(#route-grad)"
-            stroke-width="2.1"
-            stroke-linecap="round"
-          />
-          <path
-            d="M 585 285 C 642 246, 684 196, 718 138"
-            stroke="#C4924C"
-            stroke-width="1.6"
-            stroke-dasharray="5 6"
-            stroke-opacity="0.52"
-            stroke-linecap="round"
-          />
-
-          <!-- Route waypoints & coordinates -->
-          <circle cx="112" cy="682" r="6.5" fill="#162136" stroke="#C4924C" stroke-width="2" />
-          <circle cx="374" cy="444" r="4.5" fill="#C4924C" fill-opacity="0.88" />
-          <circle cx="488" cy="520" r="3" fill="#C4924C" fill-opacity="0.5" />
-          <circle class="beacon-pulse" cx="585" cy="285" r="12" stroke="#F3D7A4" stroke-width="1.4" />
-          <circle cx="585" cy="285" r="6" fill="#F8F7F4" stroke="#C4924C" stroke-width="2.4" />
-          <circle cx="718" cy="138" r="3.5" fill="#F3D7A4" fill-opacity="0.72" />
-
-          <g fill="rgba(248, 247, 244, 0.22)" font-family="var(--font-mono)" font-size="10.5">
-            <text x="128" y="698">25°N 121°E</text>
-            <text x="602" y="294">35°N 139°E</text>
+          <g stroke="rgba(196, 146, 76, 0.24)" stroke-width="1">
+            <path d="M 155 180 H 165 M 160 175 V 185" />
+            <path d="M 475 360 H 485 M 480 355 V 365" />
+            <path d="M 315 540 H 325 M 320 535 V 545" />
+            <path d="M 635 720 H 645 M 640 715 V 725" />
           </g>
         </svg>
 
@@ -152,24 +72,17 @@ import { readInputValue } from '../../core/utils/form-events.utils';
             }
           </div>
 
-          <div class="visual-copy">
-            <h2 class="hero-headline font-display">{{ 'login.heroHeadline' | t }}</h2>
-            <p class="hero-tagline">{{ 'app.tagline' | t }}</p>
+          <div class="visual-main">
+            <div class="visual-copy">
+              <h2 class="hero-headline font-display">{{ 'login.heroHeadline' | t }}</h2>
+              <p class="hero-tagline">{{ 'app.tagline' | t }}</p>
+            </div>
 
-            <ul class="editorial-features">
-              <li>
-                <span class="ms-icon sm feat-ico" aria-hidden="true">route</span>
-                <span>{{ 'login.featureMap' | t }}</span>
-              </li>
-              <li>
-                <span class="ms-icon sm feat-ico" aria-hidden="true">confirmation_number</span>
-                <span>{{ 'login.featureBrief' | t }}</span>
-              </li>
-              <li>
-                <span class="ms-icon sm feat-ico" aria-hidden="true">offline_pin</span>
-                <span>{{ 'login.featureOffline' | t }}</span>
-              </li>
-            </ul>
+            <app-login-artifact-showcase [locale]="i18n.locale()" />
+          </div>
+
+          <div class="editorial-index font-mono">
+            ITINERARY · ROUTE MAP · BRIEF · LOGBOOK
           </div>
         </div>
       </section>
@@ -334,8 +247,8 @@ import { readInputValue } from '../../core/utils/form-events.utils';
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      gap: var(--space-5);
-      padding: var(--space-5);
+      gap: var(--space-3);
+      padding: var(--space-4);
       color: var(--color-text-on-primary);
     }
     .brand-lockup {
@@ -363,65 +276,28 @@ import { readInputValue } from '../../core/utils/form-events.utils';
       font-weight: 600;
       letter-spacing: 0.08em;
     }
+    .visual-main {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
     .hero-headline {
-      margin: 0 0 8px;
-      font-size: 1.48rem;
+      margin: 0 0 4px;
+      font-size: 1.4rem;
       font-weight: 500;
-      line-height: 1.26;
+      line-height: 1.24;
       color: var(--color-text-on-primary);
     }
     .hero-tagline {
       margin: 0;
-      font-size: 0.88rem;
+      font-size: 0.84rem;
       color: rgba(248, 247, 244, 0.78);
     }
-    .editorial-features {
+    .editorial-index {
       display: none;
-      flex-direction: column;
-      margin: 26px 0 0;
-      padding: 0;
-      list-style: none;
-      max-width: 380px;
-      border-top: 1px solid rgba(248, 247, 244, 0.14);
-    }
-    .editorial-features li {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 0;
-      border-bottom: 1px solid rgba(248, 247, 244, 0.14);
-      font-size: 0.84rem;
-      font-weight: 500;
-      color: rgba(248, 247, 244, 0.88);
-    }
-    .feat-ico {
-      color: var(--color-accent);
-      flex-shrink: 0;
-    }
-    .beacon-pulse {
-      transform-box: fill-box;
-      transform-origin: center;
-      animation: beacon-pulse 3.6s ease-out infinite;
-    }
-    @keyframes beacon-pulse {
-      0% {
-        opacity: 0.55;
-        transform: scale(0.82);
-      }
-      70% {
-        opacity: 0;
-        transform: scale(2.15);
-      }
-      100% {
-        opacity: 0;
-        transform: scale(2.15);
-      }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .beacon-pulse {
-        animation: none;
-        opacity: 0.28;
-      }
+      font-size: 0.68rem;
+      letter-spacing: 0.14em;
+      color: rgba(248, 247, 244, 0.44);
     }
     .form-pane {
       display: flex;
@@ -442,7 +318,7 @@ import { readInputValue } from '../../core/utils/form-events.utils';
       gap: 5px;
       padding: 6px 12px;
       border: 1px solid var(--color-border);
-      border-radius: var(--radius-pill);
+      border-radius: var(--radius-sm);
       background: var(--color-surface);
       color: var(--color-primary);
       font: inherit;
@@ -537,7 +413,7 @@ import { readInputValue } from '../../core/utils/form-events.utils';
       gap: 8px;
       padding: 11px 18px;
       border: none;
-      border-radius: var(--radius-pill);
+      border-radius: var(--radius-sm);
       background: var(--color-primary);
       color: var(--color-text-on-primary);
       font: inherit;
@@ -574,7 +450,7 @@ import { readInputValue } from '../../core/utils/form-events.utils';
       gap: 10px;
       padding: 10px 18px;
       border: 1px solid var(--color-border);
-      border-radius: var(--radius-pill);
+      border-radius: var(--radius-sm);
       background: #ffffff;
       color: var(--color-primary);
       font: inherit;
@@ -629,13 +505,21 @@ import { readInputValue } from '../../core/utils/form-events.utils';
         min-height: 100dvh;
       }
       .visual-overlay {
+        gap: var(--space-5);
         padding: var(--space-6) 44px;
       }
-      .hero-headline {
-        font-size: 2.15rem;
+      .visual-main {
+        gap: 24px;
       }
-      .editorial-features {
-        display: flex;
+      .hero-headline {
+        margin: 0 0 8px;
+        font-size: 2.05rem;
+      }
+      .hero-tagline {
+        font-size: 0.88rem;
+      }
+      .editorial-index {
+        display: block;
       }
     }
     .invite-banner {
@@ -660,6 +544,7 @@ export class LoginPageComponent {
 
   protected readonly appVersion = APP_VERSION;
   protected readonly isBeta = IS_BETA;
+
   protected readonly authMode = signal<'signin' | 'signup'>('signin');
   protected readonly signingIn = signal(false);
   protected readonly error = signal<string | null>(null);

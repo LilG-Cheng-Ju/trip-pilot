@@ -232,7 +232,7 @@ export interface MoveItemConfirmEvent {
     }
     .current-badge {
       padding: 2px 8px;
-      border-radius: var(--radius-pill);
+      border-radius: var(--radius-xs);
       background: var(--color-surface-muted);
       color: var(--color-text-secondary);
       font-size: 0.72rem;
@@ -254,7 +254,7 @@ export interface MoveItemConfirmEvent {
       gap: 4px;
       padding: 5px 10px;
       border: 1px solid var(--color-border);
-      border-radius: var(--radius-pill);
+      border-radius: var(--radius-sm);
       background: var(--color-bg);
       color: var(--color-text-primary);
       font: inherit;

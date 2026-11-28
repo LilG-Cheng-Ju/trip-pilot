@@ -72,6 +72,19 @@ function makeStats(year: number | null = null, scope: StatsScope = 'all'): Trave
     total_spend_home: '68500',
     avg_spend_per_day: '3806',
     spend_by_category: { FLIGHT: '28500', FOOD: '40000' },
+    flight_routes: [
+      {
+        origin_iata: 'TPE',
+        dest_iata: 'KIX',
+        origin_country_code: 'TW',
+        dest_country_code: 'JP',
+        origin_lat: 25.0777,
+        origin_lng: 121.233,
+        dest_lat: 34.4273,
+        dest_lng: 135.244,
+        count: 2,
+      },
+    ],
     trips: [
       {
         id: 'trip-1',
@@ -158,6 +171,77 @@ describe('StatsPageComponent', () => {
       'TWD 42,000',
     );
     expect(firstTrip?.querySelector('.chevron')).toBeNull();
+
+    expect(host.querySelectorAll('.hero-geo-arc').length).toBe(1);
+    expect(host.querySelector('.hero-ruler')).toBeNull();
+    const geoLabels = Array.from(host.querySelectorAll('.hero-geo-label')).map((el) =>
+      el.textContent?.trim(),
+    );
+    expect(geoLabels).toContain('TPE');
+    expect(geoLabels).toContain('KIX');
+  });
+
+  it('draws only real flight routes without fabricating arcs for overland countries', async () => {
+    getStatsSpy.mockResolvedValueOnce({
+      ...makeStats(2026, 'international'),
+      countries_visited: ['AT', 'CZ', 'TW'],
+      country_visit_counts: { CZ: 1, AT: 1, TW: 1 },
+      flight_routes: [
+        {
+          origin_iata: 'TPE',
+          dest_iata: 'PRG',
+          origin_country_code: 'TW',
+          dest_country_code: 'CZ',
+          origin_lat: 25.0777,
+          origin_lng: 121.233,
+          dest_lat: 50.1008,
+          dest_lng: 14.26,
+          count: 2,
+        },
+        {
+          origin_iata: 'TPE',
+          dest_iata: 'KIX',
+          origin_country_code: 'TW',
+          dest_country_code: 'JP',
+          origin_lat: 25.0777,
+          origin_lng: 121.233,
+          dest_lat: 34.4273,
+          dest_lng: 135.244,
+          count: 1,
+        },
+      ],
+    });
+
+    const fixture = TestBed.createComponent(StatsPageComponent);
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelectorAll('.hero-geo-land path').length).toBeGreaterThan(0);
+    expect(host.querySelectorAll('.hero-geo-arc').length).toBe(2);
+
+    const labels = Array.from(host.querySelectorAll<SVGTextElement>('.hero-geo-label')).map(
+      (el) => ({
+        code: el.textContent?.trim(),
+        y: Number(el.getAttribute('y')),
+      }),
+    );
+    expect(labels.map((l) => l.code)).toEqual(expect.arrayContaining(['TPE', 'PRG', 'KIX']));
+    expect(labels.map((l) => l.code)).not.toContain('AT');
+
+    // TPE home label must sit below the home dot (away from northern arcs).
+    const homeCircle = host.querySelector<SVGCircleElement>('.hero-geo-home');
+    const homeCy = Number(homeCircle?.getAttribute('cy'));
+    const tpeLabel = labels.find((l) => l.code === 'TPE');
+    expect(tpeLabel!.y).toBeGreaterThan(homeCy);
+
+    // Eurasia routes must fill over half of the 420-unit panoramic viewBox instead of squeezing center.
+    const xs = Array.from(
+      host.querySelectorAll<SVGCircleElement>('.hero-geo-home, .hero-geo-node'),
+    ).map((el) => Number(el.getAttribute('cx')));
+    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(210);
   });
 
   it('adapts Domestic scope to ground-first total distance, longest trip, and 12-month cadence', async () => {
@@ -190,5 +274,8 @@ describe('StatsPageComponent', () => {
     const domTrip = host.querySelector('.trip-row');
     expect(domTrip?.querySelector('.scope-tag')).toBeNull();
     expect(domTrip?.querySelector('.trip-loc')?.textContent?.trim()).toBe('Taiwan');
+
+    expect(host.querySelectorAll('.hero-geo-arc').length).toBe(0);
+    expect(host.querySelector('.hero-ruler')).not.toBeNull();
   });
 });

@@ -179,14 +179,14 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
       .workspace-tabs {
         display: grid;
         gap: 4px;
-        padding: 4px;
-        border-radius: var(--radius-md);
+        padding: 3px;
+        border-radius: var(--radius-sm);
       }
       .ws-tab {
         gap: 6px;
         height: 34px;
         padding: 0 10px;
-        border-radius: var(--radius-sm);
+        border-radius: var(--radius-xs);
         font-size: 0.82rem;
       }
     }

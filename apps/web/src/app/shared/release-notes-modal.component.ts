@@ -83,7 +83,7 @@ import { AppModalComponent } from './modal.component';
       color: var(--color-primary);
       background: var(--color-primary-tint);
       padding: 2px 8px;
-      border-radius: var(--radius-pill);
+      border-radius: var(--radius-xs);
     }
 
     .latest-tag {
@@ -93,7 +93,7 @@ import { AppModalComponent } from './modal.component';
       color: var(--color-accent-ink);
       background: var(--color-accent-soft);
       padding: 2px 7px;
-      border-radius: var(--radius-pill);
+      border-radius: var(--radius-xs);
     }
 
     .release-date {

@@ -225,7 +225,7 @@
   font-weight: 600;
   color: var(--color-primary);
   padding: 2px 7px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-xs);
   background: var(--color-primary-tint);
 }
 

@@ -350,7 +350,7 @@ import { ExpenseStore } from '../../state/expense.store';
     .cat-chip {
       padding: 5px 11px;
       border: 1px solid var(--color-border);
-      border-radius: var(--radius-pill);
+      border-radius: var(--radius-sm);
       background: var(--color-bg);
       color: var(--color-text-secondary);
       font: inherit;

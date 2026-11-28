@@ -588,7 +588,7 @@ interface PendingAdminAction {
       font-size: 0.68rem;
       font-weight: 700;
       padding: 2px 7px;
-      border-radius: var(--radius-pill);
+      border-radius: var(--radius-xs);
       background: var(--color-surface-muted);
       color: var(--color-text-secondary);
     }

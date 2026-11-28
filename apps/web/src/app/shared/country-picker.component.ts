@@ -172,7 +172,7 @@ import {
       align-items: center;
       gap: 4px;
       padding: 3px 9px;
-      border-radius: var(--radius-pill);
+      border-radius: var(--radius-xs);
       background: var(--color-primary);
       color: var(--color-text-on-primary);
       font-size: 0.78rem;

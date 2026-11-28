@@ -35,47 +35,6 @@
       <!-- Unified Editorial Logbook Spread -->
       <section class="logbook-ledger">
         <article class="logbook-hero">
-          <!-- Subtle data-driven route arc echoing aviation logbook telemetry -->
-          <svg
-            class="hero-carto"
-            viewBox="0 0 420 220"
-            preserveAspectRatio="xMaxYMid slice"
-            fill="none"
-            aria-hidden="true"
-          >
-            @if (heroRoute().hasRoute) {
-              <path
-                d="M 175 162 C 235 112, 305 88, 378 66"
-                stroke="#C4924C"
-                stroke-width="1.6"
-                stroke-dasharray="4 5"
-                stroke-opacity="0.46"
-                stroke-linecap="round"
-              />
-            }
-            @for (pt of heroRoute().waypoints; track $index) {
-              @if (pt.isEnd) {
-                <circle
-                  [attr.cx]="pt.x"
-                  [attr.cy]="pt.y"
-                  r="4.5"
-                  fill="#162136"
-                  stroke="#C4924C"
-                  stroke-width="1.8"
-                  stroke-opacity="0.78"
-                />
-              } @else {
-                <circle
-                  [attr.cx]="pt.x"
-                  [attr.cy]="pt.y"
-                  r="3.2"
-                  fill="#C4924C"
-                  [attr.fill-opacity]="heroRoute().hasRoute ? 0.65 : 0.35"
-                />
-              }
-            }
-          </svg>
-
           <div class="hero-top">
             <span class="hero-title">{{ 'stats.totalDistance' | t }}</span>
             <span class="hero-stamp font-mono tabular-nums">{{ periodStamp() }}</span>
@@ -84,6 +43,8 @@
           <strong class="kpi-value hero-value tabular-nums">
             {{ formatMoney(animatedTotalDistanceKm()) }} <span class="hero-unit">km</span>
           </strong>
+
+          <app-stats-hero-map class="hero-map-slot" [stats]="s" />
 
           <div class="hero-modes">
             <div class="distance-bar" aria-hidden="true">

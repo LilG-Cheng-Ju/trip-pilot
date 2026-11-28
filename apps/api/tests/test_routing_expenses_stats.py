@@ -181,6 +181,15 @@ async def test_ground_routing_cache_expenses_and_annual_stats(
     assert stats["avg_spend_per_day"] == "537.50"
     assert len(stats["trips"]) == 2
     assert 2026 in stats["available_years"]
+    assert len(stats["flight_routes"]) == 1
+    route = stats["flight_routes"][0]
+    assert route["origin_iata"] == "TSA"
+    assert route["dest_iata"] == "HND"
+    assert route["origin_country_code"] == "TW"
+    assert route["dest_country_code"] == "JP"
+    assert route["count"] == 1
+    assert isinstance(route["origin_lat"], float)
+    assert isinstance(route["dest_lng"], float)
 
     # Verify scope filtering cleanly splits domestic vs international metrics.
     intl_stats = (
@@ -202,6 +211,56 @@ async def test_ground_routing_cache_expenses_and_annual_stats(
     assert dom_stats["domestic_trips"] == 1
     assert dom_stats["international_trips"] == 0
     assert dom_stats["total_spend_home"] == "0.00"
+    assert dom_stats["flight_routes"] == []
+
+
+@pytest.mark.asyncio
+async def test_stats_flight_routes_aggregate_round_trip_and_ignore_non_flown_countries(
+    api_client: AsyncClient, dev_headers: dict[str, str]
+) -> None:
+    trip = (
+        await api_client.post(
+            "/api/v1/trips",
+            headers=dev_headers,
+            json={
+                "title": "Czechia & Austria (Prague In/Out)",
+                "country_codes": ["CZ", "AT"],
+                "start_date": "2026-05-15",
+                "end_date": "2026-05-16",
+            },
+        )
+    ).json()
+    opt_day1 = trip["days"][0]["active_option_id"]
+    opt_day2 = trip["days"][1]["active_option_id"]
+
+    await api_client.post(
+        f"/api/v1/options/{opt_day1}/items",
+        headers=dev_headers,
+        json={
+            "type": "FLIGHT",
+            "title": "CI067 TPE -> PRG",
+            "details": {"origin_iata": "TPE", "dest_iata": "PRG"},
+        },
+    )
+    await api_client.post(
+        f"/api/v1/options/{opt_day2}/items",
+        headers=dev_headers,
+        json={
+            "type": "FLIGHT",
+            "title": "CI068 PRG -> TPE",
+            "details": {"origin_iata": "PRG", "dest_iata": "TPE"},
+        },
+    )
+
+    stats = (
+        await api_client.get("/api/v1/stats?year=2026", headers=dev_headers)
+    ).json()
+    assert stats["countries_visited"] == ["AT", "CZ"]
+    assert len(stats["flight_routes"]) == 1
+    route = stats["flight_routes"][0]
+    assert route["origin_iata"] == "TPE"
+    assert route["dest_iata"] == "PRG"
+    assert route["count"] == 2
 
 
 @pytest.mark.asyncio

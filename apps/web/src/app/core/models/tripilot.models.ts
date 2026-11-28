@@ -229,6 +229,18 @@ export interface TripStatSummary {
   spend_home: string;
 }
 
+export interface FlightRouteStat {
+  origin_iata: string;
+  dest_iata: string;
+  origin_country_code: string;
+  dest_country_code: string;
+  origin_lat: number;
+  origin_lng: number;
+  dest_lat: number;
+  dest_lng: number;
+  count: number;
+}
+
 export interface TravelStats {
   year: number | null;
   scope: StatsScope;
@@ -248,6 +260,7 @@ export interface TravelStats {
   avg_spend_per_day: string;
   spend_by_category: Record<string, string>;
   trips: TripStatSummary[];
+  flight_routes?: FlightRouteStat[];
 }
 
 export interface AirportEntry {

@@ -60,7 +60,11 @@ All visual tokens live in [`apps/web/src/styles/tokens.css`](apps/web/src/styles
 
 ## 3. Geometry, Elevation & Chrome
 
-- **Radii**: `--radius-sm: 7px`, `--radius-md: 12px`, `--radius-lg: 16px`, `--radius-pill: 9999px`
+- **Unified Radii Grammar**: `--radius-xs: 5px`, `--radius-sm: 7px`, `--radius-md: 12px`, `--radius-lg: 16px`, `--radius-pill: 9999px`
+  - **Containers (`--radius-md` / `--radius-lg`)**: Cards, panels, modals, dropdown menus.
+  - **Controls & Chips (`--radius-sm`)**: All rectangular buttons, segmented control tracks, form inputs, day ticks, and selectable chips.
+  - **Thumbs & Badges (`--radius-xs`)**: Active thumbs inside segmented controls and compact inline metadata badges.
+  - **Circles & Floating Map Chrome (`--radius-pill` / `50%`)**: Map pins/overlays, circular avatars/icon buttons, status dots, and progress bars.
 - **Elevation**: Crisp `1px solid var(--color-border)` + ultra-light shadow (`var(--shadow-card)`) over heavy drop shadows.
 - **Chrome**: Translucent frosted glass (`backdrop-filter: blur(14px)`) for the matte navy topbar and mobile bottom navigation.
 

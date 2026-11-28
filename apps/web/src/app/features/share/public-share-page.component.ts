@@ -363,7 +363,7 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
       flex-shrink: 0;
       padding: 2px 9px;
       border: 1px solid var(--color-border);
-      border-radius: var(--radius-pill);
+      border-radius: var(--radius-sm);
       background: var(--color-surface);
       color: var(--color-primary);
       font: inherit;
@@ -388,7 +388,7 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
       align-items: center;
       gap: 3px;
       padding: 1px 7px;
-      border-radius: var(--radius-pill);
+      border-radius: var(--radius-xs);
       background: var(--color-accent-soft);
       color: var(--color-accent-ink);
       font-size: 0.68rem;
@@ -450,32 +450,42 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
       overflow-wrap: anywhere;
     }
     .plan-pills {
-      display: inline-flex;
-      flex-wrap: wrap;
-      gap: 4px;
-      padding: 4px;
+      display: flex;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      scrollbar-width: none;
+      gap: 2px;
       margin-bottom: var(--space-3);
-      background: var(--color-surface-muted);
-      border-radius: var(--radius-pill);
+      border-bottom: 1px solid var(--color-border);
+    }
+    .plan-pills::-webkit-scrollbar {
+      display: none;
     }
     .plan-pill {
+      flex-shrink: 0;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
+      gap: 5px;
+      padding: 6px 10px;
       border: none;
-      border-radius: var(--radius-pill);
+      border-bottom: 2px solid transparent;
+      border-radius: var(--radius-xs) var(--radius-xs) 0 0;
       background: transparent;
       color: var(--color-text-secondary);
       font: inherit;
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       font-weight: 600;
+      white-space: nowrap;
       cursor: pointer;
+      margin-bottom: -1px;
+      transition: color 140ms ease, border-color 140ms ease;
+    }
+    .plan-pill:hover:not(.selected) {
+      color: var(--color-primary);
     }
     .plan-pill.selected {
-      background: var(--color-surface);
       color: var(--color-primary);
-      box-shadow: var(--shadow-card);
+      border-bottom-color: var(--color-accent);
     }
     .active-dot {
       width: 7px;
@@ -508,20 +518,25 @@ import { MobileMapSheetComponent } from '../itinerary/mobile-map-sheet.component
       display: inline-flex;
       align-items: center;
       gap: 5px;
-      padding: 4px 10px;
-      border: 1px solid var(--color-border);
+      padding: 4px 9px;
+      border: 1px solid transparent;
       border-radius: var(--radius-sm);
-      background: var(--color-surface);
+      background: var(--color-surface-alt);
       color: var(--color-text-secondary);
       font: inherit;
       font-size: 0.75rem;
       font-weight: 600;
       cursor: pointer;
+      transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+    }
+    .choice-pill:hover:not(.active) {
+      background: var(--color-surface-muted);
+      color: var(--color-primary);
     }
     .choice-pill.active {
-      border-color: var(--color-primary);
-      background: var(--color-primary);
-      color: var(--color-text-on-primary);
+      border-color: var(--color-accent-border);
+      background: var(--color-accent-soft);
+      color: var(--color-accent-ink);
     }
     .choice-dot {
       width: 6px;

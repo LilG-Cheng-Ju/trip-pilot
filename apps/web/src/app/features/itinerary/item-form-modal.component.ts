@@ -369,7 +369,7 @@ const ADDED_BANNER_DURATION_MS = 4000;
     .type-switch-btn {
       padding: 3px 9px;
       border: 1px solid var(--color-border);
-      border-radius: var(--radius-pill);
+      border-radius: var(--radius-sm);
       background: var(--color-surface);
       color: var(--color-text-secondary);
       font: inherit;
@@ -423,7 +423,7 @@ const ADDED_BANNER_DURATION_MS = 4000;
       gap: 4px;
       padding: 7px 12px;
       border: 1px solid var(--color-border);
-      border-radius: var(--radius-pill);
+      border-radius: var(--radius-sm);
       background: var(--color-surface);
       color: var(--color-primary);
       font: inherit;

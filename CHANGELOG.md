@@ -2,6 +2,13 @@
 
 <!-- Auto-generated from releases.json. Run `node scripts/sync-releases.mjs` after editing releases.json. -->
 
+## v0.9.19-beta (2026-11-29) — 真實航線地圖、介面減噪與登入預覽
+*Real Flight Map & Visual Polish*
+
+- 足跡頁升級為雙欄寬幅版面，依真實航班繪製單一世界地圖航線
+- 登入頁新增多國行程預覽卡，每次開啟皆隨機輪播不同目的地
+- 統一全站按鈕與標籤圓角並減少邊框雜訊，切換分頁版面更穩定
+
 ## v0.9.18-beta (2026-11-28) — 介面視覺與字型載入優化
 *Visual Polish & Faster Font Loads*
 

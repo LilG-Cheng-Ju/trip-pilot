@@ -1,6 +1,7 @@
 import {
   COMMON_CURRENCIES,
   findCountry,
+  getCountryCenter,
   resolveCountryMapCenter,
   SUPPORTED_COUNTRIES,
   SUPPORTED_CURRENCIES,
@@ -51,5 +52,7 @@ describe('travel-options', () => {
     expect(resolveCountryMapCenter(['FR'], 'TW')).toEqual([2.3522, 48.8566]);
     expect(resolveCountryMapCenter([], 'KR')).toEqual([126.978, 37.5665]);
     expect(resolveCountryMapCenter(['ZZ'], 'TW')).toEqual([121.5654, 25.033]);
+    expect(getCountryCenter('tw')).toEqual([121.5654, 25.033]);
+    expect(getCountryCenter('ZZ')).toBeNull();
   });
 });

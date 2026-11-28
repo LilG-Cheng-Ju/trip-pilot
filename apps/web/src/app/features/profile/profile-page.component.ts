@@ -336,7 +336,7 @@ import { AuthStore } from '../../state/auth.store';
     .pill-btn {
       padding: 7px 12px;
       border: 1px solid var(--color-border);
-      border-radius: var(--radius-pill);
+      border-radius: var(--radius-sm);
       background: var(--color-bg);
       color: var(--color-primary);
       font: inherit;
@@ -462,7 +462,7 @@ import { AuthStore } from '../../state/auth.store';
     }
     .token-count {
       padding: 1px 7px;
-      border-radius: var(--radius-pill);
+      border-radius: var(--radius-xs);
       background: var(--color-accent-soft);
       border: 1px solid var(--color-accent-border);
       color: var(--color-accent-ink);
