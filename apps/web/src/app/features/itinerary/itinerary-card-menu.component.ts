@@ -138,6 +138,7 @@ export type CardMenuVariant = 'standard' | 'dark' | 'connector';
       color: rgba(248, 250, 252, 0.82);
     }
     .icon-btn--dark:hover:not(:disabled),
+    .icon-btn--dark:active:not(:disabled),
     .icon-btn--dark:focus-visible:not(:disabled) {
       background: rgba(255, 255, 255, 0.14);
       color: var(--color-text-on-primary);

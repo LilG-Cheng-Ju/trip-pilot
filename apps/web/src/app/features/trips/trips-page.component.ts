@@ -343,6 +343,7 @@ import { TripFormModalComponent, TripFormSubmitEvent } from './trip-form-modal.c
       box-shadow: var(--shadow-card);
       cursor: pointer;
       transition: border-color 140ms ease;
+      -webkit-tap-highlight-color: transparent;
     }
     .trip-card:hover {
       border-color: var(--color-border-strong);

@@ -166,6 +166,7 @@
 }
 
 .icon-btn:hover:not(:disabled),
+.icon-btn:active:not(:disabled),
 .icon-btn:focus-visible:not(:disabled) {
   background: rgba(20, 24, 31, 0.06);
   color: var(--color-primary);
@@ -186,6 +187,7 @@
 }
 
 .icon-btn--danger:hover:not(:disabled),
+.icon-btn--danger:active:not(:disabled),
 .icon-btn--danger:focus-visible:not(:disabled) {
   background: var(--color-alert-soft);
   color: var(--color-alert);

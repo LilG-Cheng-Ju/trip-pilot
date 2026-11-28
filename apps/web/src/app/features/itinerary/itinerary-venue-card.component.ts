@@ -137,6 +137,7 @@ import { ItineraryCardMenuComponent } from './itinerary-card-menu.component';
       box-shadow: var(--shadow-card);
       transition: border-color 140ms ease, transform 140ms ease;
       cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
     }
     .card.selected {
       outline: 2px solid var(--color-accent);
@@ -323,6 +324,10 @@ import { ItineraryCardMenuComponent } from './itinerary-card-menu.component';
         flex-direction: column;
         align-items: flex-start;
         gap: 1px;
+        line-height: 1.2;
+      }
+      .pin-badge + .meta-text:has(.time-text) {
+        transform: translateY(-1.5px);
       }
       .meta-sep {
         display: none;

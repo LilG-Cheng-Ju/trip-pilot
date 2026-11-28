@@ -88,6 +88,7 @@ import { ItineraryCardMenuComponent } from './itinerary-card-menu.component';
       box-shadow: var(--shadow-card);
       transition: border-color 140ms ease, transform 140ms ease;
       cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
     }
     .card.selected {
       outline: 2px solid var(--color-accent);
@@ -132,6 +133,7 @@ import { ItineraryCardMenuComponent } from './itinerary-card-menu.component';
       color: rgba(248, 250, 252, 0.82);
     }
     .icon-btn--dark:hover:not(:disabled),
+    .icon-btn--dark:active:not(:disabled),
     .icon-btn--dark:focus-visible:not(:disabled) {
       background: rgba(255, 255, 255, 0.14);
       color: var(--color-text-on-primary);
