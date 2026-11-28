@@ -41,6 +41,8 @@ import { ItineraryCardMenuComponent } from './itinerary-card-menu.component';
             </button>
             <app-itinerary-card-menu
               variant="dark"
+              [showMoveToDay]="showMoveToDay()"
+              (moveToDay)="moveToDay.emit(item())"
               (edited)="edited.emit(item())"
               (deleted)="deleted.emit(item().id)"
             />
@@ -189,11 +191,13 @@ export class ItineraryFlightCardComponent {
   readonly readOnly = input(false);
   readonly canMoveUp = input(true);
   readonly canMoveDown = input(true);
+  readonly showMoveToDay = input(false);
   readonly expenseSummary = input<ItemExpenseSummary | null>(null);
 
   readonly cardClicked = output<string>();
   readonly moveUp = output<ItineraryItem>();
   readonly moveDown = output<ItineraryItem>();
+  readonly moveToDay = output<ItineraryItem>();
   readonly logExpense = output<ItineraryItem>();
   readonly edited = output<ItineraryItem>();
   readonly deleted = output<string>();

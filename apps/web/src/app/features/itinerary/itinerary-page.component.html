@@ -306,10 +306,12 @@
                       [selected]="store.selectedItemId() === slot.activeItem.id"
                       [canMoveUp]="!first"
                       [canMoveDown]="!last"
+                      [showMoveToDay]="canMoveToAnotherOption()"
                       [expenseSummary]="expenseStore.expensesByItemId()[slot.activeItem.id] ?? null"
                       (cardClicked)="store.selectItem($event)"
                       (moveUp)="store.moveItem($event, -1)"
                       (moveDown)="store.moveItem($event, 1)"
+                      (moveToDay)="openMoveItemModal($event)"
                       (addAlternative)="openAlternativeModal($event)"
                       (logExpense)="openQuickExpenseModal($event)"
                       (edited)="openEditItemModal($event)"
@@ -489,6 +491,17 @@
     [busy]="deletingItem()"
     (confirmed)="executeDeleteItem()"
     (cancelled)="pendingDeleteItem.set(null)"
+  />
+
+  <!-- Move Itinerary Item to Another Day / Plan -->
+  <app-move-item-modal
+    [open]="movingItemTarget() !== null"
+    [item]="movingItemTarget()"
+    [days]="trip.days"
+    [currentOptionId]="store.selectedOption()?.id ?? ''"
+    [moving]="movingItem()"
+    (closed)="movingItemTarget.set(null)"
+    (confirmed)="executeMoveItem($event)"
   />
 
   <!-- Read-Only Share Settings & Revocation -->

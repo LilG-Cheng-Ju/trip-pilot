@@ -77,6 +77,17 @@ export type CardMenuVariant = 'standard' | 'dark' | 'connector';
               <span>{{ 'itinerary.choice.addAlt' | t }}</span>
             </button>
           }
+          @if (showMoveToDay()) {
+            <button
+              type="button"
+              class="action-menu-item"
+              role="menuitem"
+              (click)="onMoveToDay($event)"
+            >
+              <span class="ms-icon sm" aria-hidden="true">drive_file_move</span>
+              <span>{{ 'item.moveToDay' | t }}</span>
+            </button>
+          }
           <div class="action-menu-divider"></div>
           <button
             type="button"
@@ -178,11 +189,13 @@ export class ItineraryCardMenuComponent {
   readonly canMoveUp = input(true);
   readonly canMoveDown = input(true);
   readonly showAddAlternative = input(false);
+  readonly showMoveToDay = input(false);
 
   readonly moveUp = output<void>();
   readonly moveDown = output<void>();
   readonly edited = output<void>();
   readonly addAlternative = output<void>();
+  readonly moveToDay = output<void>();
   readonly deleted = output<void>();
 
   protected readonly menuOpen = signal(false);
@@ -220,6 +233,12 @@ export class ItineraryCardMenuComponent {
     event.stopPropagation();
     this.menuOpen.set(false);
     this.addAlternative.emit();
+  }
+
+  protected onMoveToDay(event: Event): void {
+    event.stopPropagation();
+    this.menuOpen.set(false);
+    this.moveToDay.emit();
   }
 
   protected onDelete(event: Event): void {

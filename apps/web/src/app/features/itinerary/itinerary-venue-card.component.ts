@@ -78,8 +78,10 @@ import { ItineraryCardMenuComponent } from './itinerary-card-menu.component';
             <app-itinerary-card-menu
               variant="standard"
               [showAddAlternative]="true"
+              [showMoveToDay]="showMoveToDay()"
               (edited)="edited.emit(item())"
               (addAlternative)="addAlternative.emit(item())"
+              (moveToDay)="moveToDay.emit(item())"
               (deleted)="deleted.emit(item().id)"
             />
           }
@@ -310,11 +312,13 @@ export class ItineraryVenueCardComponent {
   readonly readOnly = input(false);
   readonly canMoveUp = input(true);
   readonly canMoveDown = input(true);
+  readonly showMoveToDay = input(false);
   readonly expenseSummary = input<ItemExpenseSummary | null>(null);
 
   readonly cardClicked = output<string>();
   readonly moveUp = output<ItineraryItem>();
   readonly moveDown = output<ItineraryItem>();
+  readonly moveToDay = output<ItineraryItem>();
   readonly addAlternative = output<ItineraryItem>();
   readonly logExpense = output<ItineraryItem>();
   readonly edited = output<ItineraryItem>();

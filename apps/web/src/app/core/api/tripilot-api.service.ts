@@ -222,6 +222,19 @@ export class TripilotApiService {
     );
   }
 
+  moveItem(
+    itemId: string,
+    targetOptionId: string,
+    sortOrder?: number,
+  ): Promise<ItineraryItem> {
+    return firstValueFrom(
+      this.http.patch<ItineraryItem>(`${this.baseUrl}/items/${itemId}/move`, {
+        target_option_id: targetOptionId,
+        ...(sortOrder !== undefined ? { sort_order: sortOrder } : {}),
+      }),
+    );
+  }
+
   deleteItem(itemId: string): Promise<void> {
     return firstValueFrom(this.http.delete<void>(`${this.baseUrl}/items/${itemId}`));
   }

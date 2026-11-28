@@ -22,8 +22,10 @@ import { ItineraryVenueCardComponent } from './itinerary-venue-card.component';
         [readOnly]="readOnly()"
         [canMoveUp]="canMoveUp()"
         [canMoveDown]="canMoveDown()"
+        [showMoveToDay]="showMoveToDay()"
         (moveUp)="moveUp.emit($event)"
         (moveDown)="moveDown.emit($event)"
+        (moveToDay)="moveToDay.emit($event)"
         (logExpense)="logExpense.emit($event)"
         (edited)="edited.emit($event)"
         (deleted)="deleted.emit($event)"
@@ -36,10 +38,12 @@ import { ItineraryVenueCardComponent } from './itinerary-venue-card.component';
         [readOnly]="readOnly()"
         [canMoveUp]="canMoveUp()"
         [canMoveDown]="canMoveDown()"
+        [showMoveToDay]="showMoveToDay()"
         [expenseSummary]="expenseSummary()"
         (cardClicked)="cardClicked.emit($event)"
         (moveUp)="moveUp.emit($event)"
         (moveDown)="moveDown.emit($event)"
+        (moveToDay)="moveToDay.emit($event)"
         (logExpense)="logExpense.emit($event)"
         (edited)="edited.emit($event)"
         (deleted)="deleted.emit($event)"
@@ -53,10 +57,12 @@ import { ItineraryVenueCardComponent } from './itinerary-venue-card.component';
         [readOnly]="readOnly()"
         [canMoveUp]="canMoveUp()"
         [canMoveDown]="canMoveDown()"
+        [showMoveToDay]="showMoveToDay()"
         [expenseSummary]="expenseSummary()"
         (cardClicked)="cardClicked.emit($event)"
         (moveUp)="moveUp.emit($event)"
         (moveDown)="moveDown.emit($event)"
+        (moveToDay)="moveToDay.emit($event)"
         (addAlternative)="addAlternative.emit($event)"
         (logExpense)="logExpense.emit($event)"
         (edited)="edited.emit($event)"
@@ -73,11 +79,13 @@ export class ItineraryCardComponent {
   readonly readOnly = input(false);
   readonly canMoveUp = input(true);
   readonly canMoveDown = input(true);
+  readonly showMoveToDay = input(false);
   readonly expenseSummary = input<ItemExpenseSummary | null>(null);
 
   readonly cardClicked = output<string>();
   readonly moveUp = output<ItineraryItem>();
   readonly moveDown = output<ItineraryItem>();
+  readonly moveToDay = output<ItineraryItem>();
   readonly addAlternative = output<ItineraryItem>();
   readonly logExpense = output<ItineraryItem>();
   readonly edited = output<ItineraryItem>();

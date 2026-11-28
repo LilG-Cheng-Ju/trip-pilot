@@ -49,8 +49,10 @@ import { ItineraryCardMenuComponent } from './itinerary-card-menu.component';
             [showOrderActions]="true"
             [canMoveUp]="canMoveUp()"
             [canMoveDown]="canMoveDown()"
+            [showMoveToDay]="showMoveToDay()"
             (moveUp)="moveUp.emit(item())"
             (moveDown)="moveDown.emit(item())"
+            (moveToDay)="moveToDay.emit(item())"
             (edited)="edited.emit(item())"
             (deleted)="deleted.emit(item().id)"
           />
@@ -134,9 +136,11 @@ export class ItineraryTransitCardComponent {
   readonly readOnly = input(false);
   readonly canMoveUp = input(true);
   readonly canMoveDown = input(true);
+  readonly showMoveToDay = input(false);
 
   readonly moveUp = output<ItineraryItem>();
   readonly moveDown = output<ItineraryItem>();
+  readonly moveToDay = output<ItineraryItem>();
   readonly logExpense = output<ItineraryItem>();
   readonly edited = output<ItineraryItem>();
   readonly deleted = output<string>();

@@ -55,6 +55,10 @@ import { ItineraryCardComponent } from './itinerary-card.component';
 import { ItineraryMapComponent } from './itinerary-map.component';
 import { MapPin, StayMapPin } from './itinerary-map.types';
 import { MobileMapSheetComponent } from './mobile-map-sheet.component';
+import {
+  MoveItemConfirmEvent,
+  MoveItemModalComponent,
+} from './move-item-modal.component';
 import { TripShareModalComponent } from './trip-share-modal.component';
 
 /** Mobile-first itinerary timeline with Day 1..N, Plan A/B, slot choices, and map sync. */
@@ -76,6 +80,7 @@ import { TripShareModalComponent } from './trip-share-modal.component';
     ItineraryCardComponent,
     ItineraryMapComponent,
     MobileMapSheetComponent,
+    MoveItemModalComponent,
     QuickExpenseModalComponent,
     TripShareModalComponent,
   ],
@@ -108,7 +113,24 @@ export class ItineraryPageComponent implements OnInit {
   protected readonly deletingDay = signal(false);
   protected readonly pendingDeleteItem = signal<ItineraryItem | null>(null);
   protected readonly deletingItem = signal(false);
+  protected readonly movingItemTarget = signal<ItineraryItem | null>(null);
+  protected readonly movingItem = signal(false);
   protected readonly showShareModal = signal(false);
+
+  protected readonly canMoveToAnotherOption = computed(() => {
+    const trip = this.store.trip();
+    if (!trip) {
+      return false;
+    }
+    let optionCount = 0;
+    for (const day of trip.days) {
+      optionCount += day.options.length;
+      if (optionCount > 1) {
+        return true;
+      }
+    }
+    return false;
+  });
   protected readonly mobileHeaderCollapsed = signal(false);
   protected readonly editingDayThemeId = signal<string | null>(null);
   protected readonly readInputValue = readInputValue;
@@ -357,6 +379,29 @@ export class ItineraryPageComponent implements OnInit {
     this.editingItem.set(null);
     this.alternativeTarget.set(target);
     this.showItemModal.set(true);
+  }
+
+  protected openMoveItemModal(item: ItineraryItem): void {
+    if (this.isOfflineReadOnly() || !this.canMoveToAnotherOption()) {
+      return;
+    }
+    this.movingItemTarget.set(item);
+  }
+
+  protected async executeMoveItem(event: MoveItemConfirmEvent): Promise<void> {
+    this.movingItem.set(true);
+    try {
+      const moved = await this.store.moveItemToOption(event.itemId, event.targetOptionId);
+      if (moved) {
+        this.movingItemTarget.set(null);
+        const tripId = this.store.trip()?.id;
+        if (tripId && this.expenseStore.summary()?.trip_id === tripId) {
+          void this.expenseStore.loadExpenses(tripId);
+        }
+      }
+    } finally {
+      this.movingItem.set(false);
+    }
   }
 
   protected async handleItemSaved(event: ItemFormSubmitEvent): Promise<void> {

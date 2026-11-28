@@ -178,6 +178,66 @@ export function withItineraryItems() {
           }
         },
 
+        async moveItemToOption(itemId: string, targetOptionId: string): Promise<boolean> {
+          const trip = store.trip();
+          if (!trip) {
+            return false;
+          }
+          store._runtime.mutationSeq += 1;
+          store._runtime.recalculatedOptionIds.clear();
+
+          let sourceOptionId: string | null = null;
+          for (const day of trip.days) {
+            for (const opt of day.options) {
+              if (opt.items.some((it) => it.id === itemId)) {
+                sourceOptionId = opt.id;
+                break;
+              }
+            }
+            if (sourceOptionId) break;
+          }
+
+          try {
+            const moved = await api.moveItem(itemId, targetOptionId);
+            const nextTrip: TripDetail = {
+              ...trip,
+              days: trip.days.map((d) => ({
+                ...d,
+                options: d.options.map((opt) => {
+                  if (opt.id === sourceOptionId && opt.id === targetOptionId) {
+                    return {
+                      ...opt,
+                      items: opt.items.map((it) => (it.id === moved.id ? moved : it)),
+                    };
+                  }
+                  if (opt.id === sourceOptionId) {
+                    return {
+                      ...opt,
+                      items: removeItemWithChoicePromotion(opt.items, itemId),
+                    };
+                  }
+                  if (opt.id === targetOptionId) {
+                    return {
+                      ...opt,
+                      items: appendCreatedItem(opt.items, moved, null),
+                    };
+                  }
+                  return opt;
+                }),
+              })),
+            };
+            if (store.selectedItemId() === itemId) {
+              patchState(store, { selectedItemId: null });
+            }
+            commitTripState(store, cache, nextTrip);
+            void refreshTripSilently(store, api, cache, store._runtime, nextTrip.id);
+            return true;
+          } catch (err) {
+            recordItineraryError(store, err, 'Failed to move itinerary item');
+            return false;
+          }
+        },
+
         async deleteItem(itemId: string): Promise<void> {
           const trip = store.trip();
           if (!trip) {
