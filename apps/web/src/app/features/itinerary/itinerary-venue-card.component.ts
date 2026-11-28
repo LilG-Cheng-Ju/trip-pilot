@@ -317,17 +317,16 @@ import { ItineraryCardMenuComponent } from './itinerary-card-menu.component';
         padding: var(--space-3);
       }
       .card-head {
-        align-items: flex-start;
         gap: 6px;
+      }
+      .card-meta {
+        gap: 9px;
       }
       .meta-text {
         flex-direction: column;
         align-items: flex-start;
-        gap: 1px;
+        gap: 2px;
         line-height: 1.2;
-      }
-      .pin-badge + .meta-text:has(.time-text) {
-        transform: translateY(-1.5px);
       }
       .meta-sep {
         display: none;
