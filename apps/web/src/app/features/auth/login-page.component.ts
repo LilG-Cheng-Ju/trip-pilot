@@ -27,27 +27,110 @@ import { readInputValue } from '../../core/utils/form-events.utils';
           preserveAspectRatio="xMidYMid slice"
           fill="none"
         >
-          <!-- Subtle meridian grid -->
-          <g stroke="rgba(248, 247, 244, 0.04)" stroke-width="1">
+          <defs>
+            <radialGradient id="carto-glow" cx="585" cy="285" r="360" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#C4924C" stop-opacity="0.16" />
+              <stop offset="55%" stop-color="#C4924C" stop-opacity="0.04" />
+              <stop offset="100%" stop-color="#162136" stop-opacity="0" />
+            </radialGradient>
+            <linearGradient
+              id="route-grad"
+              x1="112"
+              y1="682"
+              x2="585"
+              y2="285"
+              gradientUnits="userSpaceOnUse"
+            >
+              <stop offset="0%" stop-color="#C4924C" stop-opacity="0.45" />
+              <stop offset="65%" stop-color="#C4924C" stop-opacity="0.88" />
+              <stop offset="100%" stop-color="#F3D7A4" stop-opacity="0.95" />
+            </linearGradient>
+          </defs>
+
+          <!-- Atmospheric warm glow behind destination -->
+          <rect width="800" height="900" fill="url(#carto-glow)" />
+
+          <!-- Meridian and latitude graticule lines -->
+          <g stroke="rgba(248, 247, 244, 0.045)" stroke-width="1">
             <line x1="160" y1="0" x2="160" y2="900" />
-            <line x1="400" y1="0" x2="400" y2="900" />
-            <line x1="640" y1="0" x2="640" y2="900" />
-            <line x1="0" y1="220" x2="800" y2="220" />
-            <line x1="0" y1="520" x2="800" y2="520" />
+            <line x1="360" y1="0" x2="360" y2="900" />
+            <line x1="560" y1="0" x2="560" y2="900" />
+            <line x1="0" y1="200" x2="800" y2="200" />
+            <line x1="0" y1="420" x2="800" y2="420" />
+            <line x1="0" y1="640" x2="800" y2="640" />
           </g>
 
-          <!-- Clean single route arc -->
+          <!-- Cartographic intersection crosshairs -->
+          <g stroke="rgba(248, 247, 244, 0.14)" stroke-width="1">
+            <path d="M 155 200 H 165 M 160 195 V 205" />
+            <path d="M 355 420 H 365 M 360 415 V 425" />
+            <path d="M 555 640 H 565 M 560 635 V 645" />
+          </g>
+
+          <!-- Organic nested topographic contours around destination -->
+          <g stroke="#C4924C" fill="none">
+            <path
+              d="M 425 270 C 425 185, 508 135, 602 152 C 692 168, 742 238, 725 322 C 708 402, 620 440, 535 415 C 455 390, 425 342, 425 270 Z"
+              stroke-opacity="0.07"
+              stroke-width="1"
+            />
+            <path
+              d="M 465 276 C 468 212, 526 172, 594 184 C 660 196, 698 248, 686 308 C 674 366, 610 396, 548 378 C 488 360, 462 325, 465 276 Z"
+              stroke-opacity="0.11"
+              stroke-width="1"
+            />
+            <path
+              d="M 505 282 C 508 238, 546 212, 588 220 C 632 228, 656 262, 648 300 C 640 338, 598 356, 558 344 C 520 332, 502 312, 505 282 Z"
+              stroke-opacity="0.15"
+              stroke-width="1.1"
+            />
+          </g>
+
+          <!-- Dashed compass range ring with cardinal ticks -->
+          <g stroke="rgba(196, 146, 76, 0.2)" stroke-width="1">
+            <circle cx="585" cy="285" r="196" stroke-dasharray="3 6" />
+            <line x1="585" y1="81" x2="585" y2="97" />
+            <line x1="585" y1="473" x2="585" y2="489" />
+            <line x1="381" y1="285" x2="397" y2="285" />
+            <line x1="773" y1="285" x2="789" y2="285" />
+          </g>
+
+          <!-- Subtle coastal spur branch + multi-leg aviation curves -->
           <path
-            d="M 118 690 C 245 485, 445 365, 678 196"
+            d="M 374 444 C 425 462, 462 486, 488 520"
             stroke="#C4924C"
-            stroke-width="1.8"
+            stroke-width="1.25"
+            stroke-dasharray="3 5"
+            stroke-opacity="0.34"
+            stroke-linecap="round"
+          />
+          <path
+            d="M 112 682 C 208 532, 378 430, 585 285"
+            stroke="url(#route-grad)"
+            stroke-width="2.1"
+            stroke-linecap="round"
+          />
+          <path
+            d="M 585 285 C 642 246, 684 196, 718 138"
+            stroke="#C4924C"
+            stroke-width="1.6"
+            stroke-dasharray="5 6"
             stroke-opacity="0.52"
             stroke-linecap="round"
           />
 
-          <!-- Route waypoints -->
-          <circle cx="118" cy="690" r="6" fill="#162136" stroke="#C4924C" stroke-width="2" />
-          <circle cx="678" cy="196" r="5" fill="#F8F7F4" stroke="#C4924C" stroke-width="2" />
+          <!-- Route waypoints & coordinates -->
+          <circle cx="112" cy="682" r="6.5" fill="#162136" stroke="#C4924C" stroke-width="2" />
+          <circle cx="374" cy="444" r="4.5" fill="#C4924C" fill-opacity="0.88" />
+          <circle cx="488" cy="520" r="3" fill="#C4924C" fill-opacity="0.5" />
+          <circle class="beacon-pulse" cx="585" cy="285" r="12" stroke="#F3D7A4" stroke-width="1.4" />
+          <circle cx="585" cy="285" r="6" fill="#F8F7F4" stroke="#C4924C" stroke-width="2.4" />
+          <circle cx="718" cy="138" r="3.5" fill="#F3D7A4" fill-opacity="0.72" />
+
+          <g fill="rgba(248, 247, 244, 0.22)" font-family="var(--font-mono)" font-size="10.5">
+            <text x="128" y="698">25°N 121°E</text>
+            <text x="602" y="294">35°N 139°E</text>
+          </g>
         </svg>
 
         <div class="visual-overlay">
@@ -67,49 +150,6 @@ import { readInputValue } from '../../core/utils/form-events.utils';
             @if (isBeta) {
               <span class="beta-chip">BETA</span>
             }
-          </div>
-
-          <div class="preview-stage">
-            <div class="preview-flight-strip">
-              <div class="flight-leg">
-                <span class="leg-iata font-display">TPE</span>
-                <span class="leg-arc">
-                  <span class="leg-line"></span>
-                  <span class="ms-icon sm leg-plane">flight</span>
-                  <span class="leg-line"></span>
-                </span>
-                <span class="leg-iata font-display">NRT</span>
-              </div>
-              <div class="flight-meta font-mono tabular-nums">
-                <span>NH852 · 09:20</span>
-                <span class="leg-km">2,130 km</span>
-              </div>
-            </div>
-
-            <div class="preview-day-card">
-              <div class="preview-day-head">
-                <span class="preview-day-title font-display">{{ 'login.previewDay' | t }}</span>
-                <span class="preview-day-km font-mono tabular-nums">14.2 km</span>
-              </div>
-              <div class="preview-stops">
-                <div class="preview-stop">
-                  <span class="stop-pin spot tabular-nums">1</span>
-                  <span class="stop-name">{{ 'login.previewStop1' | t }}</span>
-                  <span class="stop-time font-mono tabular-nums">09:30</span>
-                </div>
-                <div class="preview-stop">
-                  <span class="stop-pin food tabular-nums">2</span>
-                  <span class="stop-name">{{ 'login.previewStop2' | t }}</span>
-                  <span class="stop-chip font-mono tabular-nums">¥1,380</span>
-                  <span class="stop-time font-mono tabular-nums">12:00</span>
-                </div>
-                <div class="preview-stop">
-                  <span class="stop-pin stay tabular-nums">3</span>
-                  <span class="stop-name">{{ 'login.previewStop3' | t }}</span>
-                  <span class="stop-time font-mono tabular-nums">15:00</span>
-                </div>
-              </div>
-            </div>
           </div>
 
           <div class="visual-copy">
@@ -358,148 +398,30 @@ import { readInputValue } from '../../core/utils/form-events.utils';
       color: var(--color-accent);
       flex-shrink: 0;
     }
-    .preview-stage {
-      display: none;
-      flex-direction: column;
-      gap: 10px;
-      max-width: 390px;
-      margin: var(--space-3) 0;
+    .beacon-pulse {
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: beacon-pulse 3.6s ease-out infinite;
     }
-    .preview-flight-strip {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      padding: 12px 15px;
-      border-radius: var(--radius-md);
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(196, 146, 76, 0.34);
-      backdrop-filter: blur(8px);
+    @keyframes beacon-pulse {
+      0% {
+        opacity: 0.55;
+        transform: scale(0.82);
+      }
+      70% {
+        opacity: 0;
+        transform: scale(2.15);
+      }
+      100% {
+        opacity: 0;
+        transform: scale(2.15);
+      }
     }
-    .flight-leg {
-      display: grid;
-      grid-template-columns: auto 1fr auto;
-      align-items: center;
-      gap: 12px;
-    }
-    .leg-iata {
-      font-size: 1.25rem;
-      font-weight: 600;
-      letter-spacing: 0.04em;
-      color: var(--color-text-on-primary);
-    }
-    .leg-arc {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .leg-line {
-      flex: 1;
-      height: 1px;
-      background: rgba(196, 146, 76, 0.5);
-    }
-    .leg-plane {
-      color: var(--color-accent);
-      transform: rotate(90deg);
-    }
-    .flight-meta {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.72rem;
-      color: rgba(248, 247, 244, 0.72);
-    }
-    .leg-km {
-      color: var(--color-accent-light);
-    }
-    .preview-day-card {
-      padding: 13px 15px;
-      border-radius: var(--radius-md);
-      background: var(--color-bg);
-      color: var(--color-text-primary);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      box-shadow: 0 16px 36px rgba(10, 16, 28, 0.34);
-    }
-    .preview-day-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding-bottom: 8px;
-      margin-bottom: 9px;
-      border-bottom: 1px solid var(--color-border);
-    }
-    .preview-day-title {
-      font-size: 0.96rem;
-      font-weight: 600;
-      color: var(--color-primary);
-    }
-    .preview-day-km {
-      font-size: 0.72rem;
-      font-weight: 600;
-      color: var(--color-text-secondary);
-    }
-    .preview-stops {
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      gap: 9px;
-    }
-    .preview-stops::before {
-      content: '';
-      position: absolute;
-      left: 9px;
-      top: 10px;
-      bottom: 10px;
-      width: 1.5px;
-      background: var(--color-border);
-    }
-    .preview-stop {
-      position: relative;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 0.8125rem;
-      font-weight: 600;
-      color: var(--color-primary);
-    }
-    .stop-pin {
-      display: inline-grid;
-      place-items: center;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      font-size: 0.68rem;
-      font-weight: 700;
-      color: var(--color-text-on-primary);
-      flex-shrink: 0;
-    }
-    .stop-pin.spot {
-      background: var(--item-spot);
-    }
-    .stop-pin.food {
-      background: var(--item-food);
-    }
-    .stop-pin.stay {
-      background: var(--item-stay);
-    }
-    .stop-name {
-      flex: 1;
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .stop-chip {
-      padding: 1px 6px;
-      border-radius: var(--radius-xs);
-      border: 1px solid var(--color-border);
-      background: var(--color-surface);
-      font-size: 0.68rem;
-      font-weight: 600;
-      color: var(--color-accent-ink);
-    }
-    .stop-time {
-      font-size: 0.72rem;
-      font-weight: 500;
-      color: var(--color-text-muted);
+    @media (prefers-reduced-motion: reduce) {
+      .beacon-pulse {
+        animation: none;
+        opacity: 0.28;
+      }
     }
     .form-pane {
       display: flex;
@@ -710,10 +632,7 @@ import { readInputValue } from '../../core/utils/form-events.utils';
         padding: var(--space-6) 44px;
       }
       .hero-headline {
-        font-size: 2rem;
-      }
-      .preview-stage {
-        display: flex;
+        font-size: 2.15rem;
       }
       .editorial-features {
         display: flex;
